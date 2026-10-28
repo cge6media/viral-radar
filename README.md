@@ -1,8 +1,8 @@
 # Viral Radar
 
-**Viral-video intelligence for creators (3.0).** It answers: *which videos are people actually watching right
-now, which ones are about to break out, which formats are independent creators adopting — and what should I make
-today for a realistic return?*
+**Viral-video intelligence for creators (4.0).** It answers: *which videos are people actually watching right
+now, which ones are about to break out, which formats are independent creators adopting — what should I make
+today for a realistic return — and, as history accumulates, were the radar's predictions actually right?*
 
 Built, tested and operated entirely in the cloud: a scheduled collector runs on GitHub Actions every 30 minutes,
 the data lives in this repository, and the dashboard is a static site on GitHub Pages. No personal machine is
@@ -10,16 +10,21 @@ involved at any point.
 
 **Live dashboard:** https://cge6media.github.io/viral-radar/
 
-## What it does (3.0)
+## What it does (4.0)
 
 | Section | What you get |
 |---|---|
+| **Creator Desk** (new) | *Today's creator opportunities*: up to eight clusters classified as **repeatable format / emerging meme / viral event**, each with its real evidence videos, why it matters, how early it is (emerging · accelerating · established · resurfacing · peaking · cooling), production fit for AI/animation/characters/music in ≤2 h, plausible monetization and ONE action (create today · participate selectively · research · monitor · skip). Opening one gives a **production playbook**: three different original briefs (concept, hook, structure, duration, approach, steps, effort, publishing, revenue, uncertainty), exportable as Markdown and saveable to the journal. Deterministic templates from observed facts — no live AI. |
+| **Scorecard** (new) | Forward-looking **prediction scorecard**: every collection records the Early Radar's top entries plus two simple baselines before the outcome is known, later collections evaluate them at 24h / 48h / 72h / 7d (hit floor reached, doubled with ≥100K, rate sustained, top-10 % of cohort, creator jump, format spread), with pending ≠ success, recall against observable crossings, lead time and descriptive calibration. |
+| **Alerts** (new) | New verified hits, exceptional acceleration, creator outliers, formats spreading, category momentum, older videos resurfacing — high thresholds, deduplicated, "new since your last visit", filters; optional free Discord/Telegram delivery via a secret. |
+| **Journal** (new) | Content decision journal: Watching → Selected → Producing → Published → Completed / Skipped, with the assessment frozen at save time, real platform/date/URL/views/hours/cost/revenue, comparisons (recommendation vs reality, earlier vs later, formats worth repeating), export/import backup — private to the browser, never committed. |
+| **Radar health** (new) | Freshness as a measured state (fresh / delayed / stale — never "live"), last collection and publication, measured collection success rate, unique/verified/breakout counts, quota, discovery yield per probe family and per search, rejection reasons, a failure taxonomy (collection / verification / classification / ranking / presentation) and the latest benchmark. |
 | **Discover** | The current viral landscape (verified hits, breakouts, promising waves, platforms with direct statistics), **biggest viral videos right now** (verified, last 72h), **fastest-rising breakouts**, trending categories & microtrends, **what should I create today** (evidence-backed concepts for a 30-min–2h production window), cross-platform waves. |
 | **Viral Now** | The biggest verified videos published in the last 24h / 48h / 72h / 7d / 30d, ranked on their own platform's statistics; platform filters that reflect the record's own platform; sorts: most viral, fastest rising, newest breakouts, most engaging, creator outliers. |
-| **Early Radar** | Credible abnormal momentum before a video is an established hit: measured views/hour between real observations, acceleration, creator-baseline outliers, delayed breakouts. Provisional (single-observation) entries are labelled; tiny samples never qualify. |
+| **Early Radar** | Two kinds of attention that are not yet established hits (age-appropriate hit floor: 1M views in the first day → 5M by 30 days): **early breakouts** (young, below the floor, measured abnormal rise) and **delayed breakouts** (older videos resurfacing, never ranked as new). Measured views/hour between real observations, acceleration with a noise guard, creator-baseline outliers, confidence bands; provisional entries labelled; language and kind filters. |
 | **Trends** | Format waves (independent creators adopting similar content), lifecycle compass, category activity, cross-platform map with the earliest verified evidence per platform. |
-| **Money / Studio / Watchlist** | Monetization suitability, production economics, editable revenue scenarios, investment calculator; three original concepts per opportunity with hook/structure/length/budget; production queue with actuals. |
-| **Hall of Fame** | 38 historic viral videos (2004–2023), 35 verified through the YouTube API with view counts, originals vs re-uploads marked, by era/category/platform — entirely separate from live rankings. |
+| **Money / Studio** | Monetization suitability, production economics, editable revenue scenarios, investment calculator, **production return comparison** (two ideas: time, cost, assumed views, qualified %, RPM → illustrative revenue, profit and return per hour); the 2.0 Studio concepts remain. |
+| **Hall of Fame** | 38 historic viral videos (2004–2023), 35 verified through the YouTube API with view counts, originals vs re-uploads marked, by era/category/platform — plus documented **creative lessons** (why it mattered, what made it recognisable, one-off vs repeatable, derivatives) — entirely separate from live rankings. |
 | **Diagnostics** | Source coverage per platform (direct / indirect / unavailable, verified videos, shares, freshness, quota), the discovery funnel with rejection reasons, 16 automated quality checks, how scores work. |
 
 **Every video card** shows real thumbnails, title, creator, verified metrics, age, measured-vs-average momentum,
@@ -42,8 +47,13 @@ data/       The database: append-only NDJSON history (observations + scores), la
 web/        Vite + React dashboard (hash routing → works on GitHub Pages), hand-written dark design system, SVG charts.
 .github/    collect.yml  — every 30 min + manual: collect → commit data → build → deploy Pages
             deploy.yml   — on code pushes: test → build → deploy Pages
-docs/       PROGRESS.md · RESUME.md · DATA_SOURCES.md · SCORING.md · DISCOVERY.md · BENCHMARK.md · TEST_RESULTS.md
+docs/       PROGRESS.md · RESUME.md · DATA_SOURCES.md · SCORING.md · DISCOVERY.md · BENCHMARK.md · PREDICTIONS.md · ALERTS.md
+            AUDIT_4.0.md · RECOMMENDATION_AUDIT.md · CODE_REVIEW_4.0.md · TEST_RESULTS.md
             diagnose.yml — manual: inspect videos, batch-verify ids, probe TikTok, run the discovery benchmark
+            collect-b/c/d.yml — sibling schedules calling collect.yml (GitHub honours ~1 scheduled run per workflow per hour)
+            qa.yml       — manual: real Chromium on the runner screenshots the live site at 1440/768/390 and verifies playback
+qa/         Playwright QA script + briefs export; results in data/qa/
+data/predictions/  append-only predictions, outcomes, crossings; scorecard.json
 ```
 
 **Sources** (details, status and verification in [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)):

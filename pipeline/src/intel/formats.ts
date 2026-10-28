@@ -159,7 +159,10 @@ export function classifyOpportunity(t: Trend, f: TrendFeatures): OpportunityClas
   const releaseShare = titles.length ? titles.filter((x) => RELEASE_RE.test(x)).length / titles.length : 0;
   const newsShare = titles.length ? titles.filter((x) => SPORTS_NEWS_RE.test(x)).length / titles.length : 0;
   const newsy = f.platformCategory === 'Sports' || f.platformCategory === 'News & Politics' || t.category === 'Sports' || t.category === 'News & Politics' || newsShare >= 0.4 || (f.platformCategory === 'Gaming' && releaseShare >= 0.3);
-  const strongStructure = f.signature.length >= 2 && f.titleShare >= 0.5;
+  // a structure must be visible beyond the cluster's own name: at least one shared title word that is not the name
+  const nameWords = new Set(tokenize(t.name.replace(/^#/, '')));
+  const extraSignature = f.signature.filter((w) => !nameWords.has(w));
+  const strongStructure = f.signature.length >= 2 && extraSignature.length >= 1 && f.titleShare >= 0.5;
   if (t.isNewsEvent) { type = 'event'; confidence = 80; basis.push('flagged as a news/person event'); }
   else if (f.nameShape === 'calendar') { type = 'event'; confidence = 85; basis.push('a calendar moment (one-day attention, not a structure)'); }
   else if (f.nameShape === 'fragment') { type = 'uncertain'; confidence = 75; basis.push('the cluster name is a title fragment, not a recognisable format'); }

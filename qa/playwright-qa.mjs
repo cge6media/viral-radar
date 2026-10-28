@@ -33,9 +33,10 @@ for (const [w, h, name] of widths) {
     const thumbs = await page.evaluate(() => Array.from(document.querySelectorAll('img.fg, .vthumb img.fg')).slice(0, 40).map((i) => ({ ok: i.complete && i.naturalWidth > 0 })));
     const loaded = thumbs.filter((t) => t.ok).length;
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    const overflowers = overflow ? await page.evaluate(() => { const vw = document.documentElement.clientWidth; return Array.from(document.querySelectorAll('body *')).filter((e) => e.getBoundingClientRect().right > vw + 1 && e.getBoundingClientRect().width > 0).slice(0, 6).map((e) => `${e.tagName.toLowerCase()}.${String(e.className).split(' ').slice(0, 2).join('.')}@${Math.round(e.getBoundingClientRect().right)}`); }) : [];
     const file = path.join(out, `${label}-${name}.png`);
     await page.screenshot({ path: file, fullPage: label === 'discover' || label === 'desk' ? false : false });
-    report.screenshots.push({ page: label, width: w, file: path.basename(file), h1: (h1 || '').trim().slice(0, 80), thumbsLoaded: `${loaded}/${thumbs.length}`, horizontalOverflow: overflow, loadMs: ms });
+    report.screenshots.push({ page: label, width: w, file: path.basename(file), h1: (h1 || '').trim().slice(0, 80), thumbsLoaded: `${loaded}/${thumbs.length}`, horizontalOverflow: overflow, overflowers, loadMs: ms });
     if (label === 'discover') report.load.push({ width: w, ms });
   }
   // navigation flow on this width: open a trend from Discover; open the desk playbook
@@ -78,10 +79,13 @@ for (const [hash, label] of [['#/viral', 'viral'], ['#/radar', 'radar'], ['#/hal
     await page.waitForTimeout(5000);
     let playing = media.size > before;
     let clickedPlay = false;
+    let botWall = false;
     // a real click on the player's own play button inside the (cross-origin) embed — the media request is the proof
     if (!playing && hasIframe) {
       try {
         const fl = page.frameLocator('.modal-media iframe').first();
+        // YouTube serves a "Sign in to confirm you're not a bot" wall to datacenter IPs (the runner) — not an app defect
+        botWall = (await fl.locator('text=/confirm you.re not a bot/i').count().catch(() => 0)) > 0;
         const playBtn = fl.locator('.ytp-large-play-button, button[aria-label*="Play"], [class*="play"]').first();
         if (await playBtn.count()) { await playBtn.click({ timeout: 4000 }); clickedPlay = true; }
         else { const box = await frame.boundingBox(); if (box) { await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); clickedPlay = true; } }
@@ -91,13 +95,13 @@ for (const [hash, label] of [['#/viral', 'viral'], ['#/radar', 'radar'], ['#/hal
     }
     const fallback = await page.locator('.modal-media .noembed a').count();
     if (i === 0) await page.screenshot({ path: path.join(out, `player-${label}.png`) });
-    report.playback.push({ page: label, index: i + 1, title: (title || '').replace(/^Play: /, '').slice(0, 70), embed: hasIframe, clickedPlay, provider: /youtube/.test(frameSrc) ? 'youtube' : /tiktok/.test(frameSrc) ? 'tiktok' : /instagram/.test(frameSrc) ? 'instagram' : /facebook/.test(frameSrc) ? 'facebook' : /bsky/.test(frameSrc) ? 'bluesky' : hasIframe ? 'other' : 'none', mediaDelivered: playing, fallbackLink: fallback > 0 });
+    report.playback.push({ page: label, index: i + 1, title: (title || '').replace(/^Play: /, '').slice(0, 70), embed: hasIframe, clickedPlay, botWall, provider: /youtube/.test(frameSrc) ? 'youtube' : /tiktok/.test(frameSrc) ? 'tiktok' : /instagram/.test(frameSrc) ? 'instagram' : /facebook/.test(frameSrc) ? 'facebook' : /bsky/.test(frameSrc) ? 'bluesky' : hasIframe ? 'other' : 'none', mediaDelivered: playing, fallbackLink: fallback > 0 });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
   }
 }
 await browser.close();
 const played = report.playback.filter((p) => p.mediaDelivered).length;
-report.summary = { playbackChecked: report.playback.length, mediaDelivered: played, embeds: report.playback.filter((p) => p.embed).length, consoleErrors: report.console.length, overflowPages: report.screenshots.filter((s) => s.horizontalOverflow).map((s) => `${s.page}@${s.width}`), loadMsDiscover: report.load };
+report.summary = { playbackChecked: report.playback.length, mediaDelivered: played, botWall: report.playback.filter((p) => p.botWall).length, embeds: report.playback.filter((p) => p.embed).length, consoleErrors: report.console.length, overflowPages: report.screenshots.filter((s) => s.horizontalOverflow).map((s) => `${s.page}@${s.width}`), loadMsDiscover: report.load };
 await writeFile(path.join(out, 'report.json'), JSON.stringify(report, null, 1));
 console.log(JSON.stringify(report.summary, null, 1));

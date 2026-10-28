@@ -137,6 +137,7 @@ function decideAction(t: Trend, f: TrendFeatures, timing: DeskTiming, fit: Retur
     if (fit.fit >= 45) return { action: 'research', why: 'Evergreen and active, but only a moderate fit for AI/animation production — study the current signature before committing.' };
     return { action: 'monitor', why: 'Evergreen, but a weak fit for the creator profile.' };
   }
+  if (type === 'meme' && f.creators < 5) return { action: 'monitor', why: `A specific moment with ${f.creators} creators — a meme needs five independent creators before it is worth production time.` };
   if ((timing === 'emerging' || timing === 'accelerating' || timing === 'resurfacing' || timing === 'established') && evidenceScore >= 55 && fit.fit >= 55) {
     return { action: 'create_today', why: `${f.creators} independent creators, ${timing} attention, and a format that fits ${fit.effort[0]}–${fit.effort[1]}h of AI/animation production.` };
   }
