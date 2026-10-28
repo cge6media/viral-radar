@@ -195,14 +195,17 @@ export interface ScoreRecord {
   /** v2: independent creators in the 24h / 48h windows (like-for-like growth per window) */
   creators24?: number;
   creators48?: number;
+  /** v3: active-source signature of the run — growth is only compared between runs with the same signature,
+   *  so switching a source on never reads as growth */
+  sources?: string;
   /** v2: direct videos in the 7-day window */
   directVideos?: number;
   grade?: string;
 }
-type CompactScore = { r: string; t: string; i: string; n: string; m: number; c: number; $: number; k: number; s: number; l: string; e: number; a?: number; a1?: number; a2?: number; d?: number; g?: string };
-const compact = (x: ScoreRecord): CompactScore => ({ r: x.runId, t: x.t, i: x.trendId, n: x.name, m: x.momentum, c: x.confidence, $: x.monetization, k: x.creator, s: x.signal, l: x.lifecycle, e: x.evidenceCount, a: x.adoption, a1: x.creators24, a2: x.creators48, d: x.directVideos, g: x.grade });
+type CompactScore = { r: string; t: string; i: string; n: string; m: number; c: number; $: number; k: number; s: number; l: string; e: number; a?: number; a1?: number; a2?: number; d?: number; g?: string; src?: string };
+const compact = (x: ScoreRecord): CompactScore => ({ r: x.runId, t: x.t, i: x.trendId, n: x.name, m: x.momentum, c: x.confidence, $: x.monetization, k: x.creator, s: x.signal, l: x.lifecycle, e: x.evidenceCount, a: x.adoption, a1: x.creators24, a2: x.creators48, d: x.directVideos, g: x.grade, src: x.sources });
 const expand = (x: CompactScore | ScoreRecord): ScoreRecord =>
-  'runId' in x ? x : { runId: x.r, t: x.t, trendId: x.i, name: x.n, momentum: x.m, confidence: x.c, monetization: x.$, creator: x.k, signal: x.s, lifecycle: x.l, evidenceCount: x.e, adoption: x.a, creators24: x.a1, creators48: x.a2, directVideos: x.d, grade: x.g };
+  'runId' in x ? x : { runId: x.r, t: x.t, trendId: x.i, name: x.n, momentum: x.m, confidence: x.c, monetization: x.$, creator: x.k, signal: x.s, lifecycle: x.l, evidenceCount: x.e, adoption: x.a, creators24: x.a1, creators48: x.a2, directVideos: x.d, grade: x.g, sources: x.src };
 
 export async function appendScores(records: ScoreRecord[]): Promise<void> {
   await ensureDirs();

@@ -12,13 +12,15 @@ export function runQualityChecks(input: { trends: Trend[]; observations: Observa
   const nowMs = new Date(now).getTime();
 
   // 1. relevance: every piece of format-cluster evidence must pass the validator for that format
+  //    (validated on the full observation — the snapshot ships a slimmed copy of each record)
+  const full = new Map(observations.map((o) => [o.id, o]));
   const formatTrends = trends.filter((t) => t.kind === 'format');
   let sampled = 0, relevant = 0;
   for (const t of formatTrends) {
     const fid = t.id.replace(/^f_/, '');
     for (const e of t.evidence.filter((e) => e.kind === 'video')) {
       sampled++;
-      if (validateObservation(e).formats.includes(fid)) relevant++;
+      if (validateObservation(full.get(e.id) || e).formats.includes(fid)) relevant++;
     }
   }
   const rate = sampled ? relevant / sampled : 1;

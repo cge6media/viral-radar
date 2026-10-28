@@ -301,3 +301,9 @@ test('quality: any publish date on an unverified external video is flagged, even
   assert.equal(run([good, verified]).ok, true);
   assert.equal(run([bad]).ok, false);
 });
+
+test('taxonomy: corporate news (studio closures, layoffs, bans) is a news event, not a format', () => {
+  assert.equal(looksLikeNewsEvent('EA shuts down BioWare', 'Gaming'), true);
+  assert.equal(looksLikeNewsEvent('Studio lays off 200 staff after acquisition', 'Gaming'), true);
+  assert.equal(looksLikeNewsEvent('Animated courtroom skit with a cat lawyer', 'Comedy'), false);
+});

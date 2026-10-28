@@ -4,12 +4,16 @@ import { loadSnapshot, fmtAgo, rankView, type ViewTrend } from './lib/data';
 import { usePrefs } from './lib/store';
 import { Icon } from './components/ui';
 import Discover from './pages/Discover';
-import Compass from './pages/Compass';
+import ViralNow from './pages/ViralNow';
+import EarlyRadar from './pages/EarlyRadar';
+import Trends from './pages/Trends';
 import Money from './pages/Money';
 import Studio from './pages/Studio';
+import HallOfFame from './pages/HallOfFame';
 import Watchlist from './pages/Watchlist';
 import Settings from './pages/Settings';
 import TrendDetail from './pages/TrendDetail';
+import { PlayerProvider } from './components/video';
 
 export interface AppState {
   snapshot: Snapshot;
@@ -30,11 +34,17 @@ export const useApp = () => {
 
 const NAV = [
   ['#/', 'Discover', Icon.radar],
-  ['#/compass', 'Compass', Icon.compass],
+  ['#/viral', 'Viral Now', Icon.fire],
+  ['#/radar', 'Early Radar', Icon.pulse],
+  ['#/trends', 'Trends', Icon.compass],
   ['#/money', 'Money', Icon.money],
   ['#/studio', 'Studio', Icon.studio],
+  ['#/hall-of-fame', 'Hall of Fame', Icon.trophy],
   ['#/watchlist', 'Watchlist', Icon.bookmark],
 ] as const;
+/** phone tab bar: four primary tabs + More */
+const TABS = NAV.slice(0, 4);
+const MORE = NAV.slice(4);
 
 function useHash(): string {
   const [h, setH] = useState(() => location.hash || '#/');
@@ -84,15 +94,21 @@ export default function App() {
     const m = hash.match(/^#\/trend\/(.+)$/);
     if (m) return <TrendDetail id={decodeURIComponent(m[1])} />;
     switch (hash.replace(/\?.*$/, '')) {
-      case '#/compass': return <Compass />;
+      case '#/viral': return <ViralNow />;
+      case '#/radar': return <EarlyRadar />;
+      case '#/trends': case '#/compass': return <Trends />;
       case '#/money': return <Money />;
       case '#/studio': return <Studio />;
+      case '#/hall-of-fame': return <HallOfFame />;
       case '#/watchlist': return <Watchlist />;
-      case '#/settings': return <Settings />;
+      case '#/settings': case '#/diagnostics': return <Settings />;
       default: return <Discover />;
     }
   })();
-  const isActive = (href: string) => (href === '#/' ? hash === '#/' || hash === '' || hash.startsWith('#/trend/') : hash.startsWith(href));
+  const isActive = (href: string) => (href === '#/' ? hash === '#/' || hash === '' || hash.startsWith('#/trend/') : href === '#/trends' ? hash.startsWith('#/trends') || hash.startsWith('#/compass') : hash.startsWith(href));
+  const moreActive = MORE.some(([href]) => isActive(href)) || hash.startsWith('#/settings') || hash.startsWith('#/diagnostics');
+  const [sheet, setSheet] = useState(false);
+  useEffect(() => setSheet(false), [hash]);
 
   return (
     <div className="app">
@@ -111,8 +127,10 @@ export default function App() {
         </div>
         {menu && (
           <div className="menu" role="menu">
-            <a href="#/settings" role="menuitem">Preferences</a>
-            <a href="#/settings?tab=data" role="menuitem">Data sources & quality</a>
+            <a href="#/settings?tab=coverage" role="menuitem">Source coverage & diagnostics</a>
+            <a href="#/settings?tab=funnel" role="menuitem">Discovery funnel</a>
+            <a href="#/settings?tab=data" role="menuitem">Data & quality checks</a>
+            <a href="#/settings?tab=prefs" role="menuitem">Preferences</a>
             <a href="#/settings?tab=about" role="menuitem">How scores work</a>
             <button role="menuitem" onClick={() => { setVersion((v) => v + 1); setToast('Reloading latest data'); setMenu(false); }}>Reload data</button>
           </div>
@@ -122,13 +140,22 @@ export default function App() {
         {error && <div className="notice bad">Couldn't load the latest data: {error}. The collector may not have run yet.</div>}
         {!snapshot && !error && <div className="skeleton" style={{ minHeight: 320 }} aria-busy />}
         {snapshot && !v2 && (
-          <div className="notice warn">The first Viral Radar 2.0 collection is in progress. This page will show the new intelligence as soon as the cloud collector publishes it (usually within a few minutes). <button className="btn sm" style={{ marginLeft: 8 }} onClick={() => setVersion((v) => v + 1)}>Check again</button></div>
+          <div className="notice warn">The first Viral Radar collection is in progress. This page will show the new intelligence as soon as the cloud collector publishes it (usually within a few minutes). <button className="btn sm" style={{ marginLeft: 8 }} onClick={() => setVersion((v) => v + 1)}>Check again</button></div>
         )}
-        {state && <Ctx.Provider value={state}>{page}</Ctx.Provider>}
+        {state && <Ctx.Provider value={state}><PlayerProvider>{page}</PlayerProvider></Ctx.Provider>}
       </main>
       <nav className="tabbar" aria-label="Sections">
-        {NAV.map(([href, label, icon]) => <a key={href} href={href} className={isActive(href) ? 'active' : ''}>{icon}{label}</a>)}
+        {TABS.map(([href, label, icon]) => <a key={href} href={href} className={isActive(href) ? 'active' : ''}>{icon}{label.replace('Early ', '').replace(' Now', '')}</a>)}
+        <button className={moreActive ? 'active' : ''} onClick={() => setSheet((s) => !s)} aria-expanded={sheet}>{Icon.more}More</button>
       </nav>
+      {sheet && (
+        <div className="sheet-back" onClick={() => setSheet(false)} role="presentation">
+          <div className="sheet" role="menu" onClick={(e) => e.stopPropagation()}>
+            {MORE.map(([href, label, icon]) => <a key={href} href={href} role="menuitem" className={isActive(href) ? 'active' : ''}>{icon}{label}</a>)}
+            <a href="#/settings?tab=coverage" role="menuitem" className={hash.startsWith('#/settings') ? 'active' : ''}>{Icon.gear}Diagnostics & settings</a>
+          </div>
+        </div>
+      )}
       {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
     </div>
   );

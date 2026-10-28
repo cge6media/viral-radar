@@ -24,6 +24,8 @@ import type { ScoreRecord } from '../lib/store.js';
 export interface MetricPoint { t: string; metrics: Observation['metrics'] }
 
 export interface ScoreInput {
+  /** active-source signature of this run; growth baselines must come from runs with the same signature */
+  sourceSignature?: string;
   cluster: Cluster;
   category: string;
   isNewsEvent: boolean;
@@ -139,7 +141,7 @@ export function sourceHistoryGrowth(members: Observation[], now = nowIso()): { r
 }
 
 export function scoreWindow(input: ScoreInput): WindowScores {
-  const { cluster, category, isNewsEvent, isGeneric, now, window, history, metricHistory } = input;
+  const { cluster, category, isNewsEvent, isGeneric, now, window, history, metricHistory, sourceSignature } = input;
   const notes: string[] = [];
   const components: Record<string, number> = {};
   const members = cluster.members.filter((m) => inWindow(m, window, now));
@@ -228,7 +230,8 @@ export function scoreWindow(input: ScoreInput): WindowScores {
   // compare this window's creator count with the same window at an earlier run (never 24h-now vs 7d-then);
   // v1 records carry no creator counts and are skipped — a missing measurement stays provisional
   const prevCreatorsOf = (h: ScoreRecord): number | undefined => (window === '24h' ? h.creators24 : window === '48h' ? h.creators48 : h.adoption);
-  const past = history.filter((h) => hoursBetween(h.t, now) >= 2 && prevCreatorsOf(h) != null).sort((a, b) => a.t.localeCompare(b.t));
+  const past = history.filter((h) => hoursBetween(h.t, now) >= 2 && prevCreatorsOf(h) != null && (!sourceSignature || !h.sources || h.sources === sourceSignature)).sort((a, b) => a.t.localeCompare(b.t));
+  if (history.some((h) => hoursBetween(h.t, now) >= 2 && prevCreatorsOf(h) != null) && !past.length) notes.push('Growth baseline skipped: the set of active sources changed since the earlier runs (a new source is not growth).');
   if (past.length) {
     const prev = past[past.length - 1];
     const prevCreators = prevCreatorsOf(prev)!;

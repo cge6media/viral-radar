@@ -255,6 +255,8 @@ export function looksLikeNewsEvent(text: string, category: string): boolean {
   if (/\b(vs\.?|v)\b.*\b(live|score|prediction|odds|t20|match)\b/.test(t)) return true;
   if (/\b(crash|arrested|charged|dies|died|death|obituary|lawsuit|sues|sued|verdict|indicted|shooting|earthquake|hurricane|wildfire|traffic|weather|météo|clima|времето)\b/.test(t)) return true;
   if (/\b(rankings?|box office|poll|runoff|election|rally|senate|sell out|sells out|stockpile|contract|retirement)\b/.test(t)) return true;
+  // corporate / industry news: a studio closing, layoffs, acquisitions, bans — a moment, not a format
+  if (/\b(shuts? down|shutting down|shut down|closes|closure|lays? off|laid off|layoffs?|acquires?|acquisition|acquired by|merger|bankrupt|bankruptcy|banned|ban on|recall|recalled|resigns?|resignation|fired|steps down|indefinitely|delayed|cancell?ed|announces?|announced|unveils?|launches?|price hike|outage|hacked|data breach|leaked)\b/.test(t)) return true;
   // a specific sports fixture / game moment is an event, not a format
   if (category === 'Sports' && /\b(game \d|world series|playoffs?|finals?|semi-?finals?|match|fixture|kickoff|inning|bullpen|warms? up|faces|vs\.?|derby|grand prix|t20i?)\b/.test(t)) return true;
   // named political figures / institutions make a topic a news story regardless of its subject matter

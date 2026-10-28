@@ -239,9 +239,9 @@ export function decideVideo(r: VideoRecord): void {
 
   let state: VideoState = 'rejected';
   let rejectedBy: string | undefined;
-  if (r.isLive) {
+  if (r.isLive || (r.durationSec != null && r.durationSec > 3 * 3600)) {
     r.state = 'rejected';
-    r.rejectedBy = 'live stream / premiere (views accrue while live; not a video format)';
+    r.rejectedBy = r.isLive ? 'live stream / premiere (views accrue while live; not a video format)' : 'stream recording longer than 3 hours (not a video format)';
     reasons.push('Not featured: live stream or premiere.');
     r.viralScore = 0; r.breakoutScore = 0; r.engagementScore = 0; r.outlierScore = 0; r.confidence = 30;
     r.reasons = reasons;
@@ -347,13 +347,13 @@ export function toCard(r: VideoRecord): VideoCard {
 /** platforms whose statistics are view counts (comparable with each other); Bluesky is like-based and listed apart */
 export const VIEW_PLATFORMS = new Set<VideoRecord['platform']>(['youtube', 'tiktok', 'instagram', 'facebook']);
 
-export function viralNowLists(records: VideoRecord[], now: string, limit = 60, platforms: Set<VideoRecord['platform']> = VIEW_PLATFORMS): Record<VideoWindow, VideoCard[]> {
+export function viralNowLists(records: VideoRecord[], now: string, limit = 40, platforms: Set<VideoRecord['platform']> = VIEW_PLATFORMS): Record<VideoWindow, VideoCard[]> {
   const out = {} as Record<VideoWindow, VideoCard[]>;
   for (const w of VIDEO_WINDOWS) {
     const h = VIDEO_WINDOW_HOURS[w];
-    out[w] = records
+    out[w] = diversifyByCreator(records
       .filter((r) => platforms.has(r.platform) && r.state === 'verified_hit' && r.publishedAt && hoursBetween(r.publishedAt, now) <= h)
-      .sort((a, b) => b.viralScore - a.viralScore || (b.metrics.views || 0) - (a.metrics.views || 0))
+      .sort((a, b) => b.viralScore - a.viralScore || (b.metrics.views || 0) - (a.metrics.views || 0)), 2)
       .slice(0, limit)
       .map(toCard);
   }
@@ -361,12 +361,25 @@ export function viralNowLists(records: VideoRecord[], now: string, limit = 60, p
 }
 
 /** Early Radar: breakouts by breakout score (measured growth first). */
-export function earlyRadarList(records: VideoRecord[], limit = 60, platforms: Set<VideoRecord['platform']> = VIEW_PLATFORMS): VideoCard[] {
-  return records
+export function earlyRadarList(records: VideoRecord[], limit = 40, platforms: Set<VideoRecord['platform']> = VIEW_PLATFORMS): VideoCard[] {
+  return diversifyByCreator(records
     .filter((r) => platforms.has(r.platform) && r.state === 'early_breakout')
-    .sort((a, b) => b.breakoutScore - a.breakoutScore || b.viralScore - a.viralScore)
+    .sort((a, b) => b.breakoutScore - a.breakoutScore || b.viralScore - a.viralScore), 2)
     .slice(0, limit)
     .map(toCard);
+}
+
+/** at most `max` videos per creator in a ranked list (a channel spamming re-cuts is one signal, not five) */
+export function diversifyByCreator(list: VideoRecord[], max: number): VideoRecord[] {
+  const seen = new Map<string, number>();
+  const out: VideoRecord[] = [];
+  const rest: VideoRecord[] = [];
+  for (const r of list) {
+    const k = r.creator?.channelId || r.creator?.url || r.creator?.name || r.id;
+    const n = seen.get(k) || 0;
+    if (n < max) { seen.set(k, n + 1); out.push(r); } else rest.push(r);
+  }
+  return [...out, ...rest];
 }
 
 /** Cross-platform relationships with explicit evidence. Never merges on a generic word. */

@@ -103,6 +103,7 @@ export async function main(): Promise<Snapshot> {
   if (ytDiagnostics.length) await appendDiagnostics(ytDiagnostics);
 
   const sources = [gt, bs, ma, yt, tt].map((r) => r.status);
+  const sourceSignature = sources.filter((s) => s.ok && s.mode !== 'disabled').map((s) => s.source).sort().join(',');
   let fresh = [gt, bs, ma, yt, tt].flatMap((r) => r.items).filter((o) => !hasUnsafeMarkers(`${o.title} ${o.text || ''}`));
   for (const s of sources) console.log(`  ${s.ok ? 'ok ' : 'ERR'} ${s.source.padEnd(14)} ${s.mode.padEnd(8)} ${String(s.items).padStart(4)} ${s.error || ''}`);
 
@@ -160,7 +161,7 @@ export async function main(): Promise<Snapshot> {
     const isGeneric = c.kind === 'format' ? !!fmt?.generic : c.kind === 'microtrend' ? !!c.broadTopic : false;
     const hist = byTrend.get(c.id) || [];
     const windows = {} as Record<Window, WindowScores>;
-    for (const w of WINDOWS) windows[w] = scoreWindow({ cluster: c, category: cls.category, isNewsEvent, isGeneric, now, window: w, history: hist, metricHistory });
+    for (const w of WINDOWS) windows[w] = scoreWindow({ cluster: c, category: cls.category, isNewsEvent, isGeneric, now, window: w, history: hist, metricHistory, sourceSignature });
     const s7 = windows['7d'];
     const evidence = pickEvidence(c, now);
     const platforms = Array.from(new Set(c.members.map((m) => m.source)));
@@ -182,10 +183,15 @@ export async function main(): Promise<Snapshot> {
       summary: summarize(c, s7, windows['24h'], cls.category, isNewsEvent, isGeneric, now),
     };
     trends.push(trend);
-    records.push({ runId, t: now, trendId: c.id, name: c.name, momentum: s7.momentum, confidence: s7.confidence, monetization: trend.monetizationSuitability, creator: s7.creatorOpportunity, signal: s7.adoption / 100, lifecycle: s7.lifecycle, evidenceCount: s7.items, adoption: s7.creators, creators24: windows['24h'].creators, creators48: windows['48h'].creators, directVideos: s7.directVideos, grade: s7.grade });
+    records.push({ runId, t: now, trendId: c.id, name: c.name, momentum: s7.momentum, confidence: s7.confidence, monetization: trend.monetizationSuitability, creator: s7.creatorOpportunity, signal: s7.adoption / 100, lifecycle: s7.lifecycle, evidenceCount: s7.items, adoption: s7.creators, creators24: windows['24h'].creators, creators48: windows['48h'].creators, directVideos: s7.directVideos, grade: s7.grade, sources: sourceSignature });
   }
   trends.sort((a, b) => Number(b.qualified) - Number(a.qualified) || b.scores.opportunity - a.scores.opportunity || b.scores.momentum - a.scores.momentum);
   await appendScores(records);
+  // keep the snapshot small: series capped to the last 96 points; bare signal topics with no videos and no grade
+  // in any window are counted but not shipped (they are news/search spikes the dashboard never shows)
+  for (const t of trends) t.series = t.series.slice(-96);
+  const shipped = trends.filter((t) => !(t.kind === 'topic' && t.videoCount === 0 && WINDOWS.every((w) => t.windows[w].grade === 'insufficient')));
+  console.log(`  snapshot trends: ${shipped.length} of ${trends.length} (dropped ${trends.length - shipped.length} bare signal topics)`);
 
   // ---- 7. category activity ----
   const categories = categoryActivity(recent, trends, now);
@@ -226,7 +232,7 @@ export async function main(): Promise<Snapshot> {
   const ledger = await readJson<{ units: number; searchCalls: number; day: string }>('cache/youtube-quota.json');
   const quality = runQualityChecks({ trends, observations: recent, sources, now, records: videoRecords });
   const snapshot: Snapshot = {
-    version: 2, generatedAt: now, runId, sources, sourceQuality, trends, categories, quality, videos: videoIntel,
+    version: 2, generatedAt: now, runId, sources, sourceQuality, trends: shipped.map(slimTrend), categories, quality, videos: videoIntel,
     stats: {
       observationsThisRun: fresh.length, observationsTotal: all.length,
       qualifiedTrends: trends.filter((t) => t.qualified).length,
@@ -294,8 +300,19 @@ function pickEvidence(c: Cluster, now: string): Observation[] {
   return [...picked, ...signals.slice(0, 4)].slice(0, 20).map(slim);
 }
 
+/** unqualified trends ship fewer examples; the window objects for 24h/48h drop their component breakdown */
+function slimTrend(t: Trend): Trend {
+  const evidence = t.qualified ? t.evidence.slice(0, 14) : t.evidence.slice(0, 6);
+  const windows = { ...t.windows };
+  for (const w of WINDOWS) if (w !== '7d') windows[w] = { ...windows[w], components: {} };
+  return { ...t, evidence, windows };
+}
+
+/** evidence records shipped in latest.json: enough to render and open, not the whole observation */
 function slim(o: Observation): Observation {
-  return { ...o, text: (o.text || '').slice(0, 220), history: o.history?.slice(-8), links: o.links?.slice(0, 3) };
+  const { links, ...rest } = o;
+  void links;
+  return { ...rest, text: (o.text || '').slice(0, 120), tags: (o.tags || []).slice(0, 6), history: o.history?.slice(-4), query: (o.query || '').split(',')[0]?.slice(0, 40) };
 }
 
 function summarize(c: Cluster, s7: WindowScores, s24: WindowScores, category: string, news: boolean, generic: boolean, now: string): string {

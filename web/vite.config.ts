@@ -12,11 +12,13 @@ export default defineConfig({
       // copy the pipeline's latest.json into the build so the static site ships with data
       name: 'copy-data',
       closeBundle() {
-        const src = path.resolve(__dirname, '../data/latest.json');
         const outDir = path.resolve(__dirname, 'dist/data');
-        if (existsSync(src)) {
-          mkdirSync(outDir, { recursive: true });
-          copyFileSync(src, path.join(outDir, 'latest.json'));
+        for (const name of ['latest.json', 'videos.json']) {
+          const src = path.resolve(__dirname, '../data', name);
+          if (existsSync(src)) {
+            mkdirSync(outDir, { recursive: true });
+            copyFileSync(src, path.join(outDir, name));
+          }
         }
       },
     },
