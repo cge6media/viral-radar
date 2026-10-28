@@ -4,7 +4,7 @@ import { VIDEO_WINDOW_HOURS } from './types';
 import { fmtNum } from './data';
 
 export type PlatformFilter = 'all' | 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'other';
-export type SortMode = 'most_viral' | 'fastest_rising' | 'newest_breakouts' | 'most_engaging' | 'creator_outliers';
+export type SortMode = 'most_viral' | 'fastest_rising' | 'newest_breakouts' | 'most_engaging' | 'creator_outliers' | 'strongest_momentum';
 export const PLATFORM_FILTERS: { id: PlatformFilter; label: string }[] = [
   { id: 'all', label: 'All platforms' }, { id: 'youtube', label: 'YouTube' }, { id: 'tiktok', label: 'TikTok' }, { id: 'instagram', label: 'Instagram' }, { id: 'facebook', label: 'Facebook' }, { id: 'other', label: 'Other sources' },
 ];
@@ -70,6 +70,9 @@ export function selectCards(cards: VideoCard[], opts: { platform: PlatformFilter
       break;
     case 'creator_outliers':
       list = list.filter((c) => c.outlierScore > 0 || (c.subscriberRatio ?? 0) >= 2).sort((a, b) => (b.baselineRatio ?? b.subscriberRatio ?? 0) - (a.baselineRatio ?? a.subscriberRatio ?? 0));
+      break;
+    case 'strongest_momentum':
+      list = list.sort((a, b) => b.breakoutScore - a.breakoutScore || (a.ageHours ?? 1e9) - (b.ageHours ?? 1e9));
       break;
     default:
       list = list.sort((a, b) => b.viralScore - a.viralScore || (b.views || 0) - (a.views || 0));

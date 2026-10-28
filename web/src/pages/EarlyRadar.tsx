@@ -7,8 +7,9 @@ import { fmtAgo, fmtNum } from '../lib/data';
 import { StatTile } from '../components/ui';
 
 const RADAR_SORTS = [
+  { id: 'strongest_momentum' as SortMode, label: 'Strongest momentum', desc: 'Breakout score: measured growth, acceleration, creator outlier, youth' },
   { id: 'newest_breakouts' as SortMode, label: 'Newest breakouts', desc: 'Youngest videos with credible abnormal momentum' },
-  { id: 'fastest_rising' as SortMode, label: 'Fastest rising', desc: 'Strongest measured recent growth' },
+  { id: 'fastest_rising' as SortMode, label: 'Fastest rising', desc: 'Strongest measured recent growth (views/hour between observations)' },
   { id: 'creator_outliers' as SortMode, label: 'Creator outliers', desc: 'Far above the creator\'s normal range' },
   { id: 'most_viral' as SortMode, label: 'Biggest', desc: 'Largest verified numbers among breakouts' },
 ];
@@ -17,7 +18,7 @@ export default function EarlyRadar() {
   const { snapshot, now } = useApp();
   const intel = snapshot.videos;
   const [platform, setPlatform] = useState<PlatformFilter>('all');
-  const [sort, setSort] = useState<SortMode>('newest_breakouts');
+  const [sort, setSort] = useState<SortMode>('strongest_momentum');
   const { cards, error } = useAllCards();
   useEffect(() => { try { const p = localStorage.getItem('vr.er.platform') as PlatformFilter | null; if (p) setPlatform(p); } catch { /* ignore */ } }, []);
   useEffect(() => { try { localStorage.setItem('vr.er.platform', platform); } catch { /* ignore */ } }, [platform]);
@@ -26,8 +27,7 @@ export default function EarlyRadar() {
     if (!intel) return [];
     const base = cards ?? [...intel.earlyRadar, ...intel.bluesky.earlyRadar];
     const uniq = Array.from(new Map(base.map((c) => [c.id, c])).values()).filter((c) => c.state === 'early_breakout');
-    const sorted = selectCards(uniq, { platform, sort: sort === 'most_viral' ? 'most_viral' : sort, now });
-    return sort === 'newest_breakouts' ? sorted.sort((a, b) => b.breakoutScore - a.breakoutScore || (a.ageHours ?? 1e9) - (b.ageHours ?? 1e9)) : sorted;
+    return selectCards(uniq, { platform, sort, now });
   }, [cards, intel, platform, sort, now]);
   const measured = list.filter((c) => c.velocityPerHour != null).length;
   const provisional = list.length - measured;
