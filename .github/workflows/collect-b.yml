@@ -10,6 +10,8 @@
 # scheduled run first checks how old the published data is — younger than 22 minutes → it exits without collecting —
 # so collectors never overlap, the quota ledger stays consistent, and the effective cadence approaches 30 minutes
 # whichever slots GitHub honours. Keep the four files identical except for `name` and `cron` (see scripts/sync-schedules.mjs).
+# 4.0.1: because GitHub then honoured only ~1 slot per hour across all four workflows, every scheduled or chained run
+# also starts a `keeper` job that waits 25 minutes and dispatches the next collection itself (see the job's comment).
 name: Collect trends (B)
 
 on:
@@ -39,7 +41,7 @@ jobs:
       - name: Freshness gate (skip when the last collection is < 22 min old)
         id: fresh
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ] && [ -f data/latest.json ]; then
+          if { [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.chain }}" = "true" ]; } && [ -f data/latest.json ]; then
             AGE=$(node -e "const s=require('./data/latest.json'); console.log(Math.round((Date.now()-new Date(s.generatedAt).getTime())/60000))")
             echo "last collection is ${AGE} min old"
             if [ "$AGE" -lt 22 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "::notice::skipped — data is ${AGE} min old"; exit 0; fi
@@ -180,3 +182,29 @@ jobs:
           path: web/dist
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # 4.0.1 reliability: even with four staggered workflows GitHub honoured 1 of 6 scheduled slots between 12:27 and
+  # 13:10 UTC on 2026-10-28, so a collection now schedules the next one itself — wait 25 minutes, then dispatch
+  # collect.yml with chain=true (the freshness gate applies, so a scheduled run that happened meanwhile makes the
+  # chained run a no-op). Runs on every scheduled or chained run, also after a failed collection (the chain survives
+  # failures); manual dispatches do not start chains. Public-repository Actions minutes are free; a sleeping runner
+  # costs nothing but is the price of a cadence GitHub's scheduler does not provide. Disable by disabling this workflow.
+  keeper:
+    needs: collect
+    if: always() && (github.event_name == 'schedule' || inputs.chain == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      actions: write
+    steps:
+      - name: Wait 25 minutes, then dispatch the next collection unless one started meanwhile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 1500
+          # a collection run created in the last 10 minutes (any status) means the schedule or another keeper got there first;
+          # sleeping keepers belong to runs created ≥25 minutes ago, so they do not count, and neither does this run
+          RECENT=$(gh run list --repo "${{ github.repository }}" --limit 20 --json databaseId,workflowName,createdAt --jq '[.[] | select((.workflowName | startswith("Collect trends")) and (.databaseId != ${{ github.run_id }}) and ((now - (.createdAt | fromdateiso8601)) < 600))] | length')
+          if [ "$RECENT" != "0" ]; then echo "::notice::a collection started or is running meanwhile — not dispatching"; exit 0; fi
+          gh workflow run collect.yml --repo "${{ github.repository }}" -f chain=true
+          echo "::notice::next collection dispatched"
