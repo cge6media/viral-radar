@@ -2,12 +2,12 @@
  * Automated data-quality checks, run at the end of every pipeline run and written into the snapshot.
  * Each check is a plain boolean with a detail string so failures are explainable in the dashboard and in CI.
  */
-import type { Observation, QualitySummary, SourceStatus, Trend } from './types.js';
+import type { Observation, QualitySummary, SourceStatus, Trend, VideoRecord } from './types.js';
 import { hoursBetween } from './lib/util.js';
 import { validateObservation } from './intel/relevance.js';
 
-export function runQualityChecks(input: { trends: Trend[]; observations: Observation[]; sources: SourceStatus[]; now: string }): QualitySummary {
-  const { trends, observations, sources, now } = input;
+export function runQualityChecks(input: { trends: Trend[]; observations: Observation[]; sources: SourceStatus[]; now: string; records?: VideoRecord[] }): QualitySummary {
+  const { trends, observations, sources, now, records = [] } = input;
   const checks: QualitySummary['checks'] = [];
   const nowMs = new Date(now).getTime();
 
@@ -80,6 +80,20 @@ export function runQualityChecks(input: { trends: Trend[]; observations: Observa
   // 11. missing records: qualified trends must carry evidence
   const missing = trends.filter((t) => t.qualified && t.evidence.length === 0).length;
   checks.push({ name: 'qualified trends carry evidence', ok: missing === 0, detail: `${missing} without evidence` });
+
+  // ---- 3.0 video-record checks ----
+  // 12. featured videos (hits / breakouts) have verified platform statistics — never post likes standing in for views
+  const featuredUnverified = records.filter((r) => (r.state === 'verified_hit' || r.state === 'early_breakout') && !r.verified).length;
+  checks.push({ name: 'featured videos carry verified platform statistics', ok: featuredUnverified === 0, detail: `${featuredUnverified} featured without statistics` });
+  // 13. no breakout claims without a measurement basis (measured velocity, a young video's average, a creator baseline, or a dated resurgence)
+  const unsupported = records.filter((r) => r.state === 'early_breakout' && !(r.velocity?.length || (r.ageHours != null && r.ageHours <= 48) || r.baselineRatio != null || r.subscriberRatio != null)).length;
+  checks.push({ name: 'breakouts rest on a measurement (velocity, age, or creator baseline)', ok: unsupported === 0, detail: `${unsupported} unsupported` });
+  // 14. tiny-sample safeguard: no featured video below the platform candidate floor
+  const tiny = records.filter((r) => (r.state === 'verified_hit' || r.state === 'early_breakout') && (r.platform === 'bluesky' ? (r.metrics.likes || 0) < 100 : (r.metrics.views || 0) < 10_000)).length;
+  checks.push({ name: 'no featured video below the candidate floor', ok: tiny === 0, detail: `${tiny} tiny-sample videos featured` });
+  // 15. freshness: featured statistics observed within 6h
+  const staleStats = records.filter((r) => (r.state === 'verified_hit' || r.state === 'early_breakout') && hoursBetween(r.observedAt, now) > 6).length;
+  checks.push({ name: 'featured video statistics observed within 6h', ok: staleStats === 0, detail: `${staleStats} stale` });
 
   return { relevance: { sampled, relevant, rate: Math.round(rate * 1000) / 1000 }, duplicates, wrongDates, brokenLinks, emptyRecommendations: qualified === 0, checks };
 }

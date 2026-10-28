@@ -24,11 +24,14 @@
 import type { Observation } from '../types.js';
 import { fetchJson } from '../lib/http.js';
 import { readJson, writeJson } from '../lib/store.js';
-import { extractHashtags, nowIso, youtubeId } from '../lib/util.js';
+import { extractHashtags, hoursBetween, nowIso, youtubeId } from '../lib/util.js';
 import { FORMATS } from '../intel/relevance.js';
 
 const API = 'https://www.googleapis.com/youtube/v3';
 export const YOUTUBE_REGIONS = (process.env.VR_YT_REGIONS || 'US,GB').split(',').map((s) => s.trim()).filter(Boolean);
+/** secondary regions: two per run in rotation (international coverage at ~1/6 of the cost of charting them all every run) */
+export const YOUTUBE_SECONDARY_REGIONS = (process.env.VR_YT_SECONDARY_REGIONS || 'CA,AU,IN,MX,BR,ES,DE,FR,JP,KR,PH,ID').split(',').map((s) => s.trim()).filter(Boolean);
+export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 2);
 /** entertainment categories for chart=mostPopular (documented category ids) */
 export const YT_CHART_CATEGORIES = (process.env.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24').split(',').map((s) => s.trim()).filter(Boolean);
 export const DISCOVERY_HOURS = Number(process.env.VR_YT_DISCOVERY_HOURS || 6);
@@ -55,12 +58,13 @@ export interface YtVideo {
   snippet: {
     publishedAt: string; channelId: string; title: string; description?: string;
     thumbnails?: Record<string, { url: string }>; channelTitle: string; tags?: string[]; categoryId?: string;
+    liveBroadcastContent?: 'live' | 'upcoming' | 'none';
   };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
   contentDetails?: { duration?: string };
 }
 
-export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; rounds?: number; calls: { t: string; method: string; units: number; note?: string }[] }
+export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; rounds?: number; chartRound?: number; calls: { t: string; method: string; units: number; note?: string }[] }
 
 /** The quota day in Pacific time (YouTube resets at midnight PT), formatted YYYY-MM-DD. */
 export const quotaDay = (iso = nowIso()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
@@ -69,7 +73,7 @@ const today = () => quotaDay();
 export async function loadLedger(): Promise<QuotaLedger> {
   const l = await readJson<QuotaLedger>('cache/youtube-quota.json');
   if (l && l.day === today()) return l;
-  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, rounds: l?.rounds, calls: [] };
+  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, rounds: l?.rounds, chartRound: l?.chartRound, calls: [] };
 }
 export async function saveLedger(l: QuotaLedger): Promise<void> {
   l.calls = l.calls.slice(-200);
@@ -88,7 +92,7 @@ export function videoToObservation(v: YtVideo, query: string, rank: number | und
     observedAt, verifiedAt: observedAt,
     publishedAt: v.snippet.publishedAt, videoPublishedAt: v.snippet.publishedAt,
     metrics: { views: num(v.statistics?.viewCount), likes: num(v.statistics?.likeCount), comments: num(v.statistics?.commentCount), rank },
-    video: { platform: 'youtube', id: v.id, durationSec: dur, channelId: v.snippet.channelId, statsDirect: true },
+    video: { platform: 'youtube', id: v.id, durationSec: dur, channelId: v.snippet.channelId, statsDirect: true, live: v.snippet.liveBroadcastContent === 'live' || v.snippet.liveBroadcastContent === 'upcoming' ? v.snippet.liveBroadcastContent : undefined },
     region,
     creator: { name: v.snippet.channelTitle, url: `https://www.youtube.com/channel/${v.snippet.channelId}` },
     thumbnail: thumb,
@@ -111,13 +115,15 @@ export function isoDurationSeconds(iso: string): number {
   return Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0);
 }
 
-export interface YouTubeRunResult { items: Observation[]; errors: string[]; disabled?: boolean; subrequests: number; ledger?: QuotaLedger; tracked?: number; discovered?: number }
+export interface YouTubeRunResult { items: Observation[]; errors: string[]; disabled?: boolean; subrequests: number; ledger?: QuotaLedger; tracked?: number; discovered?: number; regions?: string[]; diagnostics?: { id: string; t: string; views?: number; likes?: number; comments?: number }[] }
 
 /**
- * @param trackIds  YouTube video ids already known (from history + this run's social links) to refresh.
- * @param topicTerms entertainment topic terms from this run (used as extra discovery queries).
+ * @param trackIds   YouTube video ids already known (from history + this run's social links) to refresh.
+ * @param topicTerms entertainment topic terms from this run (exploitation queries: what is being talked about now).
+ * @param trendTerms microtrend names from the previous snapshot (exploitation: follow measured momentum).
+ * @param diagnosticIds videos re-measured for diagnostics only (never stored as observations).
  */
-export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[]; topicTerms?: string[] } = {}): Promise<YouTubeRunResult> {
+export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[]; topicTerms?: string[]; trendTerms?: string[]; diagnosticIds?: string[] } = {}): Promise<YouTubeRunResult> {
   const apiKey = opts.apiKey ?? process.env.YOUTUBE_API_KEY;
   const items: Observation[] = [];
   const errors: string[] = [];
@@ -140,8 +146,12 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
   const canSpend = (units: number) => ledger.units + units <= UNIT_BUDGET;
   const redact = (m: string) => m.split(apiKey).join('***');
 
-  // A. charts
-  for (const region of YOUTUBE_REGIONS) {
+  // A. charts — primary regions every run, a rotating slice of secondary regions
+  const chartRound = ledger.chartRound || 0;
+  ledger.chartRound = chartRound + 1;
+  const secondary = YOUTUBE_SECONDARY_REGIONS.length ? Array.from({ length: Math.min(SECONDARY_PER_RUN, YOUTUBE_SECONDARY_REGIONS.length) }, (_, i) => YOUTUBE_SECONDARY_REGIONS[(chartRound * SECONDARY_PER_RUN + i) % YOUTUBE_SECONDARY_REGIONS.length]) : [];
+  const regions = Array.from(new Set([...YOUTUBE_REGIONS, ...secondary]));
+  for (const region of regions) {
     for (const cat of ['', ...YT_CHART_CATEGORIES]) {
       if (!canSpend(1)) break;
       try {
@@ -161,15 +171,18 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
   let discovered = 0;
   const hoursSinceDiscovery = ledger.lastDiscoveryAt ? (Date.now() - new Date(ledger.lastDiscoveryAt).getTime()) / 36e5 : Infinity;
   if (hoursSinceDiscovery >= DISCOVERY_HOURS && ledger.searchCalls < SEARCH_BUDGET) {
+    // exploitation: what people talk about now (Bluesky topics) and microtrends that already show momentum
     const topicQueries = (opts.topicTerms || []).slice(0, 3);
+    const trendQueries = (opts.trendTerms || []).filter((t) => !topicQueries.includes(t)).slice(0, 3);
     const perRound = Math.max(1, Math.floor(SEARCH_BUDGET / Math.max(1, Math.round(24 / DISCOVERY_HOURS))));
-    // broad probes every round, then a rotating window of format probes so the whole catalogue is covered daily
+    // exploration: broad probes every round, then a rotating window of format probes so the whole catalogue is covered daily
     const round = ledger.rounds || 0;
-    const formatSlots = Math.max(0, perRound - BROAD_QUERIES.length - topicQueries.length);
+    const formatSlots = Math.max(0, perRound - BROAD_QUERIES.length - topicQueries.length - trendQueries.length);
     const start = DISCOVERY_QUERIES.length ? (round * formatSlots) % DISCOVERY_QUERIES.length : 0;
     const formatQueries = Array.from({ length: Math.min(formatSlots, DISCOVERY_QUERIES.length) }, (_, i) => DISCOVERY_QUERIES[(start + i) % DISCOVERY_QUERIES.length]);
-    const queries = Array.from(new Set([...BROAD_QUERIES, ...topicQueries, ...formatQueries]));
+    const queries = Array.from(new Set([...BROAD_QUERIES, ...topicQueries, ...trendQueries, ...formatQueries]));
     ledger.rounds = round + 1;
+    const shortsOnly = new Set(BROAD_QUERIES.filter((_, i) => i % 2 === 0)); // half the broad probes target Shorts (<4 min) explicitly
     const publishedAfter = encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString());
     const foundIds: string[] = [];
     for (const q of queries.slice(0, perRound)) {
@@ -177,7 +190,7 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
       try {
         subrequests++;
         spend('search.list', 1, q);
-        const sUrl = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${publishedAfter}&q=${encodeURIComponent(q)}&maxResults=25&safeSearch=moderate&relevanceLanguage=en&key=${apiKey}`;
+        const sUrl = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${publishedAfter}&q=${encodeURIComponent(q)}&maxResults=25&safeSearch=moderate${shortsOnly.has(q) ? '&videoDuration=short' : ''}&key=${apiKey}`;
         const s = await fetchJson<{ items: { id: { videoId: string } }[] }>(sUrl, { retries: 0 });
         for (const it of s.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${q}`);
       } catch (e) {
@@ -227,8 +240,90 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     }
   }
 
+  // E. diagnostics — re-measure watched videos (benchmark cases), kept out of the observation store
+  const diagnostics: YouTubeRunResult['diagnostics'] = [];
+  const diag = Array.from(new Set((opts.diagnosticIds || []).filter((id) => /^[A-Za-z0-9_-]{6,}$/.test(id)))).slice(0, 200);
+  for (let i = 0; i < diag.length; i += 50) {
+    if (!canSpend(1)) break;
+    const chunk = diag.slice(i, i + 50);
+    try {
+      subrequests++;
+      spend('videos.list', 1, `diagnostics ${chunk.length}`);
+      const v = await fetchJson<{ items: YtVideo[] }>(`${API}/videos?part=statistics&id=${chunk.join(',')}&key=${apiKey}`, { retries: 0 });
+      for (const vid of v.items || []) diagnostics.push({ id: vid.id, t: observedAt, views: num(vid.statistics?.viewCount), likes: num(vid.statistics?.likeCount), comments: num(vid.statistics?.commentCount) });
+    } catch (e) {
+      errors.push(`diagnostics: ${redact((e as Error).message)}`);
+    }
+  }
+
   await saveLedger(ledger);
-  return { items, errors, subrequests, ledger, tracked, discovered };
+  return { items, errors, subrequests, ledger, tracked, discovered, regions, diagnostics };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Channel statistics + creator baselines (cheap: 50 channels per unit; baseline = 2 units per channel)
+// ---------------------------------------------------------------------------------------------------------------
+export interface ChannelRecord { id: string; title?: string; subscribers?: number; videos?: number; views?: number; uploads?: string; fetchedAt: string; medianRecentViews?: number; baselineSampled?: number; baselineAt?: string }
+
+export async function loadChannelCache(): Promise<Record<string, ChannelRecord>> {
+  return (await readJson<Record<string, ChannelRecord>>('cache/youtube-channels.json')) || {};
+}
+
+/**
+ * Refresh channel statistics for the given ids (older than 24h) and compute upload baselines for `baselineIds`
+ * (older than 72h). Returns the merged cache. Spends from the same ledger (units only).
+ */
+export async function fetchChannelData(opts: { apiKey?: string; channelIds: string[]; baselineIds?: string[]; maxBaselines?: number }): Promise<{ channels: Record<string, ChannelRecord>; units: number; errors: string[] }> {
+  const apiKey = opts.apiKey ?? process.env.YOUTUBE_API_KEY;
+  const cache = await loadChannelCache();
+  const errors: string[] = [];
+  let units = 0;
+  if (!apiKey) return { channels: cache, units, errors: ['YOUTUBE_API_KEY not set'] };
+  const ledger = await loadLedger();
+  const now = nowIso();
+  const stale = (c?: ChannelRecord) => !c || hoursBetween(c.fetchedAt, now) >= 24;
+  const ids = Array.from(new Set(opts.channelIds.filter((id) => /^UC[A-Za-z0-9_-]{20,}$/.test(id) && stale(cache[id])))).slice(0, 1000);
+  const redact = (m: string) => m.split(apiKey).join('***');
+  for (let i = 0; i < ids.length; i += 50) {
+    if (ledger.units + 1 > UNIT_BUDGET) { errors.push('unit budget reached before all channels were refreshed'); break; }
+    const chunk = ids.slice(i, i + 50);
+    try {
+      ledger.units += 1; units += 1;
+      ledger.calls.push({ t: nowIso(), method: 'channels.list', units: 1, note: `stats ${chunk.length}` });
+      const res = await fetchJson<{ items: { id: string; snippet?: { title?: string }; statistics?: { subscriberCount?: string; videoCount?: string; viewCount?: string }; contentDetails?: { relatedPlaylists?: { uploads?: string } } }[] }>(
+        `${API}/channels?part=snippet,statistics,contentDetails&id=${chunk.join(',')}&maxResults=50&key=${apiKey}`, { retries: 0 });
+      for (const c of res.items || []) {
+        cache[c.id] = { ...(cache[c.id] || {}), id: c.id, title: c.snippet?.title, subscribers: num(c.statistics?.subscriberCount), videos: num(c.statistics?.videoCount), views: num(c.statistics?.viewCount), uploads: c.contentDetails?.relatedPlaylists?.uploads, fetchedAt: now };
+      }
+    } catch (e) {
+      errors.push(`channels: ${redact((e as Error).message)}`);
+    }
+  }
+  // baselines: median views of the channel's 20 most recent uploads (excluding nothing — the candidate itself is usually
+  // one of them, which makes the ratio conservative)
+  const baseIds = Array.from(new Set((opts.baselineIds || []).filter((id) => cache[id]?.uploads && (!cache[id].baselineAt || hoursBetween(cache[id].baselineAt!, now) >= 72)))).slice(0, opts.maxBaselines ?? 20);
+  for (const id of baseIds) {
+    if (ledger.units + 2 > UNIT_BUDGET) { errors.push('unit budget reached before all baselines were computed'); break; }
+    try {
+      ledger.units += 2; units += 2;
+      ledger.calls.push({ t: nowIso(), method: 'playlistItems.list+videos.list', units: 2, note: `baseline ${id}` });
+      const pl = await fetchJson<{ items: { contentDetails: { videoId: string } }[] }>(`${API}/playlistItems?part=contentDetails&playlistId=${cache[id].uploads}&maxResults=20&key=${apiKey}`, { retries: 0 });
+      const vids = (pl.items || []).map((p) => p.contentDetails.videoId).filter(Boolean);
+      if (!vids.length) { cache[id].baselineAt = now; cache[id].baselineSampled = 0; continue; }
+      const vs = await fetchJson<{ items: YtVideo[] }>(`${API}/videos?part=statistics&id=${vids.join(',')}&key=${apiKey}`, { retries: 0 });
+      const views = (vs.items || []).map((v) => num(v.statistics?.viewCount)).filter((x): x is number => x != null).sort((a, b) => a - b);
+      cache[id].medianRecentViews = views.length ? views[Math.floor(views.length / 2)] : undefined;
+      cache[id].baselineSampled = views.length;
+      cache[id].baselineAt = now;
+    } catch (e) {
+      errors.push(`baseline ${id}: ${redact((e as Error).message)}`);
+    }
+  }
+  await saveLedger(ledger);
+  // keep the cache bounded: drop channels not refreshed for 14 days
+  for (const [id, c] of Object.entries(cache)) if (hoursBetween(c.fetchedAt, now) > 24 * 14) delete cache[id];
+  await writeJson('cache/youtube-channels.json', cache);
+  return { channels: cache, units, errors };
 }
 
 /** oEmbed enrichment (no key): verified title + channel for linked YouTube videos. No stats, no dates. */

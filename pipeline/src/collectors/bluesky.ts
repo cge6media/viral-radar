@@ -23,6 +23,12 @@ import { FORMATS } from '../intel/relevance.js';
 
 const API = 'https://api.bsky.app/xrpc';
 
+/** domain-filtered searches: which external videos are being passed around (q is required by the API; a word that
+ *  appears in virtually every such post — the domain itself — keeps the filter honest) */
+export const LINK_DOMAINS: { domain: string; q: string }[] = [
+  { domain: 'youtube.com', q: 'youtube' }, { domain: 'youtu.be', q: 'youtu.be' }, { domain: 'tiktok.com', q: 'tiktok' },
+  { domain: 'instagram.com', q: 'instagram' }, { domain: 'facebook.com', q: 'facebook' },
+];
 export const BLUESKY_FORMAT_QUERIES: string[] = process.env.VR_BSKY_QUERIES
   ? process.env.VR_BSKY_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
   : Array.from(new Set(FORMATS.flatMap((f) => f.queries)));
@@ -75,13 +81,15 @@ function videoFromEmbed(embed?: Record<string, unknown>): EmbedVideo | undefined
   return undefined;
 }
 
-function externalPlatform(url: string): { platform: 'youtube' | 'tiktok' | 'instagram' | 'other'; id: string } {
+function externalPlatform(url: string): { platform: 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'other'; id: string } {
   const yt = youtubeId(url);
   if (yt) return { platform: 'youtube', id: yt };
   const tt = url.match(/tiktok\.com\/.*video\/(\d+)/);
   if (tt) return { platform: 'tiktok', id: tt[1] };
   const ig = url.match(/instagram\.com\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/);
   if (ig) return { platform: 'instagram', id: ig[1] };
+  const fb = url.match(/facebook\.com\/(?:reel\/(\d+)|watch\/?\?v=(\d+)|[^/]+\/videos\/(\d+))/) || url.match(/fb\.watch\/([A-Za-z0-9_-]+)/);
+  if (fb) return { platform: 'facebook', id: fb[1] || fb[2] || fb[3] };
   return { platform: 'other', id: normalizeKey(url).slice(0, 60) };
 }
 
@@ -192,6 +200,22 @@ export async function collectBluesky(opts: { formatQueries?: string[]; topicFeed
       }
     } catch (e) {
       errors.push(`feed ${t.topic}: ${(e as Error).message}`);
+    }
+  }
+
+  // 4. link discovery by domain — videos from OTHER platforms that Bluesky users are sharing right now
+  //    (exploration that does not depend on our format vocabulary; the posts' engagement stays post-level)
+  const since48 = new Date(Date.now() - 2 * 864e5).toISOString();
+  for (const { domain, q } of LINK_DOMAINS) {
+    try {
+      subrequests++;
+      const res = await fetchJson<{ posts: BskyPost[] }>(`${API}/app.bsky.feed.searchPosts?q=${encodeURIComponent(q)}&domain=${encodeURIComponent(domain)}&sort=top&limit=50&since=${encodeURIComponent(since48)}`);
+      for (const p of res.posts || []) {
+        const o = postToObservation(p, `links:${domain}`, observedAt);
+        if (o && o.kind === 'video') items.push(o);
+      }
+    } catch (e) {
+      errors.push(`links ${domain}: ${(e as Error).message}`);
     }
   }
 

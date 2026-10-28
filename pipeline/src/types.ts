@@ -45,12 +45,14 @@ export interface Metrics {
 }
 
 export interface VideoRef {
-  platform: 'youtube' | 'bluesky' | 'tiktok' | 'instagram' | 'other';
+  platform: 'youtube' | 'bluesky' | 'tiktok' | 'instagram' | 'facebook' | 'other';
   id: string;
   durationSec?: number;
   channelId?: string;
   /** true when the video's own platform statistics are in `metrics` */
   statsDirect: boolean;
+  /** live stream / premiere state as reported by the platform */
+  live?: 'live' | 'upcoming';
 }
 
 export interface Observation {
@@ -230,6 +232,190 @@ export interface QualitySummary {
   checks: { name: string; ok: boolean; detail: string }[];
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// 3.0 — video-native intelligence
+// ---------------------------------------------------------------------------------------------------------------
+
+export type VideoWindow = '24h' | '48h' | '72h' | '7d' | '30d';
+export const VIDEO_WINDOWS: VideoWindow[] = ['24h', '48h', '72h', '7d', '30d'];
+export const VIDEO_WINDOW_HOURS: Record<VideoWindow, number> = { '24h': 24, '48h': 48, '72h': 72, '7d': 168, '30d': 720 };
+
+/** The five evidence classes. Only the first two are video rankings; the third is a cluster-level state. */
+export type VideoState = 'verified_hit' | 'early_breakout' | 'unverified_signal' | 'rejected';
+export type CategoryWaveState = 'promising_wave' | 'established' | 'crowded' | 'declining' | 'insufficient';
+
+export interface VelocityPoint {
+  /** hours covered by this measurement interval (actual elapsed time between two observations) */
+  hours: number;
+  /** views (or likes when views are unavailable) gained per hour over the interval */
+  perHour: number;
+  metric: 'views' | 'likes';
+  /** end of the interval */
+  measuredAt: string;
+}
+
+export interface CrossPlatformLink {
+  /** A identical video, B modified repost, C derivative, D related trend */
+  type: 'A' | 'B' | 'C' | 'D';
+  platform: VideoRef['platform'] | 'bluesky';
+  /** the other record (observation id) or a cluster id for type D */
+  ref: string;
+  url?: string;
+  title?: string;
+  creator?: string;
+  /** when the related item was published/posted (never a share time standing in for a publish time) */
+  at?: string;
+  confidence: number;
+  basis: string;
+}
+
+/** One video, with everything the pipeline knows about it. Video metrics and post metrics never mix. */
+export interface VideoRecord {
+  /** observation id of the primary record (platform record when one exists, else the share) */
+  id: string;
+  platform: VideoRef['platform'] | 'bluesky';
+  platformId: string;
+  url: string;
+  title: string;
+  thumbnail?: string;
+  creator?: { name: string; url?: string; channelId?: string; subscribers?: number };
+  durationSec?: number;
+  isShort?: boolean;
+  isLive?: boolean;
+  publishedAt?: string;
+  /** hours since publication at generation time (undefined when the publish date is unverified) */
+  ageHours?: number;
+  firstSeenAt: string;
+  observedAt: string;
+  verifiedAt?: string;
+  /** statistics as measured on the video platform (empty when unverified) */
+  metrics: Metrics;
+  /** engagement of social posts that shared it, kept apart (summed over shares) */
+  shareMetrics?: Metrics & { posts?: number; platforms?: string[] };
+  verified: boolean;
+  /** which collectors/queries surfaced it */
+  sources: string[];
+  category: string;
+  subcategory?: string;
+  formats: string[];
+  platformCategory?: string;
+  language?: string;
+  /** views per hour averaged over the whole lifetime — NOT a recent velocity */
+  lifetimeRate?: number;
+  /** measured recent velocity from actual observation intervals (latest first) */
+  velocity?: VelocityPoint[];
+  /** latest interval rate ÷ previous interval rate (needs ≥3 observations) */
+  acceleration?: number;
+  /** latest interval rate ÷ lifetime average */
+  velocityRatio?: number;
+  /** views (or likes) gained in the trailing windows, from observation history (only where history supports it) */
+  gained?: Partial<Record<'1h' | '3h' | '6h' | '12h' | '24h' | '48h' | '72h' | '7d', number>>;
+  likeRate?: number;
+  /** views ÷ channel median of recent uploads (when a baseline was fetched) */
+  baselineRatio?: number;
+  /** views ÷ subscribers */
+  subscriberRatio?: number;
+  /** percentile of lifetime rate among videos of comparable age on the same platform (0..1) */
+  agePercentile?: number;
+  state: VideoState;
+  /** why it is in (or out of) the feed — real metrics, honest wording */
+  reasons: string[];
+  rejectedBy?: string;
+  /** 0-100 established virality (verified popularity for its age) */
+  viralScore: number;
+  /** 0-100 breakout momentum (measured growth; 0 without measurement) */
+  breakoutScore: number;
+  engagementScore: number;
+  outlierScore: number;
+  confidence: number;
+  crossPlatform: CrossPlatformLink[];
+  /** cluster ids this video supports (microtrends / formats / topics) */
+  trends: string[];
+  observations: number;
+}
+
+export interface DiscoveryFunnel {
+  discovered: number;
+  withMetadata: number;
+  verified: number;
+  candidates: number;
+  relevant: number;
+  qualified: number;
+  inFeed: number;
+  /** rejection reasons with counts (rule → videos) */
+  rejections: Record<string, number>;
+}
+
+export interface PlatformCoverage {
+  platform: VideoRecord['platform'];
+  status: 'direct' | 'indirect' | 'unavailable';
+  collector: string;
+  lastSuccess?: string;
+  uniqueVideos: number;
+  verifiedVideos: number;
+  unverifiedShares: number;
+  directStatistics: boolean;
+  freshnessHours?: number;
+  errors: number;
+  quota?: { used: number; limit: number; searches?: number; searchLimit?: number };
+  candidates: number;
+  inFeed: number;
+  rejected: number;
+  note: string;
+}
+
+export interface VideoCard {
+  id: string;
+  platform: VideoRecord['platform'];
+  platformId: string;
+  url: string;
+  title: string;
+  thumbnail?: string;
+  creator?: string;
+  creatorUrl?: string;
+  publishedAt?: string;
+  ageHours?: number;
+  durationSec?: number;
+  isShort?: boolean;
+  views?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  state: VideoState;
+  viralScore: number;
+  breakoutScore: number;
+  engagementScore: number;
+  outlierScore: number;
+  velocityPerHour?: number;
+  velocityHours?: number;
+  velocityRatio?: number;
+  acceleration?: number;
+  lifetimeRate?: number;
+  baselineRatio?: number;
+  subscriberRatio?: number;
+  category: string;
+  formats: string[];
+  reasons: string[];
+  crossPlatform: number;
+  verified: boolean;
+}
+
+export interface VideoIntel {
+  generatedAt: string;
+  counts: Record<VideoState, number>;
+  platforms: Record<string, number>;
+  /** Viral Now (platforms with view counts), by viralScore, per publish window */
+  viralNow: Record<VideoWindow, VideoCard[]>;
+  /** Early Radar (platforms with view counts), by breakoutScore */
+  earlyRadar: VideoCard[];
+  /** Bluesky-native lists on Bluesky's own scale (likes, no views) — never mixed into the lists above */
+  bluesky: { viralNow: VideoCard[]; earlyRadar: VideoCard[] };
+  /** category waves (cluster-level) */
+  waves: { trendId: string; name: string; category: string; state: CategoryWaveState; creators: number; videos: number; newCreators48h: number; growth?: number; platforms: string[]; firstSeen: string; sequence: { platform: string; at: string }[] }[];
+  funnel: DiscoveryFunnel;
+  coverage: PlatformCoverage[];
+}
+
 export interface Snapshot {
   version: 2;
   generatedAt: string;
@@ -239,6 +425,8 @@ export interface Snapshot {
   trends: Trend[];
   categories: CategoryActivity[];
   quality: QualitySummary;
+  /** 3.0: video-native intelligence (top lists; the full index is in data/videos.json) */
+  videos?: VideoIntel;
   stats: {
     observationsThisRun: number;
     observationsTotal: number;

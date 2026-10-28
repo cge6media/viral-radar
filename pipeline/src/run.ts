@@ -9,8 +9,10 @@
 import { collectGoogleTrends } from './collectors/googleTrends.js';
 import { collectBluesky } from './collectors/bluesky.js';
 import { collectMastodon } from './collectors/mastodon.js';
-import { collectYouTube, enrichYouTubeLinks, quotaDay } from './collectors/youtube.js';
-import { collectTikTok } from './collectors/tiktok.js';
+import { collectYouTube, enrichYouTubeLinks, fetchChannelData, loadChannelCache, quotaDay, SEARCH_BUDGET, UNIT_BUDGET } from './collectors/youtube.js';
+import { collectTikTok, enrichTikTokLinks } from './collectors/tiktok.js';
+import { buildVideoRecords, linkCrossPlatform, trendIndexFrom, type ChannelStats } from './intel/videos.js';
+import { buildVideoIntel, markDuplicates } from './intel/funnel.js';
 import { buildClusters, independentCreators, type Cluster } from './intel/cluster.js';
 import { classify, decideNewsEvent, profileFor } from './intel/taxonomy.js';
 import { FORMAT_BY_ID, validateObservation } from './intel/relevance.js';
@@ -21,7 +23,7 @@ import {
   saveSourceCache, writeJson, readJson, DATA_DIR, type ScoreRecord,
 } from './lib/store.js';
 import { fixtureMode } from './lib/http.js';
-import type { CategoryActivity, Observation, Platform, Snapshot, SourceQuality, SourceStatus, Trend, Window, WindowScores } from './types.js';
+import type { CategoryActivity, Observation, Platform, Snapshot, SourceQuality, SourceStatus, Trend, VideoRecord, Window, WindowScores } from './types.js';
 import { WINDOWS } from './types.js';
 import { hasUnsafeMarkers, hoursBetween, nowIso, round, sha1 } from './lib/util.js';
 
@@ -87,7 +89,18 @@ export async function main(): Promise<Snapshot> {
   const knownYt = new Set<string>();
   for (const o of [...existing, ...bs.items]) if (o.video?.platform === 'youtube' && hoursBetween(o.firstSeenAt || o.observedAt, runStart) <= 24 * 7) knownYt.add(o.video.id);
   const topicTerms = bs.items.filter((o) => o.kind === 'social_topic').map((o) => o.title).filter((t) => classify(t).category !== 'News & Politics' && !decideNewsEvent([], t, classify(t).category));
-  const yt = await runSource('youtube', () => collectYouTube({ trackIds: Array.from(knownYt), topicTerms }));
+  // exploitation: microtrends that already showed momentum last run become discovery probes
+  const previous = await readJson<Snapshot>('latest.json');
+  const trendTerms = (previous?.trends || []).filter((t) => t.kind === 'microtrend' && t.qualified && !t.isGeneric).sort((a, b) => b.scores.opportunity - a.scores.opportunity).map((t) => t.name.replace(/^#/, '').replace(/([a-z])([A-Z])/g, '$1 $2')).slice(0, 3);
+  // diagnostics watch list (benchmark cases): re-measured every run, never stored as observations
+  const watch = (await readJson<{ ids: string[] }>('diagnostics/watch.json'))?.ids || [];
+  let ytDiagnostics: { id: string; t: string; views?: number; likes?: number; comments?: number }[] = [];
+  const yt = await runSource('youtube', async () => {
+    const r = await collectYouTube({ trackIds: Array.from(knownYt), topicTerms, trendTerms, diagnosticIds: watch });
+    ytDiagnostics = r.diagnostics || [];
+    return r;
+  });
+  if (ytDiagnostics.length) await appendDiagnostics(ytDiagnostics);
 
   const sources = [gt, bs, ma, yt, tt].map((r) => r.status);
   let fresh = [gt, bs, ma, yt, tt].flatMap((r) => r.items).filter((o) => !hasUnsafeMarkers(`${o.title} ${o.text || ''}`));
@@ -111,6 +124,10 @@ export async function main(): Promise<Snapshot> {
   if (!fixtureMode() && yt.status.mode === 'disabled') {
     const n = await enrichYouTubeLinks(fresh);
     if (n) console.log(`  verified ${n} linked YouTube videos via oEmbed (title + channel; no stats without an API key)`);
+  }
+  if (!fixtureMode()) {
+    const n = await enrichTikTokLinks(fresh);
+    if (n) console.log(`  verified ${n} linked TikTok videos via oEmbed (title + author + embed; TikTok publishes no statistics)`);
   }
 
   // ---- 3. relevance validation (stage 2 classification) ----
@@ -140,7 +157,7 @@ export async function main(): Promise<Snapshot> {
     const text = (c.kind === 'format' && fmt ? `${fmt.name} ${fmt.category} `.repeat(3) : '') + c.members.map((m) => `${m.title} ${m.text || ''}`).join(' \n ');
     const cls = fmt ? { category: fmt.category, subcategory: fmt.subcategory } : classify(text, c.members.flatMap((m) => m.tags || []));
     const isNewsEvent = c.kind === 'format' ? false : decideNewsEvent(c.members, c.name, cls.category);
-    const isGeneric = c.kind === 'format' ? !!fmt?.generic : c.kind === 'topic' ? false : false;
+    const isGeneric = c.kind === 'format' ? !!fmt?.generic : c.kind === 'microtrend' ? !!c.broadTopic : false;
     const hist = byTrend.get(c.id) || [];
     const windows = {} as Record<Window, WindowScores>;
     for (const w of WINDOWS) windows[w] = scoreWindow({ cluster: c, category: cls.category, isNewsEvent, isGeneric, now, window: w, history: hist, metricHistory });
@@ -176,14 +193,40 @@ export async function main(): Promise<Snapshot> {
   // ---- 8. source quality ----
   const sourceQuality = sourceQualityFrom([gt, bs, ma, yt, tt], recent, now, existing);
 
+  // ---- 8b. video-native intelligence (3.0): one record per unique video over 30 days ----
+  const recent30 = all.filter((o) => o.kind === 'video' && hoursBetween(contentTime(o) || o.firstSeenAt || o.observedAt, now) <= 24 * 30);
+  const metricHistory30 = await loadMetricHistory(recent30.filter((o) => o.level === 'direct').map((o) => o.id));
+  const trendIndex = trendIndexFrom(trends);
+  const channelCache = await loadChannelCache();
+  const toStats = (c: Record<string, { subscribers?: number; videos?: number; views?: number; medianRecentViews?: number; baselineSampled?: number; baselineAt?: string }>) => new Map<string, ChannelStats>(Object.entries(c).map(([id, x]) => [id, { subscribers: x.subscribers, videos: x.videos, views: x.views, medianRecentViews: x.medianRecentViews, baselineSampled: x.baselineSampled, baselineAt: x.baselineAt }]));
+  let videoRecords: VideoRecord[] = buildVideoRecords({ observations: recent30, metricHistory: metricHistory30, channels: toStats(channelCache), trendIndex, now });
+  if (!fixtureMode() && yt.status.mode === 'live') {
+    // channel statistics for every channel in the universe (50 per unit) + upload baselines for outlier candidates
+    const channelIds = Array.from(new Set(recent30.filter((o) => o.source === 'youtube' && o.video?.channelId).map((o) => o.video!.channelId!)));
+    const baselineIds = videoRecords
+      .filter((r) => r.platform === 'youtube' && r.verified && (r.metrics.views || 0) >= 100_000 && (r.ageHours ?? Infinity) <= 24 * 14 && r.creator?.channelId && (r.subscriberRatio == null || r.subscriberRatio >= 2))
+      .sort((a, b) => (b.subscriberRatio ?? 0) - (a.subscriberRatio ?? 0))
+      .map((r) => r.creator!.channelId!);
+    const ch = await fetchChannelData({ channelIds, baselineIds, maxBaselines: 20 });
+    if (ch.errors.length) console.log(`  channel data: ${ch.errors.length} error(s): ${ch.errors[0]}`);
+    console.log(`  channel data: ${Object.keys(ch.channels).length} channels cached (+${ch.units} units)`);
+    videoRecords = buildVideoRecords({ observations: recent30, metricHistory: metricHistory30, channels: toStats(ch.channels), trendIndex, now });
+  }
+  linkCrossPlatform(videoRecords, recent30);
+  const dupes = markDuplicates(videoRecords);
+  const ledgerNow = await readJson<{ units: number; searchCalls: number; day: string }>('cache/youtube-quota.json');
+  const videoIntel = buildVideoIntel({ records: videoRecords, trends, sources, observations: recent30, now, youtubeQuota: ledgerNow && ledgerNow.day === quotaDay(now) ? { used: ledgerNow.units, limit: UNIT_BUDGET, searches: ledgerNow.searchCalls, searchLimit: SEARCH_BUDGET } : undefined });
+  await writeJson('videos.json', { generatedAt: now, runId, counts: videoIntel.counts, records: videoRecords.filter((r) => r.state !== 'rejected' || isCandidateLike(r)).map(slimRecord) });
+  console.log(`  videos: ${videoRecords.length} unique (${videoIntel.counts.verified_hit} verified hits, ${videoIntel.counts.early_breakout} breakouts, ${videoIntel.counts.unverified_signal} unverified signals, ${videoIntel.counts.rejected} rejected, ${dupes} duplicates); funnel ${videoIntel.funnel.discovered}→${videoIntel.funnel.verified}→${videoIntel.funnel.candidates}→${videoIntel.funnel.qualified}→${videoIntel.funnel.inFeed}`);
+
   // ---- 9. quality checks + snapshot ----
   const pruned = await pruneHistory();
   if (pruned.length) console.log(`  pruned ${pruned.length} old history files`);
   const earliest = all.map((o) => o.firstSeenAt || o.observedAt).sort()[0];
   const ledger = await readJson<{ units: number; searchCalls: number; day: string }>('cache/youtube-quota.json');
-  const quality = runQualityChecks({ trends, observations: recent, sources, now });
+  const quality = runQualityChecks({ trends, observations: recent, sources, now, records: videoRecords });
   const snapshot: Snapshot = {
-    version: 2, generatedAt: now, runId, sources, sourceQuality, trends, categories, quality,
+    version: 2, generatedAt: now, runId, sources, sourceQuality, trends, categories, quality, videos: videoIntel,
     stats: {
       observationsThisRun: fresh.length, observationsTotal: all.length,
       qualifiedTrends: trends.filter((t) => t.qualified).length,
@@ -197,6 +240,23 @@ export async function main(): Promise<Snapshot> {
   await writeJson('quality/report.json', { generatedAt: now, runId, quality, sourceQuality, qualified: trends.filter((t) => t.qualified).map((t) => ({ id: t.id, name: t.name, kind: t.kind, grade: t.scores.grade, creators: t.scores.creators, videos: t.scores.videos, direct: t.scores.directVideos })) });
   console.log(`  trends: ${trends.length} (${snapshot.stats.qualifiedTrends} qualified; ${trends.filter((t) => t.kind === 'microtrend').length} microtrends, ${trends.filter((t) => t.kind === 'format').length} formats, ${trends.filter((t) => t.kind === 'topic').length} topics). Quality: ${quality.checks.filter((c) => c.ok).length}/${quality.checks.length} checks ok. Wrote data/latest.json`);
   return snapshot;
+}
+
+function isCandidateLike(r: VideoRecord): boolean {
+  return r.verified && ((r.metrics.views || 0) >= 10_000 || (r.metrics.likes || 0) >= 100);
+}
+
+/** videos.json keeps the full record but trims text-heavy fields */
+function slimRecord(r: VideoRecord): VideoRecord {
+  return { ...r, reasons: r.reasons.slice(0, 8), sources: r.sources.slice(0, 6), crossPlatform: r.crossPlatform.slice(0, 6) };
+}
+
+async function appendDiagnostics(points: { id: string; t: string; views?: number; likes?: number; comments?: number }[]): Promise<void> {
+  const { appendFile, mkdir } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const dir = path.join(DATA_DIR, 'diagnostics');
+  await mkdir(dir, { recursive: true });
+  await appendFile(path.join(dir, 'track.ndjson'), points.map((p) => JSON.stringify(p)).join('\n') + '\n', 'utf8');
 }
 
 function profileScore(category: string): number {

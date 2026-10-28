@@ -22,6 +22,8 @@ export interface Cluster {
   keywords: string[];
   members: Observation[];
   formatId?: string;
+  /** a broad subject hashtag (#anime, #roblox): topic activity, not a format — generic unless growth is measured */
+  broadTopic?: boolean;
 }
 
 export const MIN_CREATORS = Number(process.env.VR_MIN_CREATORS || 3);
@@ -53,7 +55,11 @@ export function independentCreators(members: Observation[]): number {
   return creators.size;
 }
 
-const GENERIC_TAGS = new Set(['art', 'video', 'videos', 'shorts', 'short', 'fyp', 'viral', 'trending', 'bsky', 'bskyart', 'bluesky', 'oc', 'gif', 'sketch', 'commission', 'commissions', 'comms', 'commsopen', 'nsfw', 'youtube', 'tiktok', 'reels', 'new', 'live', 'animation', 'animated', 'music', 'comedy', 'funny', 'cute', 'love', 'cat', 'cats', 'dog', 'dogs', 'gaming', 'game', 'games', 'film', 'movie', 'asmr', 'satisfying']);
+/** platform boilerplate and engagement-bait tags: never a microtrend (they describe the platform, not a format) */
+const GENERIC_TAGS = new Set(['art', 'video', 'videos', 'shorts', 'short', 'fyp', 'fypシ', 'foryou', 'foryoupage', 'viral', 'viralvideo', 'viralshorts', 'viralvideos', 'trending', 'trend', 'trendingshorts', 'bsky', 'bskyart', 'bluesky', 'oc', 'gif', 'sketch', 'commission', 'commissions', 'comms', 'commsopen', 'nsfw', 'youtube', 'youtubeshorts', 'ytshorts', 'yt', 'shortsfeed', 'shortsvideo', 'shortvideo', 'youtubeshort', 'tiktok', 'reels', 'reel', 'instagram', 'new', 'live', 'animation', 'animated', 'music', 'comedy', 'funny', 'funnyvideo', 'funnyvideos', 'cute', 'love', 'cat', 'cats', 'dog', 'dogs', 'gaming', 'game', 'games', 'film', 'movie', 'asmr', 'satisfying', 'subscribe', 'like', 'follow', 'share', 'comment', 'explore', 'explorepage', 'memes', 'meme', 'lol', 'lmao', 'status', 'whatsappstatus', 'edit', 'edits', 'fy', 'viralreels', 'reelsinstagram', 'instagood', 'trendingreels', 'ytshort', 'shortsyoutube', 'short_video', 'video_viral', 'fun', 'entertainment', 'vlog', 'daily', 'life', 'motivation', 'facts', 'fact', 'news', 'india', 'usa', 'uk', 'pakistan', 'bangladesh', 'ai', 'funnyshorts', 'comedyvideo', 'comedyshorts', 'cartoon', 'anime', 'pets', 'animals', 'sports', 'football', 'cricket', 'song', 'songs', 'dance', 'cover', 'minecraft', 'roblox', 'fortnite', 'gta', 'freefire', 'pubg', 'bgmi', 'valorant']);
+/** broad topic tags: real subjects, but a subject is not a format — they cluster as "topic activity", never as a wave without measured growth */
+const BROAD_TOPICS = new Set(['anime', 'cartoon', 'pets', 'animals', 'sports', 'football', 'cricket', 'song', 'songs', 'dance', 'cover', 'minecraft', 'roblox', 'fortnite', 'gta', 'freefire', 'pubg', 'bgmi', 'valorant', 'cat', 'cats', 'dog', 'dogs', 'gaming', 'music', 'comedy', 'animation', 'ai', 'news', 'memes']);
+export function isBroadTopicTag(tag: string): boolean { return BROAD_TOPICS.has(tag.replace(/^#/, '').toLowerCase()); }
 const PHRASE_STOP = new Set(['official', 'video', 'videos', 'episode', 'part', 'full', 'new', 'best', 'top', 'first', 'last', 'day', 'days', 'week', 'today', 'live', 'stream', 'shorts', 'short', 'trailer', 'teaser', 'season', 'update', 'reaction', 'reacts', 'review', 'explained', 'ft', 'feat', 'remix', 'lyrics', 'audio', 'hd', '4k', 'vlog', 'tutorial', 'bsky', 'social', 'com', 'www', 'http', 'https', 'youtube', 'youtu', 'watch', 'tiktok', 'instagram', 'twitch', 'link', 'thread', 'rt', 'via', 'credit', 'commission', 'commissions', 'comm', 'cmm', 'comms', 'open', 'please', 'thanks', 'thank', 'love', 'like', 'got', 'made', 'make', 'making', 'amazing', 'check', 'out', 'really', 'just', 'one', 'two', 'three', 'guys', 'everyone', 'wait', 'still']);
 
 /** Tokens for phrase mining: video-level text without handles, URLs and platform boilerplate. */
@@ -150,7 +156,7 @@ export function buildClusters(observations: Observation[]): Cluster[] {
   const queryTokens = new Set(FORMATS.flatMap((f) => f.queries.flatMap((q) => tokenize(q))));
   for (const v of videos) {
     for (const tag of uniq(v.tags || [])) {
-      if (GENERIC_TAGS.has(tag) || tag.length < 4 || queryTokens.has(tag)) continue;
+      if ((GENERIC_TAGS.has(tag) && !BROAD_TOPICS.has(tag)) || tag.length < 4 || queryTokens.has(tag)) continue;
       addCand(`#${tag}`, `#${tag}`, 'hashtag', v.id);
     }
     const toks = tokensByVideo.get(v.id) || [];
@@ -181,7 +187,7 @@ export function buildClusters(observations: Observation[]): Cluster[] {
     if (independentCreators(fresh) < MIN_CREATORS) continue;
     fresh.forEach((m) => taken.add(m.id));
     const kws = c.origin === 'hashtag' ? [c.key.slice(1)] : c.key.split(' ');
-    micro.push({ id: `m_${normalizeKey(c.key).replace(/\s+/g, '_').slice(0, 60)}`, kind: 'microtrend', name: c.label, origin: c.origin, keywords: kws, members: fresh });
+    micro.push({ id: `m_${normalizeKey(c.key).replace(/\s+/g, '_').slice(0, 60)}`, kind: 'microtrend', name: c.label, origin: c.origin, keywords: kws, members: fresh, broadTopic: c.origin === 'hashtag' && BROAD_TOPICS.has(c.key.slice(1)) });
   }
   // merge microtrends whose member sets overlap heavily (e.g. "pumpkin carving" and "carving timelapse")
   for (let i = 0; i < micro.length; i++) {

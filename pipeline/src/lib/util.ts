@@ -93,6 +93,8 @@ export function isVideoUrl(url: string): boolean {
     /tiktok\.com\/.+\/video\/\d+/.test(url) ||
     /tiktok\.com\/t\//.test(url) ||
     /instagram\.com\/(reel|reels|p)\//.test(url) ||
+    /facebook\.com\/(?:reel\/\d+|watch\/?\?v=\d+|[^/]+\/videos\/\d+)/.test(url) ||
+    /fb\.watch\//.test(url) ||
     /video\.bsky\.app\//.test(url)
   );
 }
