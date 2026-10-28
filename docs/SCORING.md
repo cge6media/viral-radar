@@ -220,6 +220,37 @@ with fit ≥65, and an example ≥100K views), `participate` (calendar events wi
 `research` (strong evidence, moderate fit), `monitor` (<4 creators, early grade, small numbers), `skip` (cooling,
 single events). At most two opportunities per category, eight in total; when fewer qualify, fewer are shown.
 
+### 4.0.1 refinements (after the second independent audit)
+
+- **Dominance is an event only when the dominant video carries the name.** One video holding ≥75 % of a cluster
+  whose own title does not contain the cluster's name is "uncertain — keyword coincidence", not an event.
+- **A hashtag or a person/entity name is a meme only when the titles share a word beyond the name** (`#laugh`
+  with four creators is a tag; "Emilly Vick" with three mentions is a subject). Otherwise "uncertain".
+- **A curated pool is a format only with a visible structure this week**: a shared signature word beyond the pool's
+  own name (streams and ≥30-minute recordings do not vote) or ≥2 creators who repeat it. Otherwise it is
+  "uncertain — a category pool", stays in the lane as a watchlist, and its sub-formats are listed instead.
+- **Boilerplate before news**: a phrase that lives in <40 % of the titles is boilerplate whatever its members look
+  like ("Get Ready", "Abonne Toi"); credits and legal boilerplate are also blocked before phrase clustering.
+- **Early breakout holds its pace**: after the first 48 h, a high absolute rate counts only while measured ≥ lifetime
+  average (ratio ≥ 1); a steady-or-slowing video is "past its peak", not early. The acceleration branch (rate rising
+  vs the previous interval) is unchanged. Radar ranking multiplies the breakout score by pace (×1.05 accelerating,
+  ×0.85 at 0.8–1, ×0.6 below 0.8) and by youth (0.75–1).
+- **Hashtag-only titles** are ranked ×0.8 and say so; one channel's identical-title uploads are one entry per list.
+
+### Creator Desk evidence (4.0.1)
+
+Only *clean* evidence counts: a verified video that is a qualified hit or breakout, or a mid-size success (≥100K
+views inside ten days, rejected only by the viral floor for its age), that is not a live stream, not a ≥30-minute
+recording, not a news clip (platform category or news words) and not a text post. Creators, repeat creators,
+dominance, median duration, languages and the cooling/accelerating shares are recomputed on that evidence. The
+category is the clean examples' own majority category when it contradicts the cluster label; a desk item whose
+examples are Sports or News leaves the desk. Timing: calendar events are timed by the calendar (countdown; a passed
+date is cooling); a cluster younger than 24 h reads its examples' measured rates (≥50 % past their peak → cooling,
+≥50 % accelerating → accelerating). Briefs exist only for actionable items; monitored items state what would change
+the verdict. The lane reads the whole relevance pool (≤10 days old) and lists sub-formats — words shared by ≥3
+independent creators' titles — with their examples; a sub-format with ≥4 creators, ≥1 qualified example, short-form
+and not sports/news/cooling is promoted to the desk as *research*.
+
 ## Prediction scorecard
 
 See `docs/PREDICTIONS.md`.

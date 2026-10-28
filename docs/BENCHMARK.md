@@ -151,6 +151,7 @@ Results of the 4.0 runs are appended below as they are produced.
 |---|---|---|---|---|---|
 | 4.0 cycle 1 — dev set, 11:31 UTC (35 min after the adaptive scheduler started; 3.0 cycle 2 on the previous day's lists was 49.0 %) | **53/98 (54.1 %)** — ChartsList US 38/48 · ShortsMonkey 15/50 | 100 % / 100 % | 0 of 142 + 15 + 105 + 196 + 208 | 96.0 % | 99/100 embeddable, 100/100 thumbnails |
 | 4.0 cycle 2 — unseen holdout (World / MX / GB), 12:20 UTC (3.0 cycle 3 was 65.9 %) | **58/82 (70.7 %)** — World 23/51 · MX 36/48 (≈) · GB 40/48 (≈) | 100 % / 100 % | 0 of 146 + 15 + 106 + 204 + 257 | — | — |
+| 4.0.1 — holdout re-run after the pace rule / dedupe / hashtag-title changes, 13:17 UTC (`4.0.1-holdout.md`) | **58/82 (70.7 %)**, 57/82 qualified (unchanged: the stricter early-breakout rule cost no recall) | 100 % / 100 % | 0 of 154 + 15 + 106 + 209 + 257 | — | — |
 
 Source coverage of the discovered holdout positives: query-less `top:` probes 49, Trending charts 8, keyword 1.
 The hot-channel uploads source (zero search cost) had added 207 new videos (34 already ≥500K views) to the index by

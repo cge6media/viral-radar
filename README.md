@@ -64,9 +64,11 @@ web/        Vite + React dashboard (hash routing → works on GitHub Pages), han
 .github/    collect.yml  — every 30 min + manual: collect → commit data → build → deploy Pages
             deploy.yml   — on code pushes: test → build → deploy Pages
 docs/       PROGRESS.md · RESUME.md · DATA_SOURCES.md · SCORING.md · DISCOVERY.md · BENCHMARK.md · PREDICTIONS.md · ALERTS.md
-            AUDIT_4.0.md · RECOMMENDATION_AUDIT.md · CODE_REVIEW_4.0.md · TEST_RESULTS.md
+            MECHANISMS.md (what repeats: lengths and title hooks measured on the verified index)
+            AUDIT_4.0.md · RECOMMENDATION_AUDIT.md · _2.md · _3.md · CODE_REVIEW_4.0.md · TEST_RESULTS.md
             diagnose.yml — manual: inspect videos, batch-verify ids, probe TikTok, run the discovery benchmark
-            collect-b/c/d.yml — sibling schedules calling collect.yml (GitHub honours ~1 scheduled run per workflow per hour)
+            collect-b/c/d.yml — generated copies of collect.yml with staggered crons (GitHub honours only some scheduled slots);
+                           every scheduled/chained run also starts a `keeper` job that waits 25 min and dispatches the next collection
             qa.yml       — manual: real Chromium on the runner screenshots the live site at 1440/768/390 and verifies playback
 qa/         Playwright QA script + briefs export; results in data/qa/
 data/predictions/  append-only predictions, outcomes, crossings; scorecard.json

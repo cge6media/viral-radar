@@ -9,7 +9,8 @@ Last updated: 2026-10-28 (4.0 release session in Anthropic's cloud workspace; se
 | 1 Audit & baseline (`docs/AUDIT_4.0.md`): measured 53 % scheduled-run start rate (one run per hour), Early Radar conflating established hits/young breakouts/resurgences, trend recommendations surfacing tags/fragments/calendar days, 7 MB payload | ✅ |
 | 2 Core intelligence: adaptive discovery (yield ledger, reserve rule, bandit with 25 % exploration, depth pages, hot-channel uploads at zero search cost, Shorts verification); age-aware hit floor + established/early/delayed kinds + confidence bands + language; prediction scorecard (immutable predictions, radar vs views/velocity baselines, outcomes at 24h/48h/72h/7d, crossings, lead time, calibration bands); opportunity types (event/meme/format/uncertain) from title-level structure; Creator Desk engine; alerts; health | ✅ 51 tests |
 | 3 Creator workflow & reliability: Creator Desk page + playbooks (three duration-scaled variations with format-specific risk, Markdown export), Scorecard page, Alerts (new since last visit, filters, optional free webhook), Journal (statuses, real numbers, comparisons, backup/restore), Radar health tab (freshness states, collection success, yield per search, rejection reasons, failure taxonomy, latest benchmark), Viral Now language filter, Early Radar kinds, production return comparison, Hall of Fame creative lessons (37 entries documented), navigation regrouped (5 primary + More), four sibling schedules + freshness gate, cached builds, actions history export | ✅ |
-| 4 Adversarial evaluation: 4.0 dev benchmark (54.1 % recall, 100 % precision, 0 leaks, 96 % classification agreement, 99/100 embeddable); unseen holdout re-run; two independent recommendation audits (`docs/RECOMMENDATION_AUDIT.md`, `_2.md`) with rubric scores and microtrend label validation; independent code review (`docs/CODE_REVIEW_4.0.md`, 19 findings, all resolved); browser QA on the live site at 1440/768/390 with real clicks (`data/qa/`); prediction workflow tested on synthetic histories (no real outcomes could exist yet on release day) | ✅ |
+| 4 Adversarial evaluation: 4.0 dev benchmark (54.1 % recall, 100 % precision, 0 leaks, 96 % classification agreement, 99/100 embeddable); unseen holdout 70.7 %; two independent recommendation audits (`docs/RECOMMENDATION_AUDIT.md` 2.45/5 · 45 %, `_2.md` 2.17/5 · 37.5 %) with rubric scores and microtrend label validation; independent code review (`docs/CODE_REVIEW_4.0.md`, 19 findings, all resolved); browser QA on the live site at 1440/768/390 with real clicks (`data/qa/`); prediction workflow tested on synthetic histories (no real outcomes could exist yet on release day) | ✅ |
+| 4.0.1 Fix cycle from the second audit (`docs/RECOMMENDATION_AUDIT_2.md` §9): desk evidence integrity (qualified or ≥100K mid-size only; no streams, long recordings, news clips, text posts; counts match what is shown; matched term per card), category and timing from the verified examples, calendar countdowns, dominant video must carry the name, hashtag/entity memes need a shared word, pools need a visible structure, boilerplate blocked before clustering, Early Radar pace rule + ranking, hashtag-only titles demoted, per-channel title dedupe, romanised-Hindi detection, lane from the whole pool with sub-formats (promoted to *research* when strong), playbooks only for actionable items, honest difficulty; keeper job chains collections (GitHub honoured 1 of 7 scheduled slots after the sibling workflows); third independent audit on the first live 4.0.1 run (`docs/RECOMMENDATION_AUDIT_3.md`) | ✅ 55 tests |
 
 
 ## 3.0 upgrade (2026-10-28)
@@ -70,7 +71,21 @@ Last updated: 2026-10-28 (4.0 release session in Anthropic's cloud workspace; se
 4. Optional embedding stage (semantic similarity) for microtrend grouping once YouTube provides richer titles/descriptions.
 5. Subscription product path: see docs/SAAS_ARCHITECTURE.md.
 
-## Known limitations
+## Known limitations (4.0.1)
+
+- **Relevance is title-level.** Tags and descriptions are not stored in the index (payload size), so a microtrend's
+  evidence is matched on titles and a pool's on its include/exclude rules; the matched term is shown on every card so
+  a keyword coincidence is visible, but it is not impossible.
+- **GitHub's scheduler drops most slots** (1 of 7 honoured in the hour after the four sibling workflows went live).
+  The keeper chain (a run dispatches the next after 25 minutes) is the mitigation; its measured cadence is in
+  `data/health.json` and on the Radar health tab.
+- **No real prediction outcomes exist yet**: the scorecard fills from 24 h after each prediction; precision is `null`
+  below ten evaluated predictions by design.
+- **Most monitored desk items are not in English/Spanish**; the desk says so and keeps them as monitors.
+- **Sub-formats are shared words**, not validated clusters; they are labelled that way and only reach the desk as
+  "research".
+- **YouTube's anti-bot wall** blocks most embeds on datacenter IPs (the QA runner); a residential browser is not
+  affected, and every player has the "Open original" fallback.
 
 - Bluesky does not expose view counts; engagement (likes/reposts) is used instead and labelled.
 - Google Trends RSS exposes ~10 items per region and a lower-bound traffic figure.

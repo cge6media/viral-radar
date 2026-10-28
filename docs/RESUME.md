@@ -42,10 +42,13 @@ git push -u origin main
 
 ## 2c. 4.0 operations
 
-- **Schedules.** `collect.yml` (3,33) plus `collect-b/c/d.yml` (18,48 · 11,41 · 26,56) call the same workflow;
-  GitHub tends to honour about one scheduled run per workflow per hour, so four workflows give ~4 attempts an hour
-  and the freshness gate (skip when `data/latest.json` is <22 min old) keeps the effective cadence near 30 min.
-  Manual runs are never skipped. Collection health and the Actions run history are in `data/health.json` and
+- **Schedules.** `collect.yml` (3,33) plus `collect-b/c/d.yml` (18,48 · 11,41 · 26,56) are identical copies with
+  their own crons (`scripts/sync-schedules.mjs` regenerates b/c/d after editing collect.yml). GitHub honoured only
+  about one scheduled slot per hour across all four on 2026-10-28, so (4.0.1) every scheduled or chained run also
+  starts a `keeper` job: it sleeps 25 minutes, checks that no collection started in the last 10 minutes, and
+  dispatches `collect.yml` with `chain=true`; the freshness gate (skip when `data/latest.json` is <22 min old)
+  applies to scheduled and chained runs, so collectors never overlap. Manual runs are never skipped and start no
+  chain. Disabling the workflows stops the chain. Collection health and the Actions run history are in `data/health.json` and
   `data/health/actions.json`; the app shows them under Diagnostics → Radar health (freshness is a state: fresh
   <45 min, delayed <2 h, stale).
 - **Adaptive discovery.** `data/cache/youtube-yield.json` is the per-probe yield ledger (summarised in

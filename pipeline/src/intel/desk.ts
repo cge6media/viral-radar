@@ -301,6 +301,8 @@ function decideAction(t: Trend, f: TrendFeatures, timing: DeskTiming, fit: Retur
   if (!scaleOk && type !== 'event') return { action: 'monitor', why: 'Real adoption but small numbers so far (no example above 100K views / 1K likes).' };
   if (timing === 'cooling') return { action: 'skip', why: 'Attention is falling; a new entry would arrive after the audience moved on.' };
   if (type === 'event' && f.nameShape === 'calendar') return fit.fit >= 50 ? { action: 'participate', why: 'A calendar moment: worth one original piece before the date, not a series.' } : { action: 'skip', why: 'A calendar moment outside what AI/animation production does well.' };
+  // a release or news topic (trailer, launch, match, award) is covered by many creators already: a topic, not a structure
+  if (type === 'event' && (t.opportunity?.basis || []).some((b) => /named title\/release|news-style content|news\/person event/.test(b))) return { action: 'skip', why: 'A release or news topic people cover, not a structure to reuse.' };
   if (type === 'event') return { action: fit.feasible ? 'monitor' : 'skip', why: 'One video carries the attention; watch whether other creators adopt it before building a format on it.' };
   if (!fit.feasible) return { action: 'research', why: `Strong evidence but ${fit.why}` };
   if (grade === 'early' || f.creators < 4) return { action: 'monitor', why: `Only ${f.creators} independent creators with clean verified examples so far — promising, not yet proven.` };
@@ -407,7 +409,7 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
     if (action === 'create_today' && !(fit.feasible && fit.effort[1] <= 2)) { action = 'research'; actionWhy = `Worth studying, but an original variation needs ${fit.effort[0]}–${fit.effort[1]}h — above the two-hour window.`; }
     if (action === 'create_today' && enEs < 0.3) { action = 'research'; actionWhy = `Strong evidence, but ${Math.round(100 * (1 - enEs))}% of the clean examples are not in English/Spanish — adapt the mechanism after watching them.`; }
     if (action === 'participate' && enEs < 0.3) { action = 'monitor'; actionWhy = `A real moment, but ${Math.round(100 * (1 - enEs))}% of the examples are outside English/Spanish — not your audience's moment unless you adapt it.`; }
-    if (action === 'skip') { skip(`skipped: ${timing.timing === 'cooling' ? 'cooling' : fClean.nameShape === 'calendar' ? 'calendar moment outside the creator fit (category or language)' : 'single event'}`); continue; }
+    if (action === 'skip') { skip(`skipped: ${timing.timing === 'cooling' ? 'cooling' : fClean.nameShape === 'calendar' ? 'calendar moment outside the creator fit (category or language)' : /release or news topic/.test(actionWhy) ? 'release / news topic, not a structure' : 'single event'}`); continue; }
     const why: string[] = [];
     const clusterVideos = t.evidence.filter((e) => e.kind === 'video').length;
     const qualified = clean.filter((x) => isQualified(x.r)).length;

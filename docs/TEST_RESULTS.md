@@ -2,13 +2,14 @@
 
 Everything below ran in the cloud (GitHub Actions runners or Anthropic's sandbox); no personal machine was used.
 
-## Automated tests — `npm test` — 50/50 pass
+## Automated tests — `npm test` — 55/55 pass
 
 | file | what it proves |
 |---|---|
 | predict.test.ts (4) | age-appropriate hit floor (1M@≤24h → 5M@30d, monotonic); kinds established/early/delayed from real histories; acceleration never claimed from <1,000-view intervals; language detection (scripts, stop-words, platform hint wins); predictions are frozen before outcomes, deduplicated while open, not due before the horizon, evaluated from the observation closest to the horizon, "unobserved" after 1.5× the horizon, never re-evaluated, precision null below ten; crossings only after predictions exist, lead time, recall not claimed from one crossing |
 | discovery.test.ts (2) | reserve rule (budget ÷ runs still expected, rounded, 1…4, 0 when exhausted; Pacific-day hours left); bandit choice honours cooldowns, is deterministic per seed, exploits measured yield after cooldown, EWMA learning, day roll with history, depth only for paged probes with rich first pages |
 | formats.test.ts (2) | name shapes (calendar, fragment incl. non-English stop-words and repeated words, hashtag, entity, phrase); descriptor tags incl. non-Latin; event vs format vs uncertain from dominance, independent creators, title share (boilerplate), sports/news; the desk includes the format, excludes boilerplate; alerts dedupe inside the 48h cooldown |
+| desk.test.ts (4, 4.0.1) | clean evidence excludes streams, ≥30-min recordings, news clips, text posts and sub-100K videos, and labels mid-size successes; calendar countdown (3 days to Halloween, "today", "2 days ago"), a passed date cools; a young cluster's timing from its examples' measured rates; category from the verified examples (a Sports cluster leaves the desk whatever its label); a sub-format shared by 3 creators is found inside a pool; romanised Hindi is Hindi |
 | videos.test.ts (6), intel (…), collectors, store, money | the 3.0 suite unchanged (states, velocity, cooling, outliers, duplicates, paid-reach pattern, big-channel normal range, quota day, taxonomy, relevance, money) |
 
 ## Live pipeline (GitHub Actions)
@@ -38,10 +39,19 @@ YouTube answers most embeds with "Sign in to confirm you're not a bot" (a YouTub
 A residential browser is not subject to that wall; it was not used because the owner limited browser use to
 Google Cloud and GitHub.
 
-## Recommendation audit and code review
+## Recommendation audits and code review
 
-Independent reviews (separate agents that did not build the system): `docs/RECOMMENDATION_AUDIT.md` (rubric-scored
-desk opportunities, feeds, microtrend label validation) and `docs/CODE_REVIEW_4.0.md` (findings and fixes).
+Independent reviews (separate agents that did not build the system and did not read each other):
+
+| review | run audited | result | response |
+|---|---|---|---|
+| `docs/RECOMMENDATION_AUDIT.md` | 11:24 UTC | desk 2.45/5, label agreement 45 % (30 % substantive) | fixes in the 12:08 run |
+| `docs/RECOMMENDATION_AUDIT_2.md` | 12:08 UTC | desk **2.17/5** (8 items; three "not trends"), label agreement **37.5 %** (format 20 %, meme 0 %, event 40 %, uncertain 90 %), Viral Now 9/10 sound, Early Radar 5/10 | 4.0.1 (§9 of that file): evidence integrity, category/timing from evidence, calendar countdowns, hashtag/entity memes need a shared word, dominant video must carry the name, pools need a visible structure, Early Radar pace rule, lane sub-formats, playbooks only for actionable items; replay of the audited run: 8 desk items → 5, labels event 591/meme 25/format 16/uncertain 213 → 544/1/9/293 |
+| `docs/CODE_REVIEW_4.0.md` | code | 0 critical, 4 high, 5 medium, 10 low | all 19 resolved |
+
+The second audit's scores stand as the measured quality of the 12:08 desk; the 4.0.1 changes were verified by
+replaying that run's observations offline (same data, new rules) and by the test suite, and a third audit of a live
+4.0.1 run is recorded below when available.
 
 ---
 
