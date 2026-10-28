@@ -571,9 +571,23 @@ export interface DeskOpportunity {
   caution?: string;
 }
 
+export interface LaneEntry {
+  trendId: string;
+  name: string;
+  creators: number;
+  videos: number;
+  newCreators48h: number;
+  topViews?: number;
+  signature: string[];
+  evidence: DeskEvidence[];
+  /** why it is not (or is) on the desk as an opportunity */
+  note: string;
+}
 export interface DeskReport {
   generatedAt: string;
   opportunities: DeskOpportunity[];
+  /** 4.0: the owner's own lane (AI, animation, characters, skits, music, explainers) — current clean activity whether or not it is a specific opportunity */
+  lane?: LaneEntry[];
   /** how many clusters were considered and why the rest were left out (counts by reason) */
   considered: number;
   excluded: Record<string, number>;

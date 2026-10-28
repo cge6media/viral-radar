@@ -188,7 +188,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     variationWhy: 'An original recurring character makes a borrowed format yours and compounds across videos.',
     title: `An original recurring character takes on ${subj}`,
     concept: `An original ${animated ? 'animated' : 'AI-generated'} character with one strong trait (overconfident, deadpan, tiny-but-furious) is dropped into the ${o.type === 'format' ? 'format' : 'moment'} the examples share (${subj}). The trait, not the format, produces the joke or payoff.`,
-    hook: `First frame: the character mid-action with the ${hookStyle ? HOOK_TEXT[hookStyle] : 'situation'} stated in on-screen text in ≤ 6 words — e.g. “${cap(subj)}, but ${['pov', 'when'].includes(hookStyle || '') ? 'it is me' : 'something is wrong'}”.`,
+    hook: `First frame: the character already mid-action; on-screen text states the premise in ≤ 6 words (the examples' titles mostly ${hookDesc}) — e.g. “${cap(nounPhrase)}, but ${['pov', 'when'].includes(hookStyle || '') ? 'it is me' : 'something is wrong'}”.`,
     structure: beats(d, 'character').map((b, i) => (i === 0 ? { ...b, what: `${b.what} (${hookDesc}).` } : b)),
     duration: dur,
     approach: [animated ? 'Character sheet (3 poses) generated once and reused; scenes via image-to-video' : 'AI video for scenes, one consistent character reference image', 'Synthesized or recorded voice with a signature catchphrase', 'Captions + 1 sound effect per beat; no copyrighted music'],

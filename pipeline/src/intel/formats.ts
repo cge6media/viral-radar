@@ -46,7 +46,7 @@ export function isDescriptorTag(tag: string): boolean {
   return t.length <= 24 && can(0);
 }
 const SPORTS_NEWS_RE = /\bballon d'?or\b|\bbal[oó]n de oro\b|\bgoal\b|\bgol\b|\bgoles\b|\bpartido\b|\bchampions\b|\bmundial\b|\bcopa\b|\bderby\b|\bcl[aá]sico\b|\bnba\b|\bnfl\b|\bmlb\b|\bufc\b|\bwwe\b|\bf1\b|\btransfer\b|\bsigns?\b|\bcontract\b|\btrade[ds]?\b|\binjur(y|ed)\b|\bbreaking\b|\bexplosion\b|\battack\b|\bkilled\b|\bdies\b|\bdead\b|\barrested\b|\bpolice\b|\bcourt\b|\bmissile\b|\bearthquake\b|\bcrash\b|\bprotest\b|\bscandal\b|\blawsuit\b|\belection\b|\bresigns?\b|\bfired\b|\bsuspended\b|\bceremony\b|\baward\b|\bwinner\b|\bganador\b|\bworlds\b|\bplayoffs?\b|\bfinals?\b|\bstrikes?\b|\bdrones?\b|\bbombing\b|\bblast\b|\btroops\b|\barmy\b|\bmilitary\b|\bwar\b|\bsanctions\b|\bceasefire\b|\bhostages?\b|\binvasion\b|\bshooting\b|\bverdict\b|\bindicted\b/i;
-const LIVE_RE = /\blive\b|live ?stream|\ben vivo\b|\bao vivo\b|🔴|\bstreaming\b|\bpremiere\b/i;
+export const LIVE_RE = /\blive\b|live ?stream|\ben vivo\b|\bao vivo\b|🔴|\bstreaming\b|\bpremiere\b/i;
 const RELEASE_RE = /\btrailer\b|\btr[aá]iler\b|\bteaser\b|\bbande-annonce\b|予告編|예고편|\bleak(ed|s)?\b|\bofficial\b|\bepisode\b|\bseason\b|\bgameplay\b|\brelease\b|\bpre-?order\b|\bdlc\b|\bpatch\b|\bupdate\b|\bceremony\b|\baward\b|\bfinals?\b|\bmatch\b|\bvs\.?\b|\bmv\b|\bfull album\b|\bout now\b|\blaunch(ed|es)?\b|\bunboxing\b|\breview\b|\bdurability\b|\bteardown\b|\bhands-on\b|\btested\b|\bfirst look\b|\bspecs\b|\bkeynote\b|\breveal(ed)?\b/i;
 const SIG_STOP = new Set(['could', 'would', 'should', 'will', 'just', 'only', 'even', 'still', 'really', 'very', 'much', 'many', 'more', 'most', 'also', 'than', 'then', 'them', 'this', 'that', 'what', 'when', 'where', 'which', 'while', 'with', 'without', 'your', 'you', 'our', 'their', 'into', 'onto', 'over', 'under', 'again', 'ever', 'never', 'always', 'something', 'anything', 'everything', 'nothing', 'someone', 'anyone', 'everyone', 'nobody', 'please', 'thanks', 'thank', 'like', 'subscribe', 'share', 'comment', 'follow', 'channel', 'watch', 'full', 'video', 'videos', 'shorts', 'short', 'youtube', 'youtubeshorts', 'ytshorts', 'shortsfeed', 'viral', 'trending', 'status', 'ini', 'itu', 'yang', 'dan', 'untuk', 'dengan', 'para', 'por', 'con', 'una', 'uno', 'los', 'las', 'del', 'que', 'como', 'más', 'pero', 'est', 'sur', 'pour', 'avec', 'dans', 'les', 'des', 'une', 'ben', 'bir', 'uma', 'com', 'não', 'nao', 'são', 'sao', 'mais']);
 
@@ -127,7 +127,8 @@ export function trendFeatures(t: Trend, byObs: Map<string, VideoRecord>, now: st
   // does the cluster's name live in the titles, or only in descriptions (boilerplate like "join discord", "use code")?
   const nameToks = tokenize(t.name.replace(/^#/, '')).filter((x) => !STOPWORDS.has(x));
   const tagName = t.name.replace(/^#/, '').toLowerCase();
-  const shape = nameShape(t.name, t.kind === 'microtrend' ? (t.name.startsWith('#') ? 'hashtag' : 'phrase') : t.kind);
+  // curated format pools have editorial names ("Cat videos"): never judged as fragments
+  const shape: TrendFeatures['nameShape'] = t.kind === 'format' ? 'phrase' : nameShape(t.name, t.name.startsWith('#') ? 'hashtag' : 'phrase');
   const inTitle = nameToks.length ? uniqVideos.filter((v) => { const tt = new Set(tokenize(v.title)); const tags = new Set((v.tags || []).map((x) => x.replace(/^#/, '').toLowerCase())); return (t.name.startsWith('#') ? nameToks.some((x) => tt.has(x)) : nameToks.every((x) => tt.has(x))) || tags.has(tagName) || tt.has(tagName); }).length : 0;
   const titleShare = uniqVideos.length ? round(inTitle / uniqVideos.length, 2) : 0;
   const liveShare = uniqVideos.length ? round(uniqVideos.filter((v) => LIVE_RE.test(v.title)).length / uniqVideos.length, 2) : 0;
@@ -161,7 +162,8 @@ export function classifyOpportunity(t: Trend, f: TrendFeatures): OpportunityClas
   const newsy = f.platformCategory === 'Sports' || f.platformCategory === 'News & Politics' || t.category === 'Sports' || t.category === 'News & Politics' || newsShare >= 0.4 || (f.platformCategory === 'Gaming' && releaseShare >= 0.3);
   // a structure must be visible beyond the cluster's own name: at least one shared title word that is not the name
   const nameWords = new Set(tokenize(t.name.replace(/^#/, '')));
-  const extraSignature = f.signature.filter((w) => !nameWords.has(w));
+  const nameFlat = t.name.replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const extraSignature = f.signature.filter((w) => !nameWords.has(w) && !nameFlat.includes(w.toLowerCase()) && !w.toLowerCase().includes(nameFlat));
   const strongStructure = f.signature.length >= 2 && extraSignature.length >= 1 && f.titleShare >= 0.5;
   if (t.isNewsEvent) { type = 'event'; confidence = 80; basis.push('flagged as a news/person event'); }
   else if (f.nameShape === 'calendar') { type = 'event'; confidence = 85; basis.push('a calendar moment (one-day attention, not a structure)'); }

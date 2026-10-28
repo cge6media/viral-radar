@@ -59,6 +59,25 @@ export default function Desk() {
         </Section>
       )}
 
+      {desk.lane && desk.lane.length > 0 && (
+        <Section title="Your lane this week" sub="AI, animation, characters, skits, music, explainers and stories: the current clean verified activity in each pool, whether or not it qualifies as one specific opportunity. Broad pools are category activity — use the signature words and the examples, not the headline count.">
+          <div className="stack" style={{ gap: 10 }}>
+            {desk.lane.map((l) => (
+              <article className="card tight" key={l.trendId}>
+                <div className="row between wrap" style={{ gap: 8 }}>
+                  <div className="row wrap" style={{ gap: 8, minWidth: 0 }}>
+                    <a href={`#/trend/${encodeURIComponent(l.trendId)}`} style={{ fontWeight: 800 }}>{l.name}</a>
+                    <span className="small muted">{l.creators} creators · {l.videos} clean videos · {l.newCreators48h} in 48h{l.topViews ? ` · best ${fmtNum(l.topViews)} views` : ''}{l.signature.length ? ` · signature: ${l.signature.join(', ')}` : ''}</span>
+                  </div>
+                  <span className="tiny dim">{l.note}</span>
+                </div>
+                <VideoRail cards={l.evidence.map(evidenceToCard)} now={now} />
+              </article>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section title="What was left out, and why" sub={`${desk.considered} microtrends and formats were considered this run.`}>
         <div className="row wrap" style={{ gap: 8 }}>
           {Object.entries(desk.excluded).sort((a, b) => b[1] - a[1]).map(([k, v]) => <span key={k} className="pill"><b className="num" style={{ marginRight: 6 }}>{v}</b>{k}</span>)}
