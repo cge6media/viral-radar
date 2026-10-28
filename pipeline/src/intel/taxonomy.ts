@@ -237,6 +237,34 @@ export function classify(text: string, tags: string[] = []): Classification {
   return { category: cat.name, subcategory: sub, score: best.score, candidates };
 }
 
+/** YouTube's own category (chosen by the uploader) → our taxonomy, where the mapping is unambiguous */
+export const YT_CATEGORY_TO_OURS: Record<string, string> = {
+  'Music': 'Music', 'Gaming': 'Gaming', 'Pets & Animals': 'Animals & Pets', 'Comedy': 'Comedy', 'Sports': 'Sports',
+  'Science & Technology': 'Tech & AI', 'Education': 'Science & Education', 'News & Politics': 'News & Politics',
+  'Film & Animation': 'Animation & Art', 'Howto & Style': 'Food & Cooking', 'Autos & Vehicles': 'Other', 'Travel & Events': 'Lifestyle',
+};
+
+/**
+ * Classify a video, using the platform's own category as a prior: when our keyword classifier is unsure (score < 3)
+ * and the uploader's category maps cleanly, the platform category wins; when the keywords are confident, they win.
+ * Howto & Style is only trusted when the text says so (it covers makeup, DIY and cooking alike).
+ */
+export function classifyVideo(text: string, tags: string[] = [], platformCategory?: string): Classification {
+  const kw = classify(text, tags);
+  const mapped = platformCategory ? YT_CATEGORY_TO_OURS[platformCategory] : undefined;
+  if (!mapped || mapped === 'Other') return kw;
+  if (platformCategory === 'Howto & Style' && kw.category !== 'Food & Cooking') return kw.score > 0 ? kw : { ...kw, category: 'Lifestyle', subcategory: 'General' };
+  if (kw.score >= 3 && kw.category !== 'Entertainment' && kw.category !== 'Other') return kw;
+  if (kw.category === mapped) return kw;
+  const cat = CATEGORIES.find((c) => c.name === mapped);
+  if (!cat) return kw;
+  // keep a keyword subcategory when the mapped category has one that matches, else General
+  const hay = ` ${text.toLowerCase()} ${tags.join(' ').toLowerCase()} `;
+  let sub = 'General';
+  for (const sc of cat.subcategories) if (sc.keywords.some((k) => hay.includes(` ${k.toLowerCase()} `))) { sub = sc.name; break; }
+  return { category: mapped, subcategory: sub, score: Math.max(kw.score, 2), candidates: kw.candidates };
+}
+
 export function profileFor(category: string): MonetizationProfile {
   return CATEGORIES.find((c) => c.name === category)?.profile || OTHER_PROFILE;
 }

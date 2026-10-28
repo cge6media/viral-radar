@@ -20,7 +20,7 @@
 import type { CrossPlatformLink, Metrics, Observation, VideoCard, VideoRecord, VideoState, VideoWindow, VelocityPoint } from '../types.js';
 import { VIDEO_WINDOWS, VIDEO_WINDOW_HOURS } from '../types.js';
 import { clamp, hoursBetween, logNorm, round } from '../lib/util.js';
-import { classify } from './taxonomy.js';
+import { classifyVideo } from './taxonomy.js';
 import { ratioToScore, median, type MetricPoint } from './score.js';
 import { exampleKey } from './cluster.js';
 
@@ -139,7 +139,7 @@ export function buildVideoRecords(input: VideoBuildInput): VideoRecord[] {
     const latest = vel.velocity[0];
     const velocityRatio = latest && lifetimeRate ? round(latest.perHour / Math.max(lifetimeRate, 0.1), 2) : undefined;
     const text = `${primary.title} ${primary.text || ''}`;
-    const cls = classify(text, primary.tags || []);
+    const cls = classifyVideo(text, primary.tags || [], primary.platformCategory);
     const ch = direct?.video?.channelId ? channels?.get(direct.video.channelId) : undefined;
     const likeRate = metrics.views && metrics.likes != null ? round(metrics.likes / metrics.views, 4) : undefined;
     const rec: VideoRecord = {

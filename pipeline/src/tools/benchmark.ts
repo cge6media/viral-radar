@@ -193,10 +193,11 @@ async function main() {
     c.verified && c.platform === 'youtube' && (c.views || 0) >= (c.state === 'verified_hit' ? 1_000_000 : 50_000) && (window == null || (c.ageHours != null && c.ageHours <= window));
   const precision = (list: { state: string; verified: boolean; views?: number; ageHours?: number; platform: string }[], window?: number) => ({ at10: list.slice(0, 10).filter((c) => judge(c, window)).length / Math.max(1, Math.min(10, list.length)), at20: list.slice(0, 20).filter((c) => judge(c, window)).length / Math.max(1, Math.min(20, list.length)), n: list.length });
   const precisionReport = { viralNow72h: precision(vn['72h'], 72), viralNow7d: precision(vn['7d'], 168), earlyRadar: precision(er) };
-  const MAP: Record<string, string[]> = { 'Music': ['Music'], 'Gaming': ['Gaming'], 'Animals & Pets': ['Pets & Animals'], 'Comedy': ['Comedy'], 'Animation & Art': ['Film & Animation'], 'Film & TV': ['Film & Animation', 'Entertainment'], 'Sports': ['Sports'], 'Science & Education': ['Education', 'Science & Technology'], 'Tech & AI': ['Science & Technology'], 'Food & Cooking': ['Howto & Style'], 'News & Politics': ['News & Politics'] };
-  const classifiable = records.filter((r) => r.platform === 'youtube' && r.platformCategory && MAP[r.category]);
-  const agree = classifiable.filter((r) => MAP[r.category].includes(r.platformCategory!)).length;
-  const classification = { comparable: classifiable.length, agree, rate: classifiable.length ? Math.round((1000 * agree) / classifiable.length) / 10 : null, note: 'our category vs YouTube\'s own category where a mapping exists (Entertainment/People & Blogs are unmappable)' };
+  // ground truth = the uploader's SPECIFIC YouTube category (catch-alls like Entertainment / People & Blogs say nothing)
+  const SPECIFIC: Record<string, string[]> = { 'Music': ['Music'], 'Gaming': ['Gaming'], 'Pets & Animals': ['Animals & Pets'], 'Comedy': ['Comedy'], 'Film & Animation': ['Animation & Art', 'Film & TV'], 'Sports': ['Sports'], 'Education': ['Science & Education'], 'Science & Technology': ['Tech & AI', 'Science & Education'], 'News & Politics': ['News & Politics'], 'Howto & Style': ['Food & Cooking', 'Lifestyle'] };
+  const classifiable = records.filter((r) => r.platform === 'youtube' && r.platformCategory && SPECIFIC[r.platformCategory]);
+  const agree = classifiable.filter((r) => SPECIFIC[r.platformCategory!].includes(r.category)).length;
+  const classification = { comparable: classifiable.length, agree, rate: classifiable.length ? Math.round((1000 * agree) / classifiable.length) / 10 : null, note: 'our category vs the uploader\'s specific YouTube category (Music, Gaming, Pets, Comedy, Film & Animation, Sports, Education, Sci & Tech, News, Howto); catch-all categories are excluded' };
 
   // ---- 7. playback: embeddable flag + thumbnail reachability for the featured top lists ----
   const featuredYt = Array.from(featuredIds).slice(0, 100);
