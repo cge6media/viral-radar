@@ -1,0 +1,52 @@
+{
+ "generatedAt": "2026-10-28T10:58:57.090Z",
+ "lastCollectionAt": "2026-10-28T10:57:19.417Z",
+ "lastPublishedAt": "2026-10-28T10:57:19.417Z",
+ "last24h": {
+  "collections": 1,
+  "expectedSlots": 1,
+  "startRate": null,
+  "failures": 3
+ },
+ "sources": [
+  {
+   "source": "google_trends",
+   "ok": true,
+   "lastSuccess": "2026-10-28T10:57:20.977Z"
+  },
+  {
+   "source": "bluesky",
+   "ok": true,
+   "lastSuccess": "2026-10-28T10:57:24.463Z"
+  },
+  {
+   "source": "mastodon",
+   "ok": true,
+   "lastSuccess": "2026-10-28T10:57:20.564Z"
+  },
+  {
+   "source": "youtube",
+   "ok": true,
+   "lastSuccess": "2026-10-28T10:58:45.072Z"
+  },
+  {
+   "source": "tiktok",
+   "ok": false
+  }
+ ],
+ "schedule": "3,18,33,48 * * * * (gated to ~30 min)",
+ "runs": [
+  {
+   "runId": "202610281057_fd8cf25fe973",
+   "startedAt": "2026-10-28T10:57:19.417Z",
+   "durationSec": 134,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4160,
+   "units": 1753,
+   "searches": 23,
+   "published": true,
+   "trigger": "workflow_dispatch"
+  }
+ ]
+}
