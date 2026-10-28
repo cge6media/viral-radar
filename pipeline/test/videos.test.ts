@@ -105,3 +105,13 @@ test('videos: creator outliers qualify with a baseline; live streams and duplica
   assert.ok(f.rejections['duplicate of a larger upload'] === 1);
   assert.ok(THRESHOLDS.youtube.candidateViews === 10_000);
 });
+
+test('videos: a paid-reach pattern (millions of views, near-zero engagement) is not a viral hit; hidden likes are not evidence', () => {
+  const ad = yt('ad1', 'Brand TV Ad', 11_000_000, 19, { metrics: { views: 11_000_000, likes: 16, comments: 0 } });
+  const hidden = yt('hid', 'Likes hidden but huge', 9_000_000, 30, { metrics: { views: 9_000_000 } });
+  const recs = build([ad, hidden]);
+  const by = Object.fromEntries(recs.map((r) => [r.platformId, r]));
+  assert.equal(by.ad1.state, 'rejected');
+  assert.match(by.ad1.rejectedBy!, /paid promotion/);
+  assert.equal(by.hid.state, 'verified_hit');
+});

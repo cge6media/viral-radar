@@ -239,6 +239,17 @@ export function decideVideo(r: VideoRecord): void {
 
   let state: VideoState = 'rejected';
   let rejectedBy: string | undefined;
+  // paid promotion: millions of views with almost no engagement (organic like rates sit at 0.3–5 %; 0.05 % is 6× below
+  // the 5th percentile of our verified videos). Hidden like counts (null) are not evidence either way.
+  const promoted = views >= 500_000 && r.metrics.likes != null && r.likeRate != null && r.likeRate < 0.0005 && (r.metrics.comments ?? 0) < views * 0.00005;
+  if (promoted) {
+    r.state = 'rejected';
+    r.rejectedBy = 'engagement far below organic levels (likely paid promotion)';
+    reasons.push(`Not featured: ${fmt(views)} views but only ${fmt(r.metrics.likes!)} likes (${((r.likeRate || 0) * 100).toFixed(3)}%) — a paid-reach pattern, not organic virality.`);
+    r.viralScore = 0; r.breakoutScore = 0; r.engagementScore = 0; r.outlierScore = 0; r.confidence = 40;
+    r.reasons = reasons;
+    return;
+  }
   if (r.isLive || (r.durationSec != null && r.durationSec > 3 * 3600)) {
     r.state = 'rejected';
     r.rejectedBy = r.isLive ? 'live stream / premiere (views accrue while live; not a video format)' : 'stream recording longer than 3 hours (not a video format)';
