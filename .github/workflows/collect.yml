@@ -34,14 +34,14 @@ jobs:
 
       - name: Collect
         env:
-          # Optional, free: YouTube Data API v3 key (10,000 units/day; search.list capped at 100 calls/day).
+          # Free YouTube Data API v3 key (10,000 units/day for videos.list etc.; search.list has its own 100 calls/day).
           # Without it the YouTube source is reported as "disabled"; nothing is fabricated.
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           VR_GT_REGIONS: ${{ vars.VR_GT_REGIONS || 'US,GB,CA,AU' }}
           VR_YT_REGIONS: ${{ vars.VR_YT_REGIONS || 'US,GB' }}
           VR_YT_CHART_CATEGORIES: ${{ vars.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24' }}
           VR_YT_DISCOVERY_HOURS: ${{ vars.VR_YT_DISCOVERY_HOURS || '6' }}
-          VR_YT_SEARCH_BUDGET: ${{ vars.VR_YT_SEARCH_BUDGET || '72' }}
+          VR_YT_SEARCH_BUDGET: ${{ vars.VR_YT_SEARCH_BUDGET || '90' }}
           VR_YT_QUERIES: ${{ vars.VR_YT_QUERIES }}
           VR_BSKY_QUERIES: ${{ vars.VR_BSKY_QUERIES }}
           VR_TIKTOK: ${{ vars.VR_TIKTOK || '0' }}

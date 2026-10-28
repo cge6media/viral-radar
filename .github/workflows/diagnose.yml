@@ -1,0 +1,56 @@
+# Diagnostics on GitHub's runners (where the YouTube key lives): inspect specific videos (why was X missed?) or
+# run the discovery benchmark. Results are committed under data/diagnostics/ and data/benchmark/ — never into the
+# observation store, so nothing here can influence the live rankings.
+name: Diagnose
+
+on:
+  workflow_dispatch:
+    inputs:
+      videos:
+        description: 'YouTube video ids or URLs to inspect (space or comma separated)'
+        required: false
+        default: ''
+      benchmark:
+        description: 'Run the discovery benchmark (true/false)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Inspect videos
+        if: ${{ inputs.videos != '' }}
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        working-directory: pipeline
+        run: npx tsx src/tools/inspect.ts ${{ inputs.videos }}
+      - name: Discovery benchmark
+        if: ${{ inputs.benchmark == 'true' }}
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        working-directory: pipeline
+        run: npx tsx src/tools/benchmark.ts
+      - name: Commit results
+        run: |
+          git config user.name "viral-radar-bot"
+          git config user.email "viral-radar-bot@users.noreply.github.com"
+          git add data/diagnostics data/benchmark 2>/dev/null || true
+          if git diff --cached --quiet; then echo "No diagnostic changes."; else
+            git commit -m "diagnostics: $(date -u +'%Y-%m-%dT%H:%MZ')"
+            for i in 1 2 3; do git push && break || (git pull --rebase && sleep 5); done
+          fi
