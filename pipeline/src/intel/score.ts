@@ -116,6 +116,12 @@ export function scoreCluster(input: ScoreInput): { scores: ScoreBreakdown; lifec
       const r1 = (prev.signal + 0.05) / (prev2.signal + 0.05);
       accel = clamp(0.5 + (Math.log2(growthRatio) - Math.log2(r1)) / 4, 0, 1);
     }
+    // blend in source-supplied history (e.g. a 7-day hashtag series) — a longer window than run-to-run
+    const sh = sourceHistoryGrowth(members);
+    if (sh) {
+      growth = clamp(0.6 * growth + 0.4 * growthToScore(sh.ratio), 0, 1);
+      notes.push(`Source history: ${round(sh.ratio, 2)}x vs prior-day average over ${round(sh.windowHours, 0)}h (blended 40%).`);
+    }
   } else {
     const sh = sourceHistoryGrowth(members);
     if (sh) {

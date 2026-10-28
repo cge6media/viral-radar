@@ -90,7 +90,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     name: 'Gaming',
-    keywords: kw('game,games,gaming,gamer,gameplay,playthrough,speedrun,minecraft,fortnite,roblox,pokemon,pokémon,nintendo,playstation,xbox,steam,esports,phasmophobia,signalis,little nightmares,horror game,indie game,unite,let\'s play,lets play,rpg,fps,mod', 1.2),
+    keywords: kw('game,games,gaming,gamer,gameplay,playthrough,speedrun,minecraft,fortnite,roblox,pokemon,pokémon,nintendo,playstation,xbox,steam,esports,phasmophobia,signalis,little nightmares,horror game,horror games,indie game,unite,let\'s play,lets play,rpg,fps,mod,stream schedule,stream schedules', 1.2),
     subcategories: [
       { name: 'Horror Games', keywords: ['horror', 'spooky', 'phasmophobia', 'signalis', 'little nightmares', 'scary'] },
       { name: 'Indie & Cozy Games', keywords: ['indie', 'cozy', 'pixel'] },
@@ -144,7 +144,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     name: 'Seasonal & Holidays',
-    keywords: kw('halloween,spooky,spooky month,trick-or-treat,trick or treat,trunk-or-treat,costume,pumpkin,haunted,horror,christmas,thanksgiving,new year,valentine,easter,holiday,holidays,october,inktober,autumn,fall', 1.1),
+    keywords: kw('halloween,spooky,spooky month,trick-or-treat,trick or treat,trunk-or-treat,costume,pumpkin,haunted,christmas,thanksgiving,new year,valentine,easter,holiday,holidays,october,inktober,autumn,fall', 1.1),
     subcategories: [
       { name: 'Halloween', keywords: ['halloween', 'spooky', 'trick', 'costume', 'pumpkin', 'haunted', 'horror', 'october'] },
       { name: 'Christmas & Winter', keywords: ['christmas', 'holiday', 'winter', 'santa'] },

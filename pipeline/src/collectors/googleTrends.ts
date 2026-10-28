@@ -49,7 +49,7 @@ export function parseGoogleTrendsRss(xml: string, geo: string, observedAt = nowI
     const key = normalizeKey(title);
     const pub = it.pubDate ? new Date(it.pubDate) : undefined;
     out.push({
-      id: `google_trends:search_interest:${key}`,
+      id: `google_trends:search_interest:${key}:${geo}`,
       source: 'google_trends',
       kind: 'search_interest',
       key,
