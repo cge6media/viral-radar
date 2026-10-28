@@ -11,9 +11,13 @@ on:
         required: false
         default: ''
       benchmark:
-        description: 'Run the discovery benchmark (true/false)'
+        description: 'Run the discovery benchmark: "dev" or "holdout" (empty = skip)'
         required: false
-        default: 'false'
+        default: ''
+      benchmark_label:
+        description: 'Label for the benchmark run (e.g. cycle1-baseline)'
+        required: false
+        default: ''
       probe_tiktok:
         description: 'Probe TikTok endpoints from the runner (true/false)'
         required: false
@@ -58,11 +62,11 @@ jobs:
         working-directory: pipeline
         run: npx tsx src/tools/probe-tiktok.ts
       - name: Discovery benchmark
-        if: ${{ inputs.benchmark == 'true' }}
+        if: ${{ inputs.benchmark != '' }}
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         working-directory: pipeline
-        run: npx tsx src/tools/benchmark.ts
+        run: npx tsx src/tools/benchmark.ts --set ${{ inputs.benchmark }} --label ${{ inputs.benchmark_label || inputs.benchmark }}
       - name: Commit results
         run: |
           git config user.name "viral-radar-bot"
