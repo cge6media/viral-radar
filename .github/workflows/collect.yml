@@ -4,17 +4,17 @@
 #
 # Reliability (4.0): GitHub drops or delays scheduled runs under load (measured 2026-10-28: 53 % of 30-minute slots
 # started, 8–23 min late, and in practice at most ONE scheduled run per workflow per hour). Four sibling workflows
-# (this one + collect-b/c/d.yml, staggered every ~8 minutes) therefore each carry their own schedule and call this
-# one; every scheduled run first checks how old the published data is — younger than 22 minutes → it exits without
-# collecting — so collectors never overlap, the quota ledger stays consistent, and the effective cadence approaches
-# 30 minutes whichever slots GitHub honours.
+# (this one + collect-b/c/d.yml, staggered every ~8 minutes; generated copies of this file with their own cron — GitHub
+# does not start a reusable workflow from a scheduled caller reliably) therefore each carry their own schedule; every
+# scheduled run first checks how old the published data is — younger than 22 minutes → it exits without collecting —
+# so collectors never overlap, the quota ledger stays consistent, and the effective cadence approaches 30 minutes
+# whichever slots GitHub honours. Keep the four files identical except for `name` and `cron` (see scripts/sync-schedules.mjs).
 name: Collect trends
 
 on:
   schedule:
     - cron: '3,33 * * * *'
   workflow_dispatch: {}      # manual refresh from the Actions tab (never skipped by the freshness gate)
-  workflow_call: {}          # the sibling workflows collect-b/c/d.yml call this one on their own schedules
 
 concurrency:
   group: collect
