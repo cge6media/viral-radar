@@ -50,9 +50,12 @@ export function VideoThumb({ c, className = '', children }: { c: VideoCard; clas
   );
 }
 
-export function StateBadge({ state, kind, onDark }: { state: VideoCard['state']; kind?: VideoCard['kind']; onDark?: boolean }) {
+export function StateBadge({ state, kind, onDark, tier }: { state: VideoCard['state']; kind?: VideoCard['kind']; onDark?: boolean; tier?: VideoCard['tier'] }) {
   const s = STATE_LABEL[state];
   const k = kind && state === 'early_breakout' ? KIND_LABEL[kind] : undefined;
+  // 4.0.1: desk evidence below the viral thresholds is labelled for what it is, not "not featured"
+  if (state === 'rejected' && tier === 'mid_size') return <span className={`pill vstate mid${onDark ? ' on-dark' : ''}`} title="≥100K verified views inside ten days, below the viral floor for its age — evidence of the format, not a viral hit"><i aria-hidden />Mid-size</span>;
+  if (state === 'rejected' && tier === 'context') return <span className={`pill vstate ctx${onDark ? ' on-dark' : ''}`} title="A smaller verified example, shown for context only"><i aria-hidden />Smaller</span>;
   return <span className={`pill vstate ${state}${kind ? ' ' + kind : ''}${onDark ? ' on-dark' : ''}`} title={k ? k.desc : s.desc}><i aria-hidden />{k ? k.short : s.short}</span>;
 }
 
@@ -71,7 +74,7 @@ export function VideoCardView({ c, rank, now, compact, why }: { c: VideoCard; ra
           <span className="tl"><span className={`pill plat ${c.platform} on-dark`} title={c.shortsEvidence === 'verified' ? 'Verified Short: youtube.com/shorts/ serves it' : c.shortsEvidence === 'duration' ? 'Short-form by duration only (≤3 min) — not verified as a Short' : undefined}>{PLATFORM_NAME[c.platform]}{shortsLabel(c)}</span></span>
           {dur && <span className="dur num">{dur}</span>}
           <span className="play" aria-hidden>{Icon.play}</span>
-          <span className="bl"><StateBadge state={c.state} kind={c.kind} onDark /></span>
+          <span className="bl"><StateBadge state={c.state} kind={c.kind} tier={c.tier} onDark /></span>
         </VideoThumb>
       </button>
       <div className="body">
@@ -153,7 +156,7 @@ function VideoModal({ c, onClose }: { c: VideoCard; onClose: () => void }) {
             {c.likes != null && <span className="num">{fmtNum(c.likes)} likes</span>}
             {c.comments != null && <span className="num">{fmtNum(c.comments)} comments</span>}
             <span className={`mom ${m.measured ? 'measured' : 'avg'}`}><i aria-hidden />{m.text}</span>
-            <StateBadge state={c.state} kind={c.kind} />
+            <StateBadge state={c.state} kind={c.kind} tier={c.tier} />
           </div>
           <a className="btn sm" href={c.url} target="_blank" rel="noopener noreferrer">Open original ↗</a>
         </div>

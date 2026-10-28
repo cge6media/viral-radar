@@ -87,7 +87,8 @@ export const FORMATS: FormatDef[] = [
     id: 'ai_video', name: 'AI-generated video', category: 'Tech & AI', subcategory: 'AI Video & Generative Media',
     description: 'a video made with generative AI tools such as Sora, Veo, Runway, Kling, or an AI animation',
     include: [/\b(ai[- ]generated|ai video|ai animation|made with ai|generated with|sora|veo ?3?|runway(?: gen)?|kling|midjourney|stable diffusion|text[- ]to[- ]video|ai film|ai short)\b/i],
-    exclude: [/\bdeep ?fake\b.{0,40}\b(trump|biden|election|politician|minister)\b/i, NEWS_WORDS, /\bai (?:data ?centers?|chips?|stocks?|bubble|regulation)\b/i],
+    // 4.0.1: videos ABOUT making or spotting AI video (tutorials, "kaise banaye", deepfake explainers) are not AI videos
+    exclude: [/\bdeep ?fake\b.{0,40}\b(trump|biden|election|politician|minister)\b/i, NEWS_WORDS, /\bai (?:data ?centers?|chips?|stocks?|bubble|regulation)\b/i, /\bhow to (?:make|create|spot|detect|generate|use)\b|\bkaise banaye\b|\bkaise banaen\b|\btutorial\b|\bstep by step\b|\bprompt(?:s|ing)? (?:guide|tutorial)\b|\bspot a deep ?fake\b/i],
     vetoCategories: ['News & Politics', 'Business & Finance'],
     generic: false, queries: ['ai video', 'ai animation', 'made with sora'],
   },

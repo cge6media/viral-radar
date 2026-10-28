@@ -1,0 +1,367 @@
+{
+  "generatedAt": "2026-10-28T12:28:29.256Z",
+  "runId": "202610281208_30d3b5dad9d5",
+  "snapshot": {
+    "runId": "202610281208_30d3b5dad9d5",
+    "generatedAt": "2026-10-28T12:09:51.882Z"
+  },
+  "method": "Independent review of data/latest.json, data/qa/briefs.json and data/videos.json only; no network access to the platforms, no video inspection (titles, creators, categories, statistics, dates and reasons as exposed by the system); docs/RECOMMENDATION_AUDIT.md and data/benchmark/audit-4.0.json were not read.",
+  "desk": [
+    {
+      "name": "Satisfying & ASMR",
+      "type": "format",
+      "action": "create_today",
+      "scores": {
+        "relevance": 2,
+        "classification": 3,
+        "specificity": 2,
+        "evidence": 2,
+        "timing": 2,
+        "feasibility": 3,
+        "originality": 2,
+        "monetization": 4
+      },
+      "notes": "3 of 6 evidence items are satisfying/ASMR shorts; 2 are ended livestream recordings (80-96 min, +2/h and +3/h, flagged cooling by the system) and 1 is a Hindi car-restoration short. \"6 clean verified\" counts the streams. Best example decelerating (0.53x lifetime) while timing says \"emerging\". Briefs propose dialogue/character comedy and a 93-173 s target derived from a median contaminated by the streams; the real shorts run 34-98 s."
+    },
+    {
+      "name": "halloween",
+      "type": "event",
+      "action": "participate",
+      "scores": {
+        "relevance": 5,
+        "classification": 5,
+        "specificity": 2,
+        "evidence": 4,
+        "timing": 3,
+        "feasibility": 4,
+        "originality": 2,
+        "monetization": 4
+      },
+      "notes": "All evidence on-topic, calendar type correct, cross-platform (YouTube, Bluesky, Google Trends), top video genuinely accelerating (1.79x). But category is \"Music / Covers & Mashups\" (evidence is costumes, pet costumes, SFX makeup, decor), so the approach becomes \"original parody track\"; timing never states that the date is 3 days away; 3 of 6 examples are already cooling; sub-formats visible in the evidence (pet costume reveal, costume ranking \"Part N\", SFX makeup) are never named."
+    },
+    {
+      "name": "Cooking & recipes",
+      "type": "format",
+      "action": "research",
+      "scores": {
+        "relevance": 1,
+        "classification": 2,
+        "specificity": 1,
+        "evidence": 2,
+        "timing": 2,
+        "feasibility": 3,
+        "originality": 2,
+        "monetization": 3
+      },
+      "notes": "Evidence is AI dogs \"cooking\", two Hindi family-drama skits tagged #cooking, a cat video matched on the word \"cook\", and a rejected item; at most one is a recipe. The pool is flagged generic/unqualified at trend level yet reaches the desk. \"Mostly English/Spanish\" is false (romanised Hindi tagged \"latin\"/\"en\"). Briefs invent \"a 60-second recipe\" that no evidence shows."
+    },
+    {
+      "name": "aianimation",
+      "type": "event",
+      "action": "monitor",
+      "scores": {
+        "relevance": 2,
+        "classification": 1,
+        "specificity": 1,
+        "evidence": 1,
+        "timing": 2,
+        "feasibility": 4,
+        "originality": 1,
+        "monetization": 3
+      },
+      "notes": "\"10 clean verified videos\" vs 1 verified + 5 rejected in the evidence shown. 88% of attention is one Hindi car-transformation short whose link to #aianimation is not visible in its title (tags/descriptions are not stored). A medium hashtag labelled \"event\" with confidence 80. Briefs: \"Aianimation, but something is wrong\"."
+    },
+    {
+      "name": "Storytime & narration",
+      "type": "format",
+      "action": "monitor",
+      "scores": {
+        "relevance": 2,
+        "classification": 3,
+        "specificity": 2,
+        "evidence": 2,
+        "timing": 3,
+        "feasibility": 4,
+        "originality": 1,
+        "monetization": 3
+      },
+      "notes": "Two verified couple-POV shorts (one 14.1M in 2 days) plus a rejected FIFA gaming video. \"1 creator repeats the format\" is impossible with 3 videos from 3 creators (it comes from the wider cluster). The strong example is a POV skit rather than narration. Briefs include \"A 30-second original song about told story\". Monitor is the right action."
+    },
+    {
+      "name": "Puppet & character videos",
+      "type": "event",
+      "action": "monitor",
+      "scores": {
+        "relevance": 1,
+        "classification": 1,
+        "specificity": 1,
+        "evidence": 1,
+        "timing": 3,
+        "feasibility": 4,
+        "originality": 1,
+        "monetization": 2
+      },
+      "notes": "\"6 clean verified\" vs 1 verified + 1 early + 4 rejected shown, including a 56-min horror game stream, two Jeff Dunham TV-clip reuploads and a Bluesky text post about a drug ad (0 views); the trend record also holds an ABC News sentencing clip. The 78%-dominant video is a Korean short with no puppet signal in its title. \"Event\" is a fallback for \"one video dominates\". Briefs recommend hashtagging a real comedian's name; no Content ID warning for the clip material."
+    },
+    {
+      "name": "2026",
+      "type": "event",
+      "action": "monitor",
+      "scores": {
+        "relevance": 1,
+        "classification": 1,
+        "specificity": 1,
+        "evidence": 1,
+        "timing": 1,
+        "feasibility": 1,
+        "originality": 1,
+        "monetization": 1
+      },
+      "notes": "A year token that appears in every trailer title (Avengers: Doomsday, Dune 3, Way of the Warrior Kid). Not a trend; should have been caught by the generic-token filter. Category \"Music / Original Songs\" drives \"the 2026 song\" brief with hashtags #2026 #trailer #chris #pratt. 4 of 6 examples are cooling (0.02-0.57x) while timing says \"emerging\". Monetization suggests streaming an original track about a year."
+    },
+    {
+      "name": "mbappe",
+      "type": "event",
+      "action": "monitor",
+      "scores": {
+        "relevance": 3,
+        "classification": 4,
+        "specificity": 2,
+        "evidence": 2,
+        "timing": 1,
+        "feasibility": 2,
+        "originality": 1,
+        "monetization": 2
+      },
+      "notes": "A real news moment (Ballon d'Or ceremony + El Clasico) typed correctly, but category \"Animation & Art\" while all 5 evidence items are Sports. topViews 2.18M although an evidence item shows 4.17M (dominance 53% is computed on a different set). Best example cooling at 0.15x lifetime; a ceremony that already happened is \"emerging\"/\"monitor\". feasibleIn2h is false (1.5-4 h) yet it sits on the desk and a brief says \"Low\" difficulty at 1.5-4 h. The visible owner-fit opportunity (AI 3D football parodies by several channels) is never named. No likeness/footage-rights note."
+    }
+  ],
+  "lane": {
+    "useful": true,
+    "notes": "Honest about its limits (notes say \"too broad\", \"did not clear the desk gate\", \"fewer than 3 clean verified examples\") and it is the only view centred on the owner's pools, so it works as a watchlist. It does not work as a recommendation: 2-4 examples per pool, several off-pool (a brand's advert music video and a K-pop news short under \"Music videos\"; Talking Tom game streams under \"Animal comedy\"; a rejected how-to tutorial and a rejected 19K-view AI short as the entire \"AI-generated video\" pool while the trend list reports 26 creators / 29 videos for the same pool; a 3D-pen craft vlog under \"Animation shorts\"). \"Animation shorts\" (177 creators) is dismissed as category-level instead of being split into the sub-formats visible in its own examples (AI 3D football parody, 3D explainer)."
+  },
+  "feeds": {
+    "viralNow": [
+      {
+        "title": "Diwali Ki Rat Do Logon Ki 3 Parchhaiyan Kaise Bni?",
+        "ok": true,
+        "issue": "Numbers consistent (24.9M, 46h, +2.6M/h at 4.85x lifetime). Language tagged \"en\" for romanised Hindi; 129 comments on 24.9M views (comments likely disabled) so engagement cannot be verified."
+      },
+      {
+        "title": "INDIA'S GOT LATENT S2 EP8",
+        "ok": true,
+        "issue": "A 50-minute flagship episode from a 12.1M-subscriber channel: a verified hit, but a big-channel scheduled release, not a discoverable format."
+      },
+      {
+        "title": "I removed this from the swan's throat",
+        "ok": true,
+        "issue": "Consistent; creator outlier 36.7x; organic rescue short."
+      },
+      {
+        "title": "ازاااي بوبا الاوريو",
+        "ok": true,
+        "issue": "16.2M-subscriber channel; 3 comments per 1M views (comments likely off). Verified hit, weak outlier (2x subs)."
+      },
+      {
+        "title": "Valid crash out",
+        "ok": true,
+        "issue": "Aggregator/repost channel (\"Videos that make your day better\"): organic spread but not an original creator format."
+      },
+      {
+        "title": "#gta #gta6 #shorts",
+        "ok": false,
+        "issue": "Hashtag-only title; the same channel has at least three uploads with this identical title in the #gta6 cluster; velocity \"seen once so far\" (unmeasured) yet ranked #6 on lifetime average alone; likely reposted game footage."
+      },
+      {
+        "title": "Hero Climbs Down A Bridge To Save A Stranded Puppy",
+        "ok": true,
+        "issue": "Probable repost (compilation-style rescue channel, 1.7M subs); numbers consistent."
+      },
+      {
+        "title": "iPhone DUO se puri Team ko diya Surprise!",
+        "ok": true,
+        "issue": "35.8M-subscriber channel at 0.16x its subscriber count: a baseline upload for this channel, not an outlier; the card's own 4th reason undercuts \"viral\"."
+      },
+      {
+        "title": "WE PICKED OUR CAR KEYS… BUT SOMETHING WAS WRONG!",
+        "ok": true,
+        "issue": "Category \"Music\" is wrong (POV couple skit); 29 comments on 26.3M views; the creator's near-identical sister video sits at #36 (2 entries allowed); 346x creator median from a 31K-sub channel in 27h — plausible for Shorts but should be flagged for verification."
+      },
+      {
+        "title": "Ronaldo is COME BACK — Who is the REAL GOAT?",
+        "ok": true,
+        "issue": "Category \"Animals & Pets\" is wrong; 1379x creator median; probably AI football animation — verify."
+      }
+    ],
+    "earlyRadar": [
+      {
+        "title": "Gérard Jugnot souffre pour ne pas rire",
+        "ok": false,
+        "issue": "4 days old, 2.1M views, measured rate 0.96x its own lifetime average: neither early nor accelerating; a TV-show clip, not creator content; ranked #1."
+      },
+      {
+        "title": "#lol #funny #meme #viral #fyp #100kview #trending #shorts #anime",
+        "ok": true,
+        "issue": "Rate genuinely abnormal (+108K/h, 4.9x lifetime, 21h old) but a hashtag-spam title and probable anime clip repost."
+      },
+      {
+        "title": "Radha & Krishna: The Funny Fair Puppet Dance Fight",
+        "ok": true,
+        "issue": "17h, 289K views, +38K/h at 2.2x lifetime, 7.1K-sub channel: a real early signal."
+      },
+      {
+        "title": "Quand ta mère debrief avant d'aller chez des amis",
+        "ok": false,
+        "issue": "44h, 698K, measured 0.94x lifetime — \"the measured rate is abnormal\" is printed because the rule is an absolute >=10K/h bar; the only trigger is a 7x acceleration over one 3h interval."
+      },
+      {
+        "title": "Comment Les Animaux Voient-Ils Le Monde ?",
+        "ok": false,
+        "issue": "22h, 567K, measured 0.7x lifetime (decelerating) yet labelled abnormal; language tagged \"en\" for French."
+      },
+      {
+        "title": "Qui dessinera le meilleur visage de tigre",
+        "ok": true,
+        "issue": "Accelerating (1.82x) but 3 days old with 1.7M views against a 1.9M floor: a hit in all but name, not \"early\"."
+      },
+      {
+        "title": "#pov : Tu veux te venger de ton mec (SPÉCIAL HALLOWEEN)",
+        "ok": true,
+        "issue": "19h, 824K, 1.11x lifetime, acceleration 5.5x; 1.5M-sub channel so not an outlier. Owner-relevant (Halloween POV skit). Language tagged \"latin\"."
+      },
+      {
+        "title": "#Pappuraj #comedy video#short video#funny video#viral video",
+        "ok": false,
+        "issue": "Hashtag-only title; a 933-subscriber channel with 1.3M views at 68h (1139x its median): reupload or paid-reach pattern should be checked before featuring."
+      },
+      {
+        "title": "POV : Quand tu te déguisais le mauvais jour pour aller à l'école",
+        "ok": false,
+        "issue": "41h, 791K, measured 0.84x lifetime (decelerating); acceleration 9x from one short interval drives the label."
+      },
+      {
+        "title": "Zuhause läuft das eben anders...",
+        "ok": true,
+        "issue": "25h, 526K, 1.72x lifetime; Animation & Art — relevant and genuinely early."
+      }
+    ]
+  },
+  "labels": {
+    "format": {
+      "agree": 2,
+      "disagree": 7,
+      "unsure": 1
+    },
+    "meme": {
+      "agree": 0,
+      "disagree": 9,
+      "unsure": 1
+    },
+    "event": {
+      "agree": 4,
+      "disagree": 6,
+      "unsure": 0
+    },
+    "uncertain": {
+      "agree": 9,
+      "disagree": 0,
+      "unsure": 1
+    },
+    "overall": {
+      "agree": 15,
+      "total": 40,
+      "rate": 0.375
+    },
+    "misclassified": [
+      {
+        "name": "2026",
+        "labelled": "event",
+        "shouldBe": "excluded (generic token)",
+        "why": "A year that appears in every trailer title; the cluster is unrelated studio trailers (Avengers, Dune 3, Warrior Kid)."
+      },
+      {
+        "name": "aianimation",
+        "labelled": "event",
+        "shouldBe": "uncertain (medium descriptor) or format pool",
+        "why": "A production-medium hashtag; the system's own features mark descriptor:true; 88% of views are one unrelated video."
+      },
+      {
+        "name": "Puppet & character videos",
+        "labelled": "event",
+        "shouldBe": "uncertain",
+        "why": "\"Event\" is used as a fallback for one dominant video; the evidence mixes a Korean short, Jeff Dunham TV reuploads, a horror game stream, a news clip and a Bluesky post."
+      },
+      {
+        "name": "#gta6",
+        "labelled": "meme",
+        "shouldBe": "event (named title) or uncertain",
+        "why": "Three identical-title uploads from one channel plus an unrelated podcast; no shared phrase, sound or moment."
+      },
+      {
+        "name": "Theft Auto",
+        "labelled": "event",
+        "shouldBe": "format",
+        "why": "\"Indian Theft Auto Simulator\" skits with a repeated structure across several Hindi gaming channels — a reusable format, not a release."
+      },
+      {
+        "name": "#laugh / #lustig / #reaction / #cinema / #切り抜き / #furry / #acousticcover",
+        "labelled": "meme",
+        "shouldBe": "uncertain (generic descriptor)",
+        "why": "Generic genre or medium hashtags with 3-5 creators; nothing replicated. The meme classifier fires on \"N new creators around one phrase\" where the phrase is the hashtag itself."
+      },
+      {
+        "name": "Abonne Toi / Get Ready",
+        "labelled": "event",
+        "shouldBe": "excluded (description boilerplate)",
+        "why": "\"Subscribe\" and \"Get ready\" are channel boilerplate; the clusters contain unrelated Squeezie, Netflix, Bigg Boss and cricket uploads."
+      },
+      {
+        "name": "Cooking & recipes",
+        "labelled": "format",
+        "shouldBe": "uncertain (category)",
+        "why": "Evidence is Hindi family-drama skits tagged #cooking, an AI-dog video and a cat video matched on the word \"cook\"."
+      },
+      {
+        "name": "Animal comedy & dubbed animals",
+        "labelled": "format",
+        "shouldBe": "uncertain (category)",
+        "why": "The signature (talking, tom, talkingtom) comes from Talking Tom mobile-game streams, not dubbed animals."
+      },
+      {
+        "name": "#vtuber",
+        "labelled": "uncertain",
+        "shouldBe": "event (defensible as uncertain)",
+        "why": "A hololive ARK-server collab with 16 new creators in 27h is a named stream event; \"uncertain\" is only right because streams are excluded."
+      }
+    ]
+  },
+  "summary": {
+    "avgDeskScore": 2.17,
+    "strengths": [
+      "Every card and brief carries plain-language reasons with the real numbers (views, age, age-specific hit floor, lifetime average vs measured rate, acceleration, creator baseline) and the briefs admit that visual style and audio were never inspected.",
+      "Growth is labelled honestly at the video level (\"an average, not a measured recent rate\", \"provisional\", acceleration only claimed on >=1,000 gained views) and the desk refuses to claim cluster growth without 24h of history.",
+      "The calendar event (halloween) is handled well: correct type, corroborated on three sources, \"one piece before the date, not a series\", with the collapse-after-the-date risk carried into the revenue section.",
+      "The desk gate publishes its exclusion reasons with counts, and the lane notes are candid about pools being too broad or too thin.",
+      "Monetization eligibility lines are accurate (YPP Shorts threshold, TikTok Creator Rewards >=1 min) and the \"inauthentic content\" warning is exactly the risk an AI-video creator faces."
+    ],
+    "weaknesses": [
+      "Desk headline claims contradict the evidence shown: \"N clean verified videos\" while the evidence lists rejected items, two ended livestream recordings, a Bluesky text post, a news clip and TV reuploads (aianimation: \"10 clean verified\" vs 1 verified + 5 rejected).",
+      "Relevance matching is title-keyword only (tags and descriptions are empty in the index): \"cook\" pulls a cat video into Cooking, \"satisfying\" pulls a car restoration into ASMR, the year \"2026\" turns every trailer into a trend, \"jeff dunham\" clip reuploads define a \"puppet format\". Three of the eight desk items (2026, aianimation, Puppet & character videos) are not trends.",
+      "Timing is uninformative and sometimes inverted: all eight opportunities are \"emerging\" with timingScore 50 because the index itself is 8-11h old; in the same file the trend windows say \"peaking\" with measured growth; best examples that the system flags as cooling (mbappe 0.15x, 2026 0.22x, Satisfying 0.53x) are presented as \"gaining +N/h\"; the Halloween countdown and the already-held Ballon d'Or ceremony never enter the timing.",
+      "Category classification is wrong on 3 of 8 desk items (halloween -> Music, 2026 -> Music/Original Songs, mbappe -> Animation & Art) and the error propagates into the production approach (\"original parody track\") and monetization (\"streams of the original track\").",
+      "Briefs are five rotating templates with the trend name string-substituted (\"An original recurring character takes on 2026 (trailer / chris)\", \"A 30-second original song about told story\", \"Aianimation, but something is wrong\"); none is derived from the observed hooks or sub-formats, durations come from contaminated medians, and one desk item (mbappe) is over the 2h budget yet still briefed.",
+      "The opportunity-type classifier is weak outside \"uncertain\": 0/10 \"meme\" labels agreed (generic hashtags with 3-5 creators), \"event\" is a fallback for \"one video dominates\" and for description boilerplate (\"Abonne Toi\", \"Get Ready\"), and \"format\" is applied by construction to category pools the system itself marks generic (Cat videos, Dog videos, Gaming clips).",
+      "Early Radar is not early: 14/40 entries are older than 72h, 22/40 are decelerating (measured below lifetime average), 21/40 already have >=1M views; \"the measured rate is abnormal\" is printed for rates at 0.7-0.96x the video's own average because the rule is an absolute >=10K/h bar; #1 is a 4-day-old TV clip.",
+      "Feed hygiene: hashtag-only titles, identical-title multi-uploads from one channel, aggregator reposts, a 50-minute show episode and TV clips reach the top 10s; language detection labels romanised Hindi and French as \"en\"/\"latin\", so the \"mostly English/Spanish\" fit claim is false where it matters.",
+      "Numeric inconsistencies that an owner will notice: mbappe topViews 2.18M while an evidence item shows 4.17M; \"1 creator repeats the format\" on a 3-video / 3-creator cluster; a \"Low difficulty\" brief at 1.5-4h; the Satisfying median duration (133 s) computed with 80-96-minute streams.",
+      "The owner's own lane (AI video, animation, characters, music) is the weakest-served: the \"AI-generated video\" pool shows one rejected tutorial and one rejected 19K-view short while the trend list reports 26 creators; \"Animation shorts\" (177 creators) is dismissed as too broad instead of being split into the sub-formats visible in its own examples (AI 3D football parodies, 3D explainers), which would have been the single most owner-fit recommendation in this snapshot."
+    ],
+    "fixes": [
+      "1. Evidence integrity before anything else: count only what is shown; drop rejected, cooling-to-zero, livestream-recording, Bluesky-text and news items from \"clean verified\"; block generic tokens (years, \"shorts\", \"viral\", \"fyp\") and description boilerplate (\"Abonne Toi\", \"Get Ready\", \"Fair Use\", \"Entertainment Purposes\", \"Auto Generated\") before clustering; dedupe identical-title uploads per channel and hashtag-only titles in the feeds.",
+      "2. Fix relevance matching: store tags/description hashtags in the index, require the trend keyword or signature to appear in title or tags, show the matched term on every evidence card, and add negative rules (a \"cook\" match needs a food category; \"satisfying\" needs <=180 s and an ASMR/satisfying tag; a single dominant video must itself match the signature).",
+      "3. Redefine Early Radar as early: age <=48h (or <=72h with views below half the floor), measured rate >=1.5x the lifetime average over >=2h, views <1M, and no \"abnormal\" wording when the ratio is below 1; demote TV/show clips and channels with no upload history.",
+      "4. Derive category, production approach and timing from the evidence, not the taxonomy: majority platform category of the verified examples; calendar countdown for events (days to date, \"already happened\" for past ceremonies); cooling share and measured/lifetime ratio of the top examples in the timing label; reconcile desk growth (\"not measurable\") with the trend window (\"measured, peaking\") — one source of truth.",
+      "5. Replace template briefs with evidence-grounded ones: name the sub-format actually visible in the top three verified shorts (pet-costume reveal, costume ranking \"Part N\", AI 3D football parody), derive hook, beat sheet and duration from those shorts only (never from streams or long-form), keep the three variations but tie each to a specific observed mechanism, and enforce the 2h budget (no \"Low difficulty / 1.5-4 h\"; drop or flag items with feasibleIn2h=false)."
+    ]
+  }
+}

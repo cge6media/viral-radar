@@ -81,13 +81,20 @@ export function toCard(r: VideoRecord): VideoCard {
 }
 
 /** a Creator Desk evidence row as a playable card (opens the same player as everywhere else) */
-export function evidenceToCard(e: { id: string; platform: string; url: string; title: string; creator?: string; thumbnail?: string; publishedAt?: string; ageHours?: number; views?: number; likes?: number; velocityPerHour?: number; velocityHours?: number; state: VideoCard['state']; kind?: VideoCard['kind']; verified: boolean; durationSec?: number; language?: string }): VideoCard {
+export function evidenceToCard(e: { id: string; platform: string; url: string; title: string; creator?: string; thumbnail?: string; publishedAt?: string; ageHours?: number; views?: number; likes?: number; velocityPerHour?: number; velocityHours?: number; velocityRatio?: number; state: VideoCard['state']; kind?: VideoCard['kind']; verified: boolean; durationSec?: number; language?: string; matched?: string }): VideoCard {
   const platformId = e.platform === 'youtube' ? (e.url.match(/(?:v=|shorts\/|youtu\.be\/)([A-Za-z0-9_-]{6,})/) || [])[1] || e.id.split(':').pop() || e.id : e.id.split(':').pop() || e.id;
+  const qualified = e.state === 'verified_hit' || e.state === 'early_breakout';
+  const tier: VideoCard['tier'] = qualified ? 'qualified' : (e.platform === 'bluesky' ? (e.likes || 0) >= 1_000 : (e.views || 0) >= 100_000) ? 'mid_size' : 'context';
+  const reasons: string[] = [];
+  if (e.matched) reasons.push(e.matched === 'format rule' ? 'Evidence because its title matches the format\'s own rules.' : `Evidence because its title carries “${e.matched}”.`);
+  if (tier === 'mid_size') reasons.push('A mid-size success: ≥100K verified views inside ten days, below the viral floor for its age — counted as evidence of the format, not as a viral hit.');
+  if (tier === 'context') reasons.push('A smaller verified example, shown for context only (not counted as clean evidence).');
+  if (e.velocityRatio != null) reasons.push(`Measured rate is ${e.velocityRatio}× its lifetime average (${e.velocityRatio >= 1.2 ? 'accelerating' : e.velocityRatio >= 0.8 ? 'holding its pace' : 'past its peak'}).`);
   return {
     id: e.id, platform: e.platform as VideoCard['platform'], platformId, url: e.url, title: e.title, thumbnail: e.thumbnail, creator: e.creator, publishedAt: e.publishedAt, ageHours: e.ageHours,
     durationSec: e.durationSec, isShort: e.platform === 'youtube' ? /shorts\//.test(e.url) || (e.durationSec != null && e.durationSec <= 180) : undefined,
     views: e.views, likes: e.likes, state: e.state, viralScore: 0, breakoutScore: 0, engagementScore: 0, outlierScore: 0,
-    velocityPerHour: e.velocityPerHour, velocityHours: e.velocityHours, category: '', formats: [], reasons: [], crossPlatform: 0, verified: e.verified, kind: e.kind, language: e.language,
+    velocityPerHour: e.velocityPerHour, velocityHours: e.velocityHours, velocityRatio: e.velocityRatio, category: '', formats: [], reasons, crossPlatform: 0, verified: e.verified, kind: e.kind, language: e.language, tier, matched: e.matched,
   };
 }
 

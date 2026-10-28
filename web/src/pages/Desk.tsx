@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../App';
 import { useWatchlist } from '../lib/store';
-import type { DeskOpportunity } from '../lib/types';
+import type { DeskOpportunity, DeskReport } from '../lib/types';
 import { fmtAgo, fmtNum } from '../lib/data';
 import { evidenceToCard } from '../lib/videos';
 import { VideoRail } from '../components/video';
@@ -60,17 +60,18 @@ export default function Desk() {
       )}
 
       {desk.lane && desk.lane.length > 0 && (
-        <Section title="Your lane this week" sub="AI, animation, characters, skits, music, explainers and stories: the current clean verified activity in each pool, whether or not it qualifies as one specific opportunity. Broad pools are category activity — use the signature words and the examples, not the headline count.">
+        <Section title="Your lane this week" sub="AI, animation, characters, skits, music, explainers and stories: the verified activity in each pool this week (qualified hits/breakouts, mid-size successes and smaller examples, each labelled), whether or not it qualifies as one specific opportunity. Broad pools are category activity — study the sub-formats and the examples, not the headline count.">
           <div className="stack" style={{ gap: 10 }}>
             {desk.lane.map((l) => (
               <article className="card tight" key={l.trendId}>
                 <div className="row between wrap" style={{ gap: 8 }}>
                   <div className="row wrap" style={{ gap: 8, minWidth: 0 }}>
                     <a href={`#/trend/${encodeURIComponent(l.trendId)}`} style={{ fontWeight: 800 }}>{l.name}</a>
-                    <span className="small muted">{l.creators} creators · {l.videos} clean videos · {l.newCreators48h} in 48h{l.topViews ? ` · best ${fmtNum(l.topViews)} views` : ''}{l.signature.length ? ` · signature: ${l.signature.join(', ')}` : ''}</span>
+                    <span className="small muted">{l.creators} creators · {l.videos} verified videos{l.qualified != null ? ` (${l.qualified} qualified)` : ''} · {l.newCreators48h} in 48h{l.topViews ? ` · best ${fmtNum(l.topViews)} views` : ''}{l.signature.length ? ` · signature: ${l.signature.join(', ')}` : ''}</span>
                   </div>
                   <span className="tiny dim">{l.note}</span>
                 </div>
+                {l.subFormats && l.subFormats.length > 0 && <SubFormats lane={l} now={now} />}
                 <VideoRail cards={l.evidence.map(evidenceToCard)} now={now} />
               </article>
             ))}
@@ -85,6 +86,20 @@ export default function Desk() {
         <p className="small muted" style={{ marginTop: 10 }}>Single viral events are not creator opportunities; broad tags (#funny) describe a subject, not a format; title fragments and description boilerplate are clustering noise, not trends. The full classified list, including events and uncertain clusters, is on the Trends page.</p>
       </Section>
     </>
+  );
+}
+
+/** 4.0.1: the words several creators in a pool share, with their examples on demand */
+function SubFormats({ lane, now }: { lane: NonNullable<DeskReport['lane']>[number]; now: number }) {
+  const [open, setOpen] = useState<string>('');
+  const sel = lane.subFormats?.find((s) => s.label === open);
+  return (
+    <div className="small" style={{ marginTop: 8 }}>
+      <b>Sub-formats visible in the titles:</b>{' '}
+      {lane.subFormats!.map((sf) => <button key={sf.label} className={`pill kind${open === sf.label ? ' on' : ''}`} style={{ marginRight: 6, cursor: 'pointer' }} onClick={() => setOpen(open === sf.label ? '' : sf.label)} title={`${sf.creators} independent creators share “${sf.label}” in ${sf.videos} verified videos${sf.topViews ? `; best ${fmtNum(sf.topViews)} views` : ''} — tap to see them`}>“{sf.label}” · {sf.creators} creators · {sf.videos} videos{sf.topViews ? ` · ${fmtNum(sf.topViews)}` : ''}</button>)}
+      <span className="tiny dim"> — a word several creators share, not a validated cluster; strong ones appear above as “research”. Tap one to see its examples.</span>
+      {sel && sel.examples && sel.examples.length > 0 && <div style={{ marginTop: 8 }}><VideoRail cards={sel.examples.map(evidenceToCard)} now={now} /></div>}
+    </div>
   );
 }
 
@@ -103,6 +118,7 @@ export function OpportunityCard({ o, rank, now, onOpen, compact }: { o: DeskOppo
           </div>
           <h3 style={{ margin: 0 }}><button className="linklike" onClick={onOpen}>{o.name}</button></h3>
           <div className="small muted" style={{ marginTop: 4 }}>{o.actionWhy}</div>
+          {o.nextCheck && !compact && <div className="tiny dim" style={{ marginTop: 4 }}>{o.nextCheck}</div>}
         </div>
         <div className="scores num small">
           <span title="composite of evidence, timing and fit"><b>{o.score}</b> score</span>
@@ -113,7 +129,7 @@ export function OpportunityCard({ o, rank, now, onOpen, compact }: { o: DeskOppo
       </div>
       <div className="opp-facts small">
         <span><b className="num">{o.facts.creators}</b> independent creators</span>
-        <span><b className="num">{o.facts.videos}</b> videos ({o.facts.directVideos} verified)</span>
+        <span><b className="num">{o.facts.videos}</b> verified examples{o.facts.qualified != null ? ` (${o.facts.qualified} qualified)` : ''}</span>
         {o.facts.newCreators48h ? <span><b className="num">+{o.facts.newCreators48h}</b> creators in 48h</span> : null}
         {o.facts.growth != null ? <span className="measured">measured <b className="num">{o.facts.growth}×</b></span> : <span className="dim">growth provisional</span>}
         {o.facts.topViews ? <span>best <b className="num">{fmtNum(o.facts.topViews)}</b> views{o.facts.topVelocity ? <>, <b className="num">+{fmtNum(o.facts.topVelocity)}/h</b></> : null}</span> : null}
@@ -127,7 +143,7 @@ export function OpportunityCard({ o, rank, now, onOpen, compact }: { o: DeskOppo
         </ul>
       )}
       <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
-        <button className="btn primary sm" onClick={onOpen}>Open the playbook →</button>
+        <button className="btn primary sm" onClick={onOpen}>{o.action === 'monitor' ? 'Open the evidence →' : 'Open the playbook →'}</button>
         <a className="btn sm" href={`#/trend/${encodeURIComponent(o.trendId)}`}>Trend evidence</a>
         <span className="tiny dim">{o.production.feasibleIn2h ? 'Feasible in ≤2h' : `Needs ${o.production.effortHours[0]}–${o.production.effortHours[1]}h`} · {o.monetization.platforms.join(' / ')}</span>
       </div>
@@ -166,11 +182,16 @@ function Playbook({ o, back, generatedAt, saved, onSave, toast }: { o: DeskOppor
         <div className="card"><h3>G · Monetization</h3><p className="small" style={{ marginTop: 6 }}>Platforms: <b>{o.monetization.platforms.join(', ')}</b>. Category suitability {o.monetization.suitability}/100.</p><ul className="small" style={{ paddingLeft: 18 }}>{o.monetization.mechanisms.map((m, i) => <li key={i}>{m}</li>)}</ul><p className="tiny dim" style={{ marginTop: 6 }}>{o.monetization.eligibility.join(' · ')}</p></div>
       </div>
 
-      <Section title="B · The evidence" sub="Real videos with verified statistics, newest measurements. Tap to play in place.">
+      <Section title="B · The evidence" sub={`${o.facts.videos} verified examples — ${o.facts.qualified ?? o.facts.videos} qualified hit${(o.facts.qualified ?? o.facts.videos) === 1 ? '' : 's'}/breakout${(o.facts.qualified ?? o.facts.videos) === 1 ? '' : 's'}${o.facts.qualified != null && o.facts.videos > o.facts.qualified ? ` and ${o.facts.videos - o.facts.qualified} mid-size success${o.facts.videos - o.facts.qualified === 1 ? '' : 'es'} (≥100K views, below the viral floor for their age)` : ''}; each card says why it counts. Tap to play in place.`}>
         <VideoRail cards={cards} now={now} why />
       </Section>
 
-      <Section title="Production playbook — three original variations" sub="Deterministic briefs built from the observed hooks, signature words, durations and languages of the examples and your tools. Not AI-generated at runtime; what was not observed is listed under uncertainty.">
+      {o.action === 'monitor' ? (
+        <Section title="No playbook yet — being monitored" sub="A brief is only written for items the desk recommends acting on (create today, participate, research). This one has not cleared that bar; here is what would change the verdict.">
+          <div className="card"><p className="small" style={{ margin: 0 }}><b>{o.actionWhy}</b></p>{o.nextCheck && <p className="small muted" style={{ marginTop: 8 }}>{o.nextCheck}</p>}<p className="tiny dim" style={{ marginTop: 8 }}>Save it to the journal as “Watching” to be reminded; the desk re-evaluates it on every collection.</p></div>
+        </Section>
+      ) : (
+      <Section title="Production playbook — three original variations" sub={`Deterministic briefs built from the observed hooks, signature words, durations and languages of the examples and your tools. Not AI-generated at runtime; what was not observed is listed under uncertainty.${!o.production.feasibleIn2h ? ` This item needs ${o.production.effortHours[0]}–${o.production.effortHours[1]} h — over the two-hour window; the briefs say so.` : ''}`}>
         <div className="seg" role="tablist" style={{ marginBottom: 12 }}>
           {briefs.map((x, i) => <button key={x.variation} role="tab" aria-selected={tab === i} className={tab === i ? 'on' : ''} onClick={() => setTab(i)}>{x.variation}</button>)}
         </div>
@@ -189,6 +210,7 @@ function Playbook({ o, back, generatedAt, saved, onSave, toast }: { o: DeskOppor
           <ul className="small" style={{ paddingLeft: 18 }}>{b.uncertainty.map((u, i) => <li key={i}>{u}</li>)}</ul>
         </div>
       </Section>
+      )}
     </>
   );
 }

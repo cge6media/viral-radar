@@ -422,6 +422,10 @@ export interface VideoCard {
   shortsEvidence?: VideoRecord['shortsEvidence'];
   /** views (likes) gained in the trailing 24h, when the observation history brackets it */
   gained24h?: number;
+  /** 4.0.1: desk evidence tier — qualified (hit/breakout), mid_size (≥100K views below the viral floor for its age) or context (smaller) */
+  tier?: 'qualified' | 'mid_size' | 'context';
+  /** 4.0.1: the term of the cluster's name/signature this title carries (why it is evidence) */
+  matched?: string;
 }
 
 export interface VideoIntel {
@@ -515,6 +519,12 @@ export interface TrendFeatures {
   platformCategory?: string;
   /** a hashtag made of generic descriptor words (#aianimation, #digitalart): a subject, not a format */
   descriptor: boolean;
+  /** 4.0.1: does the single biggest video's own title carry the cluster's name? (a dominant unrelated video is noise, not an event) */
+  dominantMatches?: boolean;
+  /** 4.0.1: share of measured examples whose current rate is below 0.8× their lifetime average (past their peak) */
+  coolingShare?: number;
+  /** 4.0.1: share of measured examples whose current rate is ≥1.2× their lifetime average (still accelerating) */
+  acceleratingShare?: number;
 }
 
 export type DeskAction = 'create_today' | 'research' | 'monitor' | 'participate' | 'skip';
@@ -533,11 +543,15 @@ export interface DeskEvidence {
   likes?: number;
   velocityPerHour?: number;
   velocityHours?: number;
+  /** 4.0.1: measured rate ÷ lifetime average (≥1.2 accelerating, <0.8 past its peak) */
+  velocityRatio?: number;
   state: VideoState;
   kind?: BreakoutKind;
   verified: boolean;
   durationSec?: number;
   language?: string;
+  /** 4.0.1: the term of the cluster's name/signature found in this title (what made it evidence) */
+  matched?: string;
 }
 
 export interface DeskOpportunity {
@@ -553,7 +567,7 @@ export interface DeskOpportunity {
   /** concise, factual explanation of why this is an opportunity now */
   why: string[];
   /** measured facts: creators, new creators, growth, best video */
-  facts: { creators: number; newCreators48h: number; videos: number; directVideos: number; growth?: number; growthBasis: 'measured' | 'provisional'; topViews?: number; topVelocity?: number; grade: EvidenceGrade };
+  facts: { creators: number; newCreators48h: number; videos: number; directVideos: number; /** 4.0.1: how many of the clean examples are qualified hits/breakouts (the rest are ≥100K-view successes below the viral floor) */ qualified?: number; growth?: number; growthBasis: 'measured' | 'provisional'; topViews?: number; topVelocity?: number; grade: EvidenceGrade };
   features: TrendFeatures;
   production: { feasibleIn2h: boolean; approach: string[]; why: string; effortHours: [number, number] };
   monetization: { platforms: string[]; mechanisms: string[]; eligibility: string[]; suitability: number };
@@ -569,6 +583,22 @@ export interface DeskOpportunity {
   score: number;
   /** the alternative "a popular video exists" reading, to keep the recommendation honest */
   caution?: string;
+  /** 4.0.1: for monitored items — the observation that would change the verdict */
+  nextCheck?: string;
+  /** 4.0.1: the category was taken from the verified examples' own platform category when it contradicted the cluster's label */
+  categoryBasis?: 'cluster' | 'evidence';
+}
+
+/** 4.0.1: a structure visible inside a lane pool — a word or pair of words shared by ≥3 independent creators' titles */
+export interface SubFormat {
+  label: string;
+  creators: number;
+  videos: number;
+  /** evidence ids (DeskEvidence.id) of the examples that carry it */
+  exampleIds: string[];
+  topViews?: number;
+  /** up to four of those examples, ready to render */
+  examples?: DeskEvidence[];
 }
 
 export interface LaneEntry {
@@ -576,12 +606,16 @@ export interface LaneEntry {
   name: string;
   creators: number;
   videos: number;
+  /** 4.0.1: how many of the examples are qualified hits/breakouts (the rest are verified mid-size videos below the thresholds for their age) */
+  qualified?: number;
   newCreators48h: number;
   topViews?: number;
   signature: string[];
   evidence: DeskEvidence[];
   /** why it is not (or is) on the desk as an opportunity */
   note: string;
+  /** 4.0.1: sub-formats visible in the pool's own titles (the thing to study instead of the category) */
+  subFormats?: SubFormat[];
 }
 export interface DeskReport {
   generatedAt: string;

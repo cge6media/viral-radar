@@ -183,6 +183,8 @@ p { margin: 0; }
 .pill.provisional { color: var(--ink-3); border-style: dashed; }
 .pill.news { color: var(--ink-3); border-style: dotted; }
 .pill.kind { color: var(--ink-3); font-weight: 600; }
+button.pill { font: inherit; background: transparent; line-height: inherit; cursor: pointer; }
+.pill.kind.on { color: var(--ink); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .pill.on-dark { background: rgba(10, 14, 22, 0.72); border-color: rgba(255,255,255,0.14); backdrop-filter: blur(6px); }
 
 /* status strip (header) */
@@ -426,6 +428,8 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 .pill.vstate.early_breakout { --c: var(--accent); }
 .pill.vstate.unverified_signal { --c: var(--ink-3); border-style: dashed; }
 .pill.vstate.rejected { --c: var(--ink-4); color: var(--ink-3); }
+.pill.vstate.mid { --c: var(--warn, #c98a00); }
+.pill.vstate.ctx { --c: var(--ink-4); color: var(--ink-3); border-style: dashed; }
 .pill.plat { font-weight: 700; color: #fff; }
 .pill.plat.youtube { --c: #ff3d3d; }
 .pill.plat.tiktok { --c: #69f0e4; }

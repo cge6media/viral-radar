@@ -53,14 +53,18 @@ const HOOK_TEXT: Record<string, string> = {
 
 /** the thing the videos are about, phrased so it reads naturally inside a sentence */
 const POOL_SUBJECT: Record<string, string> = {
-  cooking: 'a 60-second recipe', cats: 'a cat video', dogs: 'a dog video', animal_comedy: 'a dubbed-animal skit', animation: 'an animated short', short_film: 'a micro short film', ai_video: 'an AI-generated short',
-  comedy_skit: 'a comedy skit', satisfying: 'a satisfying / ASMR clip', timelapse: 'a process timelapse', storytime: 'a told story', cover_song: 'a cover performance', music_video: 'a music video', gaming_clip: 'a gaming moment',
-  puppets: 'a puppet / character bit', street_interview: 'a street interview', explainer: 'a 45-second explainer',
+  cooking: 'a recipe video', cats: 'a cat video', dogs: 'a dog video', animal_comedy: 'a dubbed-animal skit', animation: 'an animated short', short_film: 'a micro short film', ai_video: 'an AI-generated short',
+  comedy_skit: 'a comedy skit', satisfying: 'a satisfying / ASMR clip', timelapse: 'a process timelapse', storytime: 'a first-person story', cover_song: 'a cover performance', music_video: 'a music video', gaming_clip: 'a gaming moment',
+  puppets: 'a puppet / character bit', street_interview: 'a street interview', explainer: 'a short explainer',
 };
 const SIG_SKIP = new Set(['version', 'official', 'explained', 'video', 'videos', 'shorts', 'short', 'full', 'new', 'best', 'cover', 'song', 'live', 'part', 'episode']);
 const latin = (w: string) => /^[a-z0-9'’-]+$/i.test(w);
+/** a sub-format item ("tf2 · Animation shorts") is named by the shared word the creators use */
+const subLabel = (o: DeskOpportunity) => (o.id.startsWith('desk:sub:') ? o.name.split(' · ')[0] : undefined);
 function subject(o: DeskOpportunity): string {
   const pool = POOL_SUBJECT[o.trendId.replace(/^f_/, '')];
+  const sub = subLabel(o);
+  if (sub) return `${pool || 'the format'} built around “${sub}”`;
   const sig = o.features.signature.filter((w) => w.length > 2 && latin(w) && !SIG_SKIP.has(w.toLowerCase()) && !o.name.toLowerCase().includes(w.toLowerCase())).slice(0, 2);
   if (pool) return sig.length ? `${pool} (${sig.join(' / ')})` : pool;
   const name = o.name.replace(/^#/, '').toLowerCase();
@@ -69,10 +73,14 @@ function subject(o: DeskOpportunity): string {
 const POOL_TAG: Record<string, string> = { cooking: 'recipe', cats: 'cat', dogs: 'dog', animal_comedy: 'talkinganimals', animation: 'animation', short_film: 'shortfilm', ai_video: 'aivideo', comedy_skit: 'skit', satisfying: 'satisfying', timelapse: 'timelapse', storytime: 'storytime', cover_song: 'cover', music_video: 'musicvideo', gaming_clip: 'gaming', puppets: 'puppet', street_interview: 'streetinterview', explainer: 'explained' };
 /** the subject as a bare noun phrase for titles/captions ("cover performance", "spiderman") */
 function noun(o: DeskOpportunity): string {
+  const sub = subLabel(o);
+  if (sub) return sub.toLowerCase();
   const pool = POOL_SUBJECT[o.trendId.replace(/^f_/, '')];
   const base = pool ? pool.replace(/^(a|an) /, '').replace(/ \/.*$/, '') : o.name.replace(/^#/, '').toLowerCase();
   return base;
 }
+/** difficulty follows the hours, so a 1.5–4 h brief is never "Low" */
+function difficultyOf(hi: number): 'Low' | 'Medium' | 'High' { return hi <= 1.5 ? 'Low' : hi <= 2.5 ? 'Medium' : 'High'; }
 
 /** one format-specific monetization risk, when the observed facts imply one */
 function riskFor(o: DeskOpportunity): string | undefined {
@@ -80,7 +88,7 @@ function riskFor(o: DeskOpportunity): string | undefined {
   const name = o.name.toLowerCase();
   const titles = o.evidence.map((e) => e.title.toLowerCase()).join(' ');
   if (o.trendId === 'f_cover_song' || /\bcover\b/.test(name)) return 'Covers of copyrighted songs are claimed by Content ID: ad revenue usually goes to the rights holder. Write an original song (or a parody with new lyrics and melody) to keep the revenue and the streams.';
-  if (/spider|marvel|disney|pixar|pokemon|pokémon|nintendo|mario|minecraft|roblox|fortnite|gta|batman|superman|star wars|harry potter|naruto|dragon ball|one piece|hololive|vtuber/.test(name + ' ' + titles)) return 'Third-party IP in the examples: fan content can be claimed, blocked or demonetized by the rights holder. Use an original character and an original design — reference the genre, not the brand.';
+  if (/spider|marvel|disney|pixar|pokemon|pokémon|nintendo|mario|minecraft|roblox|fortnite|gta|batman|superman|star wars|harry potter|naruto|dragon ball|one piece|hololive|vtuber|\btf2\b|team fortress|\bsfm\b|fnaf|poppy playtime|huggy ?wuggy|skibidi|among us|brawl stars|squid game|demon slayer|genshin|zelda|kirby|pikachu|hello kitty|peppa|bluey|spongebob|simpsons|family guy|rick and morty|joker|venom|transformers|godzilla|avengers|deadpool|sonic|upin|ipin|doraemon|shinchan|shin chan|chhota bheem|motu patlu|talking tom|lightning mcqueen|cocomelon/.test(name + ' ' + titles)) return 'Third-party IP in the examples: fan content can be claimed, blocked or demonetized by the rights holder. Use an original character and an original design — reference the genre, not the brand.';
   if (o.type === 'event' && o.features.nameShape === 'calendar') return 'Calendar window: attention collapses after the date. Publish before it or skip; nothing evergreen is being built.';
   if (/kids|nursery|rhyme|toddler|baby shark|cocomelon|preschool/.test(name + ' ' + titles) || (h.animated && /kids/.test(titles))) return 'Made-for-kids content: limited ads, no personalized ads, no comments and no notifications on YouTube — RPM is far lower than general audiences.';
   if (o.category === 'News & Politics' || o.category === 'Sports') return 'News/sports footage: limited advertiser-friendliness and third-party rights on the footage itself; only original commentary or animation is safely monetizable.';
@@ -138,7 +146,7 @@ function baseSteps(o: DeskOpportunity, extra: string[]): string[] {
 }
 
 function evidenceLines(o: DeskOpportunity): string[] {
-  return o.evidence.slice(0, 4).map((e) => `“${e.title}” — ${e.creator || 'unknown creator'}, ${e.views != null ? fmtNum(e.views) + ' views' : e.likes != null ? fmtNum(e.likes) + ' likes' : 'no statistics'}${e.ageHours != null ? `, ${e.ageHours < 48 ? Math.round(e.ageHours) + 'h' : Math.round(e.ageHours / 24) + 'd'} old` : ''}${e.velocityPerHour ? `, +${fmtNum(e.velocityPerHour)}/h measured` : ''} (${e.url})`);
+  return o.evidence.slice(0, 4).map((e) => `“${e.title}” — ${e.creator || 'unknown creator'}, ${e.views != null ? fmtNum(e.views) + ' views' : e.likes != null ? fmtNum(e.likes) + ' likes' : 'no statistics'}${e.ageHours != null ? `, ${e.ageHours < 48 ? Math.round(e.ageHours) + 'h' : Math.round(e.ageHours / 24) + 'd'} old` : ''}${e.velocityPerHour ? `, +${fmtNum(e.velocityPerHour)}/h measured${e.velocityRatio != null ? ` (${e.velocityRatio}× its lifetime average${e.velocityRatio < 0.8 ? ', past its peak' : e.velocityRatio >= 1.2 ? ', accelerating' : ''})` : ''}` : ''}${e.state === 'rejected' ? ' [mid-size: below the viral floor for its age]' : ''} (${e.url})`);
 }
 
 function uncertaintyLines(o: DeskOpportunity): string[] {
@@ -151,6 +159,10 @@ function uncertaintyLines(o: DeskOpportunity): string[] {
   if (o.facts.growthBasis !== 'measured') out.push('Growth is provisional (single observation); the next collections will confirm or cancel it.');
   if (o.type === 'meme') out.push('Meme timing: publish within 24–48 h or skip; the window closes quickly.');
   if (o.facts.creators < 6) out.push(`Only ${o.facts.creators} independent creators so far — the format is promising, not proven.`);
+  if (!o.production.feasibleIn2h) out.push(`Over the two-hour window: an original variation needs ${o.production.effortHours[0]}–${o.production.effortHours[1]} h; the effort lines below say so.`);
+  if (o.id.startsWith('desk:sub:')) out.push(`This is a sub-format found by a shared title word (“${subLabel(o)}”), not a validated cluster — the examples may share the word for different reasons; the thumbnails decide.`);
+  const dur = o.features.medianDurationSec;
+  if (dur != null && dur > 180) out.push(`The examples' median length is ${Math.round(dur)} s — longer than a typical Short; the duration suggestion follows the examples, not the Shorts norm.`);
   return out;
 }
 
@@ -193,7 +205,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     duration: dur,
     approach: [animated ? 'Character sheet (3 poses) generated once and reused; scenes via image-to-video' : 'AI video for scenes, one consistent character reference image', 'Synthesized or recorded voice with a signature catchphrase', 'Captions + 1 sound effect per beat; no copyrighted music'],
     steps: baseSteps(o, ['Design the character: one visual trait, one verbal tic, a 2-word name; save the reference image.', 'Generate 4 scenes from the structure; regenerate only the beat that misses the joke.']),
-    effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: effortBase[1] <= 2 ? 'Low' : 'Medium', why: `${shortForm ? 'Short-form' : 'Longer'} target; one character, four scenes.` },
+    effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: difficultyOf(effortBase[1]), why: `${shortForm ? 'Short-form' : 'Longer'} target; one character, four scenes.` },
     publishing: { platform, titleIdea: `${hookStyle === 'pov' ? 'POV: ' : ''}${nounPhrase} — part 1`, caption: `${cap(subj)}, but with ${'an original character'}. ${hashtags.join(' ')}`, notes: ['Post the same cut to Shorts, TikTok and Reels within an hour.', 'Pin a comment asking which situation the character should face next (the series hook).'] },
     revenue: revenueWithRisk, uncertainty, evidence,
   });
@@ -210,7 +222,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
       duration: dur,
       approach: ['Five generated scenes sharing one background/lighting prompt for continuity', 'A counter graphic (“Level n”) as the only recurring overlay', 'Rising music bed (original or royalty-free) with a hard cut at level 5'],
       steps: baseSteps(o, ['List the five levels first; cut any level that is not visibly different from the previous one.', 'Generate level 5 first — if it does not work, the video has no ending yet.']),
-      effort: { hours: `${effortBase[0] + 0.5}–${effortBase[1] + 0.5} h`, difficulty: 'Medium', why: 'Five scenes with continuity.' },
+      effort: { hours: `${effortBase[0] + 0.5}–${effortBase[1] + 0.5} h`, difficulty: difficultyOf(effortBase[1] + 0.5), why: 'Five scenes with continuity.' },
       publishing: { platform, titleIdea: `${cap(nounPhrase)}: level 1 vs level 5`, caption: `Which level are you? ${hashtags.join(' ')}`, notes: ['Natural series: publish level 6–10 as the next video if the first clears your baseline.'] },
       revenue: revenueWithRisk, uncertainty, evidence,
     });
@@ -225,7 +237,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
       duration: dur,
       approach: ['Two generated scenes (expected / reversed) sharing one subject reference image', 'Sound design sells the turn: silence 0.5 s before the flip', 'Captions only on the setup, not on the twist'],
       steps: baseSteps(o, ['Write the expected ending in one sentence, then write its opposite; the second sentence is the video.']),
-      effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: 'Low', why: 'Two scenes, one turn.' },
+      effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: difficultyOf(effortBase[1]), why: 'Two scenes, one turn.' },
       publishing: { platform, titleIdea: `${cap(nounPhrase)}… wait for it`, caption: `Not what you expected. ${hashtags.join(' ')}`, notes: ['Reply to the top comment with a second reversal (cheap follow-up).'] },
       revenue: revenueWithRisk, uncertainty, evidence,
     });
@@ -243,7 +255,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
       duration: '25–35 s (one chorus + verse)',
       approach: ['Original lyrics and melody (no sampled or copyrighted audio)', 'AI or DIY instrumental; vocals recorded or synthesized', 'Lyric captions with the animated character lip-syncing the chorus only'],
       steps: baseSteps(o, ['Write the chorus line first; if it is not quotable on its own, rewrite before anything else.', 'Produce the 30 s track; distribute the full version separately for streams.']),
-      effort: { hours: `${effortBase[0] + 1}–${effortBase[1] + 1} h`, difficulty: 'Medium', why: 'Writing + producing the track.' },
+      effort: { hours: `${effortBase[0] + 1}–${effortBase[1] + 1} h`, difficulty: difficultyOf(effortBase[1] + 1), why: 'Writing + producing the track.' },
       publishing: { platform, titleIdea: `the ${nounPhrase} song`, caption: `Full song on streaming. ${hashtags.join(' ')}`, notes: ['Release the audio to streaming platforms so re-uses of the sound pay you.'] },
       revenue: revenueWithRisk, uncertainty, evidence,
     });
@@ -258,7 +270,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
       duration: dur,
       approach: ['Two characters from one reference sheet', 'One simple animated diagram for the correct part', 'Captions throughout (informational content is watched muted)'],
       steps: baseSteps(o, ['Verify the correct explanation from a primary source before writing the wrong one.']),
-      effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: 'Medium', why: 'Accuracy check + two characters.' },
+      effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: difficultyOf(effortBase[1]), why: 'Accuracy check + two characters.' },
       publishing: { platform, titleIdea: `${cap(nounPhrase)}, explained (badly, then properly)`, caption: `Which part did you believe? ${hashtags.join(' ')}`, notes: ['Educational framing widens the advertiser-friendly range.'] },
       revenue: revenueWithRisk, uncertainty, evidence,
     });
@@ -273,7 +285,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
       duration: dur,
       approach: ['Generated establishing shot + 3 scenes with one style prompt', 'Narration in the setting\'s register (documentary voice, courtroom voice)', 'Diegetic sound only; no trending audio'],
       steps: baseSteps(o, ['Pick the setting whose rules most contradict the mechanism; write the collision beats from those rules.']),
-      effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: 'Low', why: 'Four scenes, one style.' },
+      effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: difficultyOf(effortBase[1]), why: 'Four scenes, one style.' },
       publishing: { platform, titleIdea: `${cap(nounPhrase)}, but it's a nature documentary`, caption: `Same thing, wrong world. ${hashtags.join(' ')}`, notes: ['If it works, the setting becomes the series (same mechanism, new world each time).'] },
       revenue: revenueWithRisk, uncertainty, evidence,
     });

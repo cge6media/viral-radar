@@ -307,7 +307,10 @@ export function decideVideo(r: VideoRecord): void {
   // known, measured growth must at least reach it (looser than the young-video rule, which has no measurement)
   const notBelowNormal = r.baselineRatio != null ? r.baselineRatio >= 1.2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.2 : true;
   const recent = age <= 168; // the "early" window: a week
-  const breakoutMeasured = recent && V != null && notBelowNormal && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
+  // 4.0.1: past the first two days a high absolute rate only counts as "early" while the video holds or beats its own
+  // lifetime pace — a 4-day-old clip decelerating at 0.9× its average is steady, not breaking out
+  const holdingPace = age <= 48 || (r.velocityRatio ?? 1) >= 1;
+  const breakoutMeasured = recent && V != null && notBelowNormal && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews && holdingPace) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
   // a big channel's ordinary upload is not a breakout: when the creator's normal range is known, the video must exceed it
   const aboveNormal = r.baselineRatio != null ? r.baselineRatio >= 2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.5 : true;
   const breakoutYoung = V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && aboveNormal;
@@ -331,7 +334,7 @@ export function decideVideo(r: VideoRecord): void {
   } else if (breakoutMeasured && !cooling) {
     state = 'early_breakout';
     r.kind = 'early';
-    reasons.push(`Early breakout: ${fmt(views)} views is below the ${fmt(floor)} hit floor for its age, but the measured rate is abnormal.`);
+    reasons.push(`Early breakout: ${fmt(views)} views is below the ${fmt(floor)} hit floor for its age; measured +${fmt(V!)}/h is ${r.velocityRatio != null ? `${r.velocityRatio}× its lifetime average (${(r.velocityRatio >= 1.2 ? 'accelerating' : r.velocityRatio >= 1 ? 'holding its pace' : 'a very young video still finding its pace')})` : 'far above typical rates for its age'}.`);
   } else if (breakoutYoung) {
     state = 'early_breakout';
     r.kind = 'early';
@@ -348,6 +351,8 @@ export function decideVideo(r: VideoRecord): void {
     rejectedBy = 'cooling and below hit threshold';
   } else if (V != null && !recent) {
     rejectedBy = `older than a week without measured resurgence (${fmt(V)}/h, ${r.velocityRatio}× lifetime)`;
+  } else if (V != null && !holdingPace && V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) {
+    rejectedBy = `past its peak: measured ${fmt(V)}/h is ${r.velocityRatio}× its lifetime average (steady or slowing, not breaking out)`;
   } else if (V != null) {
     rejectedBy = `measured velocity ${fmt(V)}/h below breakout thresholds`;
   } else {
@@ -369,7 +374,17 @@ export function decideVideo(r: VideoRecord): void {
   const youth = 1 - clamp(age / 168, 0, 1);
   const outlierTerm = base != null ? logNorm(base, 1, 100) : 0.25;
   const breakoutRaw = 0.4 * logNorm(growthRate, 1e3, 2e5) + 0.25 * (A != null ? ratioToScore(A) : V != null ? ratioToScore(r.velocityRatio || 1) : 0.4) + 0.2 * outlierTerm + 0.15 * youth;
-  r.breakoutScore = round(100 * clamp(V != null ? breakoutRaw : 0.8 * breakoutRaw, 0, 1) * (views >= T.accelViews ? 1 : 0), 0);
+  // 4.0.1: past its first two days a video ranks by how it holds its own pace (accelerating > holding > slowing > past its
+  // peak) and younger videos rank above older ones at the same rate — the radar is for what is rising now
+  const vr = r.velocityRatio;
+  const pace = age <= 48 || vr == null ? 1 : vr >= 1.2 ? 1.05 : vr >= 1 ? 1 : vr >= 0.8 ? 0.85 : 0.6;
+  const youthFactor = 0.75 + 0.25 * youth;
+  r.breakoutScore = round(100 * clamp(V != null ? breakoutRaw : 0.8 * breakoutRaw, 0, 1) * (views >= T.accelViews ? 1 : 0) * pace * youthFactor, 0);
+  // 4.0.1: a hashtag-only title ("#gta #gta6 #shorts") carries no information about the video; ranked lower and said so
+  if (/^\s*(#[\p{L}\p{N}_]+\s*)+$/u.test(r.title || '')) {
+    r.viralScore = round(r.viralScore * 0.8, 0); r.breakoutScore = round(r.breakoutScore * 0.8, 0);
+    reasons.push('Hashtag-only title: the title says nothing about the video — ranked lower.');
+  }
   r.engagementScore = views >= T.candidateViews && r.likeRate != null ? round(100 * clamp(0.8 * logNorm(r.likeRate, 0.005, 0.1) + 0.2 * logNorm((r.metrics.comments || 0) / Math.max(views, 1), 0.0002, 0.01), 0, 1), 0) : 0;
   r.outlierScore = views >= T.candidateViews && base != null ? round(100 * logNorm(base, 1, 200), 0) : 0;
   r.confidence = round(clamp(25 + 20 * Math.min(r.observations, 3) / 3 + (V != null ? 25 : 0) + (r.baselineRatio != null ? 10 : r.subscriberRatio != null ? 5 : 0) + (r.shareMetrics?.posts ? 10 : 0) + (r.ageHours != null ? 5 : 0), 0, 100), 0);
@@ -427,9 +442,9 @@ export function viralNowLists(records: VideoRecord[], now: string, limit = 40, p
   const out = {} as Record<VideoWindow, VideoCard[]>;
   for (const w of VIDEO_WINDOWS) {
     const h = VIDEO_WINDOW_HOURS[w];
-    out[w] = diversifyByCreator(records
+    out[w] = diversifyByCreator(dedupeTitles(records
       .filter((r) => platforms.has(r.platform) && r.state === 'verified_hit' && r.publishedAt && hoursBetween(r.publishedAt, now) <= h)
-      .sort((a, b) => b.viralScore - a.viralScore || (b.metrics.views || 0) - (a.metrics.views || 0)), 2)
+      .sort((a, b) => b.viralScore - a.viralScore || (b.metrics.views || 0) - (a.metrics.views || 0))), 2)
       .slice(0, limit)
       .map(toCard);
   }
@@ -438,11 +453,24 @@ export function viralNowLists(records: VideoRecord[], now: string, limit = 40, p
 
 /** Early Radar: breakouts by breakout score (measured growth first). */
 export function earlyRadarList(records: VideoRecord[], limit = 40, platforms: Set<VideoRecord['platform']> = VIEW_PLATFORMS): VideoCard[] {
-  return diversifyByCreator(records
+  return diversifyByCreator(dedupeTitles(records
     .filter((r) => platforms.has(r.platform) && r.state === 'early_breakout')
-    .sort((a, b) => b.breakoutScore - a.breakoutScore || b.viralScore - a.viralScore), 2)
+    .sort((a, b) => b.breakoutScore - a.breakoutScore || b.viralScore - a.viralScore)), 2)
     .slice(0, limit)
     .map(toCard);
+}
+
+/** 4.0.1: one channel uploading the same title several times is one signal — keep the best-ranked copy in a list */
+export function dedupeTitles(list: VideoRecord[]): VideoRecord[] {
+  const seen = new Set<string>();
+  const out: VideoRecord[] = [];
+  for (const r of list) {
+    const k = `${r.creator?.channelId || r.creator?.url || r.creator?.name || r.id}|${(r.title || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+  }
+  return out;
 }
 
 /** at most `max` videos per creator in a ranked list (a channel spamming re-cuts is one signal, not five) */

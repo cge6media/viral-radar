@@ -21,10 +21,13 @@ import { STOPWORDS, hoursBetween, round, tokenize } from '../lib/util.js';
 import { isAnyStopword } from './language.js';
 import { FORMAT_BY_ID } from './relevance.js';
 
-const CALENDAR = /\b(national|international|world)\b.*\bday\b|\b(halloween|diwali|dussehra|navratri|christmas|xmas|thanksgiving|ramadan|eid|easter|hanukkah|new year|valentine|karwa ?chauth|holi|black friday|cyber monday|mother'?s day|father'?s day|independence day|day of the dead|día de (los )?muertos)\b|\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/i;
+const CALENDAR = /\b(national|international|world)\b.*\bday\b|^#?(?:national|international|world)[a-z]*day$|\b(halloween|diwali|dussehra|navratri|christmas|xmas|thanksgiving|ramadan|eid|easter|hanukkah|new year|valentine|karwa ?chauth|holi|black friday|cyber monday|mother'?s day|father'?s day|independence day|day of the dead|día de (los )?muertos)\b|\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/i;
 /** generic descriptor words: a hashtag built only from these names a subject or a medium, never a specific format */
 const DESCRIPTOR_WORDS = ['ai', 'animation', 'animated', 'anime', 'art', 'digital', '3d', '2d', 'cgi', 'vfx', 'live', 'stream', 'streaming', 'video', 'videos', 'short', 'shorts', 'funny', 'comedy', 'music', 'song', 'songs', 'dance', 'cat', 'cats', 'dog', 'dogs', 'pet', 'pets', 'kids', 'kid', 'baby', 'horror', 'scary', 'creepy', 'gaming', 'game', 'games', 'gameplay', 'cartoon', 'meme', 'memes', 'viral', 'edit', 'edits', 'status', 'vlog', 'vlogs', 'food', 'cooking', 'recipe', 'recipes', 'asmr', 'satisfying', 'diy', 'craft', 'crafts', 'tutorial', 'fashion', 'beauty', 'makeup', 'fitness', 'gym', 'travel', 'nature', 'love', 'cute', 'motivation', 'motivational', 'facts', 'fact', 'news', 'sports', 'sport', 'football', 'soccer', 'cricket', 'trend', 'trending', 'challenge', 'reels', 'reel', 'tiktok', 'youtube', 'hindi', 'tamil', 'telugu', 'bollywood', 'kpop', 'story', 'stories', 'film', 'films', 'movie', 'movies', 'series', 'fyp', 'explore', 'photography', 'photo', 'design', 'drawing', 'painting', 'paint', 'sketch', 'illustration', 'character', 'characters', 'oc', 'fanart', 'fan', 'animal', 'animals', 'bird', 'birds', 'fish', 'wildlife', 'car', 'cars', 'bike', 'moto', 'tech', 'technology', 'chatgpt', 'sora', 'generated', 'generative', 'stopmotion', 'clay', 'claymation', 'pixel', 'retro', 'lofi', 'remix', 'cover', 'beat', 'beats', 'rap', 'hiphop', 'rock', 'metal', 'guitar', 'piano', 'drum', 'drums', 'vocal', 'vocals', 'singing', 'singer', 'dj', 'edm', 'lyrics', 'relatable', 'moments', 'moment', 'highlights', 'highlight', 'clip', 'clips', 'history', 'science', 'space', 'education', 'learning', 'kitten', 'kittens', 'puppy', 'puppies', 'action', 'adventure', 'fantasy', 'romance', 'drama', 'thriller', 'documentary', 'review', 'reviews', 'unboxing', 'haul', 'prank', 'pranks', 'skit', 'skits', 'sketch', 'parody', 'dub', 'dubbed', 'voice', 'voiceover', 'original', 'official', 'new', 'best', 'top', 'daily', 'mini', 'micro', 'life', 'family', 'mom', 'dad', 'couple', 'school', 'college', 'work', 'office', 'home', 'house', 'room', 'kitchen', 'garden', 'farm', 'village', 'city', 'street', 'world', 'india', 'usa', 'uk', 'japan', 'korea', 'latino', 'latina', 'español', 'espanol', 'mexico', 'brasil', 'brazil', 'humor', 'humour', 'lol', 'fun', 'entertainment', 'shortsfeed', 'shortvideo', 'ytshorts', 'youtubeshorts'];
-const DESCRIPTOR = new Set([...DESCRIPTOR_WORDS,
+export const DESCRIPTOR = new Set([...DESCRIPTOR_WORDS,
+  // 4.0.1: more media/genre descriptors the second audit found passing as "memes" (#laugh, #reaction, #cinema, #furry, #acousticcover)
+  'officiel', 'officielle', 'oficial', 'offiziell', 'ufficiale', 'resmi', 'show', 'shows', 'tv', 'version', 'versions', 'laugh', 'laughs', 'laughing', 'lustig', 'witzig', 'cinema', 'furry', 'furries', 'acoustic', 'acapella', 'karaoke', 'instrumental', 'mashup', 'medley', 'unplugged', 'reaction', 'reactions', 'reacts', 'react', 'vtuber', 'walkthrough', 'playthrough', 'speedrun', 'montage', 'compilation', 'tribute', 'recap', 'trailer', 'teaser', 'bloopers', 'outtakes', 'qna', 'podcast', 'interview', 'timelapse', 'slowmo', 'slowmotion', 'drone', 'aerial', 'cosplay', 'fancam', 'fanmade', 'amv', 'gmv', 'mmd', 'tiktoks', 'shortfilm', 'shortfilms', 'microdrama', 'webseries', 'sitcom', 'standup', 'roast', 'rant', 'vent', 'storytime', 'grwm', 'ootd', 'haul', 'mukbang', 'eating', 'challenge', 'experiment', 'experiments', 'lifehack', 'lifehacks', 'hack', 'hacks', 'tips', 'tricks', 'howto',
+  '切り抜き', 'きりぬき', 'リアクション', 'ゲーム配信', '配信', '실시간', '리액션', '브이로그', '먹방', '笑', '搞笑视频', '沙雕',
   // other languages: funny / story / facts / music / film / games / pets / sports / news descriptors
   'lucu', 'ngakak', 'kocak', 'komedi', 'comedia', 'cómico', 'comico', 'gracioso', 'risa', 'risas', 'chistes', 'humor', 'curiosidades', 'curiosidad', 'historia', 'historias', 'hechos', 'datos', 'fakta', 'faktaunik', 'unik', 'cerita', 'kisah', 'emotional', 'emotionalstory', 'emosional', 'kahani', 'kahaniya', 'kahaniyan', 'drama', 'cine', 'película', 'pelicula', 'peliculas', 'musica', 'música', 'canción', 'cancion', 'canciones', 'baile', 'animación', 'animacion', 'dibujos', 'juego', 'juegos', 'videojuegos', 'reacción', 'reaccion', 'receta', 'recetas', 'cocina', 'mascotas', 'perro', 'perros', 'gato', 'gatos', 'bebé', 'bebe', 'niños', 'ninos', 'infantil', 'deportes', 'fútbol', 'futbol', 'noticias', 'viralvideo', 'viralvideos', 'shortsvideo', 'trendingshorts', 'funnyvideo', 'funnyvideos', 'comedyvideo', 'funnyshorts', 'statusvideo', 'whatsappstatus', 'おもしろ', 'ショート', 'ショート動画', '映画紹介', 'ゲーム実況', 'あるある', 'アニメ', 'ゲーム', '面白い', '搞笑', '短剧', '短视频', '게임', '웃긴', '개그', '영화', '드라마', '쇼츠', '유머', 'мем', 'юмор', 'приколы', 'смешно']);
 /** can the tag be split entirely into descriptor words? (#aianimation → ai + animation) */
@@ -45,12 +48,12 @@ export function isDescriptorTag(tag: string): boolean {
   };
   return t.length <= 24 && can(0);
 }
-const SPORTS_NEWS_RE = /\bballon d'?or\b|\bbal[oó]n de oro\b|\bgoal\b|\bgol\b|\bgoles\b|\bpartido\b|\bchampions\b|\bmundial\b|\bcopa\b|\bderby\b|\bcl[aá]sico\b|\bnba\b|\bnfl\b|\bmlb\b|\bufc\b|\bwwe\b|\bf1\b|\btransfer\b|\bsigns?\b|\bcontract\b|\btrade[ds]?\b|\binjur(y|ed)\b|\bbreaking\b|\bexplosion\b|\battack\b|\bkilled\b|\bdies\b|\bdead\b|\barrested\b|\bpolice\b|\bcourt\b|\bmissile\b|\bearthquake\b|\bcrash\b|\bprotest\b|\bscandal\b|\blawsuit\b|\belection\b|\bresigns?\b|\bfired\b|\bsuspended\b|\bceremony\b|\baward\b|\bwinner\b|\bganador\b|\bworlds\b|\bplayoffs?\b|\bfinals?\b|\bstrikes?\b|\bdrones?\b|\bbombing\b|\bblast\b|\btroops\b|\barmy\b|\bmilitary\b|\bwar\b|\bsanctions\b|\bceasefire\b|\bhostages?\b|\binvasion\b|\bshooting\b|\bverdict\b|\bindicted\b/i;
+export const SPORTS_NEWS_RE = /\bballon d'?or\b|\bbal[oó]n de oro\b|\bgoal\b|\bgol\b|\bgoles\b|\bpartido\b|\bchampions\b|\bmundial\b|\bcopa\b|\bderby\b|\bcl[aá]sico\b|\bnba\b|\bnfl\b|\bmlb\b|\bufc\b|\bwwe\b|\bf1\b|\btransfer\b|\bsigns?\b|\bcontract\b|\btrade[ds]?\b|\binjur(y|ed)\b|\bbreaking\b|\bexplosion\b|\battack\b|\bkilled\b|\bdies\b|\bdead\b|\barrested\b|\bpolice\b|\bcourt\b|\bmissile\b|\bearthquake\b|\bcrash\b|\bprotest\b|\bscandal\b|\blawsuit\b|\belection\b|\bresigns?\b|\bfired\b|\bsuspended\b|\bceremony\b|\baward\b|\bwinner\b|\bganador\b|\bworlds\b|\bplayoffs?\b|\bfinals?\b|\bstrikes?\b|\bdrones?\b|\bbombing\b|\bblast\b|\btroops\b|\barmy\b|\bmilitary\b|\bwar\b|\bsanctions\b|\bceasefire\b|\bhostages?\b|\binvasion\b|\bshooting\b|\bverdict\b|\bindicted\b/i;
 export const LIVE_RE = /\blive\b|live ?stream|\ben vivo\b|\bao vivo\b|🔴|\bstreaming\b|\bpremiere\b/i;
-const RELEASE_RE = /\btrailer\b|\btr[aá]iler\b|\bteaser\b|\bbande-annonce\b|予告編|예고편|\bleak(ed|s)?\b|\bofficial\b|\bepisode\b|\bseason\b|\bgameplay\b|\brelease\b|\bpre-?order\b|\bdlc\b|\bpatch\b|\bupdate\b|\bceremony\b|\baward\b|\bfinals?\b|\bmatch\b|\bvs\.?\b|\bmv\b|\bfull album\b|\bout now\b|\blaunch(ed|es)?\b|\bunboxing\b|\breview\b|\bdurability\b|\bteardown\b|\bhands-on\b|\btested\b|\bfirst look\b|\bspecs\b|\bkeynote\b|\breveal(ed)?\b/i;
-const SIG_STOP = new Set(['could', 'would', 'should', 'will', 'just', 'only', 'even', 'still', 'really', 'very', 'much', 'many', 'more', 'most', 'also', 'than', 'then', 'them', 'this', 'that', 'what', 'when', 'where', 'which', 'while', 'with', 'without', 'your', 'you', 'our', 'their', 'into', 'onto', 'over', 'under', 'again', 'ever', 'never', 'always', 'something', 'anything', 'everything', 'nothing', 'someone', 'anyone', 'everyone', 'nobody', 'please', 'thanks', 'thank', 'like', 'subscribe', 'share', 'comment', 'follow', 'channel', 'watch', 'full', 'video', 'videos', 'shorts', 'short', 'youtube', 'youtubeshorts', 'ytshorts', 'shortsfeed', 'viral', 'trending', 'status', 'ini', 'itu', 'yang', 'dan', 'untuk', 'dengan', 'para', 'por', 'con', 'una', 'uno', 'los', 'las', 'del', 'que', 'como', 'más', 'pero', 'est', 'sur', 'pour', 'avec', 'dans', 'les', 'des', 'une', 'ben', 'bir', 'uma', 'com', 'não', 'nao', 'são', 'sao', 'mais']);
+const RELEASE_RE = /논란|출시|발표|공개|결함|이슈|리뷰|언박싱|발매|レビュー|発売|発表|開封|予告|\blanzamiento\b|\bestreno\b|\brese[ñn]a\b|\bfiltraci[oó]n\b|\blan[çc]amento\b|\bestreia\b|\btrailer\b|\btr[aá]iler\b|\bteaser\b|\bbande-annonce\b|予告編|예고편|\bleak(ed|s)?\b|\bofficial\b|\bepisode\b|\bseason\b|\bgameplay\b|\brelease\b|\bpre-?order\b|\bdlc\b|\bpatch\b|\bupdate\b|\bceremony\b|\baward\b|\bfinals?\b|\bmatch\b|\bvs\.?\b|\bmv\b|\bfull album\b|\bout now\b|\blaunch(ed|es)?\b|\bunboxing\b|\breview\b|\bdurability\b|\bteardown\b|\bhands-on\b|\btested\b|\bfirst look\b|\bspecs\b|\bkeynote\b|\breveal(ed)?\b/i;
+export const SIG_STOP = new Set(['could', 'would', 'should', 'will', 'just', 'only', 'even', 'still', 'really', 'very', 'much', 'many', 'more', 'most', 'also', 'than', 'then', 'them', 'this', 'that', 'what', 'when', 'where', 'which', 'while', 'with', 'without', 'your', 'you', 'our', 'their', 'into', 'onto', 'over', 'under', 'again', 'ever', 'never', 'always', 'something', 'anything', 'everything', 'nothing', 'someone', 'anyone', 'everyone', 'nobody', 'please', 'thanks', 'thank', 'like', 'subscribe', 'share', 'comment', 'follow', 'channel', 'watch', 'full', 'video', 'videos', 'shorts', 'short', 'youtube', 'youtubeshorts', 'ytshorts', 'shortsfeed', 'viral', 'trending', 'status', 'ini', 'itu', 'yang', 'dan', 'untuk', 'dengan', 'para', 'por', 'con', 'una', 'uno', 'los', 'las', 'del', 'que', 'como', 'más', 'pero', 'est', 'sur', 'pour', 'avec', 'dans', 'les', 'des', 'une', 'ben', 'bir', 'uma', 'com', 'não', 'nao', 'são', 'sao', 'mais']);
 
-const GENERIC_NAME = new Set(['humor', 'funny', 'comedy', 'meme', 'memes', 'viral', 'trending', 'shorts', 'fyp', 'love', 'cute', 'fun', 'lol', 'status', 'edit', 'edits', 'vlog', 'minivlog', 'dailyvlog', 'motivation', 'facts', 'art', 'music', 'song', 'dance', 'gaming', 'anime', 'cartoon', 'animation', 'ai', 'news', 'sports', 'football', 'cricket', 'food', 'cooking', 'recipe', 'asmr', 'satisfying', 'cat', 'cats', 'dog', 'dogs', 'pets', 'animals', 'baby', 'kids', 'family', 'life', 'india', 'usa', 'uk']);
+export const GENERIC_NAME = new Set(['humor', 'funny', 'comedy', 'meme', 'memes', 'viral', 'trending', 'shorts', 'fyp', 'love', 'cute', 'fun', 'lol', 'status', 'edit', 'edits', 'vlog', 'minivlog', 'dailyvlog', 'motivation', 'facts', 'art', 'music', 'song', 'dance', 'gaming', 'anime', 'cartoon', 'animation', 'ai', 'news', 'sports', 'football', 'cricket', 'food', 'cooking', 'recipe', 'asmr', 'satisfying', 'cat', 'cats', 'dog', 'dogs', 'pets', 'animals', 'baby', 'kids', 'family', 'life', 'india', 'usa', 'uk']);
 
 export const HOOKS: [string, RegExp][] = [
   ['question', /\?|^(why|how|what|who|when|where|can|does|did|is|are|would|should)\b/i],
@@ -115,9 +118,11 @@ export function trendFeatures(t: Trend, byObs: Map<string, VideoRecord>, now: st
   for (const r of recs) if (r.language) languages[r.language] = (languages[r.language] || 0) + 1;
   const hooks: Record<string, number> = {};
   for (const v of uniqVideos) for (const [name, re] of HOOKS) if (re.test(v.title)) hooks[name] = (hooks[name] || 0) + 1;
-  // signature: tokens shared by the titles of ≥3 independent creators (minus generic words and the platform noise)
+  // signature: tokens shared by the titles of ≥3 independent creators (minus generic words and the platform noise).
+  // 4.0.1: streams and long recordings do not vote — "talking tom" game streams must not define an animal-comedy format
+  const structural = uniqVideos.filter((v) => { const r = byObs.get(v.id); return !LIVE_RE.test(v.title) && (r?.durationSec == null || r.durationSec < 1800); });
   const tokensByCreator = new Map<string, Set<string>>();
-  for (const v of uniqVideos) {
+  for (const v of structural) {
     const ck = creatorKey(v);
     const set = tokensByCreator.get(ck) || tokensByCreator.set(ck, new Set()).get(ck)!;
     for (const tok of tokenize(v.title)) if (tok.length >= 3 && !STOPWORDS.has(tok) && !SIG_STOP.has(tok) && !GENERIC_NAME.has(tok) && !DESCRIPTOR.has(tok) && !isBroadTopicTag(tok) && !/^\d+$/.test(tok)) set.add(tok);
@@ -130,19 +135,39 @@ export function trendFeatures(t: Trend, byObs: Map<string, VideoRecord>, now: st
   const tagName = t.name.replace(/^#/, '').toLowerCase();
   // curated format pools have editorial names ("Cat videos"): never judged as fragments
   const shape: TrendFeatures['nameShape'] = t.kind === 'format' ? 'phrase' : nameShape(t.name, t.name.startsWith('#') ? 'hashtag' : 'phrase');
-  const inTitle = nameToks.length ? uniqVideos.filter((v) => { const tt = new Set(tokenize(v.title)); const tags = new Set((v.tags || []).map((x) => x.replace(/^#/, '').toLowerCase())); return (t.name.startsWith('#') ? nameToks.some((x) => tt.has(x)) : nameToks.every((x) => tt.has(x))) || tags.has(tagName) || tt.has(tagName); }).length : 0;
+  // a hashtag or a named entity ("Harry Kane" → "Kane crying after the award") is carried by any of its name tokens; a phrase needs all of them
+  const anyTok = t.name.startsWith('#') || shape === 'entity';
+  const inTitle = nameToks.length ? uniqVideos.filter((v) => { const tt = new Set(tokenize(v.title)); const tags = new Set((v.tags || []).map((x) => x.replace(/^#/, '').toLowerCase())); return (anyTok ? nameToks.some((x) => tt.has(x)) : nameToks.every((x) => tt.has(x))) || tags.has(tagName) || tt.has(tagName); }).length : 0;
   const titleShare = uniqVideos.length ? round(inTitle / uniqVideos.length, 2) : 0;
   const liveShare = uniqVideos.length ? round(uniqVideos.filter((v) => LIVE_RE.test(v.title)).length / uniqVideos.length, 2) : 0;
   const catVotes = new Map<string, number>();
   for (const r of recs) if (r.platformCategory) catVotes.set(r.platformCategory, (catVotes.get(r.platformCategory) || 0) + 1);
   const platformCategory = Array.from(catVotes.entries()).sort((a, b) => b[1] - a[1]).find(([, n]) => n >= Math.max(2, recs.length / 2))?.[0];
   const descriptor = t.kind === 'microtrend' && (shape === 'hashtag' ? isDescriptorTag(t.name) : nameToks.length > 0 && nameToks.every((x) => DESCRIPTOR.has(x)));
+  // 4.0.1: does the biggest video itself carry the name? and are the measured examples still rising or past their peak?
+  const biggest = recs.length ? recs.reduce((a, b) => ((b.metrics.views || 0) > (a.metrics.views || 0) ? b : a)) : undefined;
+  const dominantMatches = biggest ? titleCarries(t, biggest.title, nameToks, tagName) : undefined;
+  const measured = recs.filter((r) => r.velocityRatio != null && (r.velocity || []).reduce((a, v) => a + v.hours, 0) >= 2);
+  const coolingShare = measured.length >= 2 ? round(measured.filter((r) => r.velocityRatio! < 0.8).length / measured.length, 2) : undefined;
+  const acceleratingShare = measured.length >= 2 ? round(measured.filter((r) => r.velocityRatio! >= 1.2).length / measured.length, 2) : undefined;
   void now;
   return {
     creators: w.creators, videos: w.videos, directVideos: w.directVideos, dominance, repeatCreators, spreadHours, newCreators48h: w.newCreators,
     platforms: t.platforms, shortsShare: recs.length ? round(shorts / recs.length, 2) : 0, medianDurationSec: durations.length ? durations[Math.floor(durations.length / 2)] : undefined,
-    languages, hooks, signature, nameShape: shape, titleShare, liveShare, platformCategory, descriptor,
+    languages, hooks, signature, nameShape: shape, titleShare, liveShare, platformCategory, descriptor, dominantMatches, coolingShare, acceleratingShare,
   };
+}
+
+/** does a title carry the cluster's name (any name token for hashtags, every token for phrases, or the format's own rules)? */
+export function titleCarries(t: Trend, title: string, nameToks?: string[], tagName?: string): boolean {
+  if (t.kind === 'format') return titleMatchesFormat(t, title);
+  const toks = nameToks ?? tokenize(t.name.replace(/^#/, '')).filter((x) => !STOPWORDS.has(x));
+  const tag = tagName ?? t.name.replace(/^#/, '').toLowerCase();
+  const tt = new Set(tokenize(title));
+  const flat = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  if (!toks.length) return flat.includes(tag.replace(/[^\p{L}\p{N}]+/gu, ''));
+  const anyTok = t.name.startsWith('#') || nameShape(t.name) === 'entity';
+  return (anyTok ? toks.some((x) => tt.has(x)) : toks.every((x) => tt.has(x))) || tt.has(tag) || (tag.length >= 5 && flat.includes(tag.replace(/[^\p{L}\p{N}]+/gu, '')));
 }
 
 /** Decide the opportunity type from the features. Conservative: a format needs independent, repeated adoption. */
@@ -166,33 +191,44 @@ export function classifyOpportunity(t: Trend, f: TrendFeatures): OpportunityClas
   const nameFlat = t.name.replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
   const extraSignature = f.signature.filter((w) => !nameWords.has(w) && !nameFlat.includes(w.toLowerCase()) && !w.toLowerCase().includes(nameFlat));
   const strongStructure = f.signature.length >= 2 && extraSignature.length >= 1 && f.titleShare >= 0.5;
+  // a curated pool is a category by construction: it is a *format* opportunity only when its current examples share
+  // a structure beyond the pool's own name (a signature word from ≥3 creators, or creators who repeat it)
+  const poolStructure = extraSignature.length >= 1 || f.repeatCreators >= 2;
   if (t.isNewsEvent) { type = 'event'; confidence = 80; basis.push('flagged as a news/person event'); }
   else if (f.nameShape === 'calendar') { type = 'event'; confidence = 85; basis.push('a calendar moment (one-day attention, not a structure)'); }
   else if (f.nameShape === 'fragment') { type = 'uncertain'; confidence = 75; basis.push('the cluster name is a title fragment, not a recognisable format'); }
   else if (f.liveShare >= 0.5) { type = 'uncertain'; confidence = 80; basis.push('mostly live streams / stream recordings — not a video format'); }
+  // 4.0.1: a phrase that lives in descriptions, not titles ("abonne toi", "fair use", "get ready") is boilerplate before it is anything else
+  else if (t.kind === 'microtrend' && (f.nameShape === 'phrase' || f.nameShape === 'entity') && f.titleShare < 0.4 && !strongStructure) { type = 'uncertain'; confidence = 75; basis.push(`the name appears in only ${Math.round(f.titleShare * 100)}% of the titles — description boilerplate or a merged phrase, not a recognisable format`); }
   else if (newsy || releaseShare >= 0.5 || (f.nameShape === 'entity' && (releaseShare >= 0.3 || t.category === 'Gaming' || t.category === 'Film & TV'))) {
     type = 'event'; confidence = 70; basis.push(newsy ? `the examples are ${f.platformCategory || t.category} / news-style content — a news, sports or esports moment` : 'a named title/release (trailer, leak, episode, match) — a topic people cover, not a structure they reuse');
   }
-  else if (t.kind === 'microtrend' && (f.nameShape === 'phrase' || f.nameShape === 'entity') && f.titleShare < 0.4 && !strongStructure) { type = 'uncertain'; confidence = 75; basis.push(`the name appears in only ${Math.round(f.titleShare * 100)}% of the titles — description boilerplate or a merged phrase, not a recognisable format`); }
   else if ((f.medianDurationSec ?? 0) >= 1800 && f.directVideos >= 2) { type = 'uncertain'; confidence = 75; basis.push(`the examples are long recordings (median ${Math.round((f.medianDurationSec || 0) / 60)} min) — streams or episodes, not a short-form format`); }
-  else if (f.dominance >= 0.75 && f.videos >= 2) { type = 'event'; confidence = 80; basis.push('one video is the whole story; the others are incidental'); }
+  // 4.0.1: one dominant video is an "event" only when that video itself carries the name; a dominant unrelated video is noise
+  else if (f.dominance >= 0.75 && f.videos >= 2 && f.dominantMatches !== false && t.kind !== 'format') { type = 'event'; confidence = 80; basis.push('one video is the whole story; the others are incidental'); }
+  else if (f.dominance >= 0.75 && f.videos >= 2 && f.dominantMatches === false) { type = 'uncertain'; confidence = 70; basis.push(`one video holds ${Math.round(f.dominance * 100)}% of the views but its title does not carry the name — a keyword coincidence, not a trend`); }
   else if (f.creators <= 2 || (f.dominance >= 0.6 && f.creators <= 3)) {
-    type = f.videos >= 1 && (f.directVideos >= 1) ? 'event' : 'uncertain';
+    type = f.videos >= 1 && (f.directVideos >= 1) && f.dominantMatches !== false ? 'event' : 'uncertain';
     confidence = f.dominance >= 0.6 ? 75 : 55;
     if (type === 'event') basis.push('attention is concentrated in one or two creators — a single viral event until others adopt it');
+    else basis.push('too few independent creators, and the biggest video does not carry the name');
+  } else if (t.kind === 'format' && f.creators >= 4 && (poolStructure || !t.isGeneric)) {
+    type = 'format'; confidence = 70 + Math.min(20, f.creators) - (t.isGeneric && !poolStructure ? 10 : 0);
+    basis.push(t.isGeneric ? `an evergreen, relevance-validated format with independent adoption and a visible structure this week (${extraSignature.length ? 'shared title words: ' + extraSignature.slice(0, 3).join(', ') : f.repeatCreators + ' creators repeat it'})` : 'a relevance-validated format with independent adoption');
   } else if (t.kind === 'format' && f.creators >= 4) {
-    type = 'format'; confidence = 70 + Math.min(20, f.creators);
-    basis.push(t.isGeneric ? 'an evergreen, relevance-validated format with independent adoption (not a new trend by itself)' : 'a relevance-validated format with independent adoption');
+    type = 'uncertain'; confidence = 60; basis.push('a category pool: independent creators, but no shared structure beyond the category is visible in the titles this week');
   } else if (t.isGeneric || f.descriptor || (f.nameShape === 'hashtag' && !specific)) {
     type = 'uncertain'; confidence = 70; basis.push('a broad tag describes a subject or a medium, not a format');
   } else if (f.creators >= 4 && f.dominance <= 0.6 && f.spreadHours >= 48 && (strongStructure || f.repeatCreators >= 2)) {
     type = 'format'; confidence = Math.min(95, 55 + 3 * f.creators + (f.repeatCreators ? 10 : 0) + (strongStructure ? 10 : 0));
     basis.push('several independent creators keep producing it with a shared, recognisable structure');
-  } else if (f.creators >= 3 && specific && f.dominance < 0.6 && f.titleShare >= 0.4 && (f.newCreators48h >= 2 || f.spreadHours <= 24 * 7) && !(t.category === 'Gaming' && !strongStructure)) {
+  } else if (f.creators >= 3 && specific && f.dominance < 0.6 && f.titleShare >= 0.4 && (f.newCreators48h >= 2 || f.spreadHours <= 24 * 7) && !(t.category === 'Gaming' && !strongStructure)
+    // 4.0.1: a hashtag is a meme only when the titles share something beyond the hashtag itself (#laugh with 4 creators is a tag, not a moment)
+    && ((f.nameShape !== 'hashtag' && f.nameShape !== 'entity') || extraSignature.length >= 1)) {
     type = 'meme'; confidence = Math.min(90, 45 + 5 * f.creators + 5 * Math.min(f.newCreators48h, 4));
-    basis.push(`${f.newCreators48h} new creators in 48h around one specific moment/phrase`);
+    basis.push(`${f.newCreators48h} new creators in 48h around one specific moment/phrase${f.nameShape === 'hashtag' || f.nameShape === 'entity' ? ` (titles also share: ${extraSignature.slice(0, 3).join(', ')})` : ''}`);
   } else if (f.creators >= 3) {
-    type = 'uncertain'; confidence = 50; basis.push('independent creators exist but no shared structure is visible in the titles yet');
+    type = 'uncertain'; confidence = 50; basis.push(f.nameShape === 'hashtag' ? 'a hashtag shared by several creators whose titles share nothing else — a tag, not a moment' : f.nameShape === 'entity' ? 'a name several creators mention whose titles share nothing else — a subject, not a moment' : 'independent creators exist but no shared structure is visible in the titles yet');
   }
   return { type, confidence, basis, features: f };
 }
