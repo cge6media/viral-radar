@@ -79,6 +79,7 @@ export const HOOKS: [string, RegExp][] = [
 export function nameShape(name: string, origin?: string): TrendFeatures['nameShape'] {
   const raw = name.trim();
   if (CALENDAR.test(raw)) return 'calendar';
+  if (/^#?\d[\d.,]*$/.test(raw)) return 'fragment'; // "#2026", "100": a number is not a format
   if (/^#/.test(raw)) return 'hashtag';
   const toks = raw.toLowerCase().split(/\s+/).filter(Boolean);
   if (!toks.length) return 'fragment';

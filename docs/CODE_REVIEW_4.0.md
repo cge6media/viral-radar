@@ -355,3 +355,29 @@ reads/writes are wrapped in try/catch everywhere (`store.ts`, `App.tsx:74,90`, `
 icon buttons have `aria-label`s, tables have header rows, images are decorative (`alt=""`). Minor non-blocking a11y
 gaps: the More menu/sheet have no Escape or arrow-key handling, filter segments lack `aria-pressed`, and the Settings
 tabs are plain buttons.
+
+---
+
+## Resolution (owner's session, same day)
+
+| # | status | what changed |
+|---|---|---|
+| 1 | fixed | `pointAt` evaluates only once `elapsed ≥ H`, takes the first observation **with the metric** at or after H (inside 1.5 H); the [0.85 H, H) stand-in is used only after 1.5 H with nothing later. New test: "pending at 20.6 h with a 20.5 h tick; the 24.15 h tick wins over the 20.5 h one; stand-in only after 1.5 H". |
+| 2 | fixed | open-prediction ids are added to `knownYt`/`firstSeenById` (so they stay in the tracking set) and the metric history is loaded for the union of the 30-day direct ids and the open predictions' video ids (12-day window). |
+| 3 | fixed | a crossing requires the last below-floor observation to be **after** the first prediction; `lastBelowAt` is recorded; lead time is measured to that observation; the eight release-day rows were removed (no `lastBelowAt`), documented in docs/PREDICTIONS.md. |
+| 4 | fixed | `concurrency: collect` added to collect-b/c/d.yml. |
+| 5 | mitigated | the collector now stops spending for the quota day on the first `quotaExceeded`/403 (`ledger.exhaustedAt`) and reports it; the 1-unit/own-bucket model stays (verified on the project's quota page on 2026-10-28 during 3.0; re-verify after the first full day of 4.0 cadence against the console graph). |
+| 6 | fixed | `published` uses the gate's exported `CRITICAL_CHECKS` (plus "some source succeeded"). |
+| 7 | fixed | journal import validates every row (`validItem`) in both modes, preferences are whitelisted, `readList`/`read` sanitise what is stored, pills fall back on unknown values. |
+| 8 | fixed | rows older than 60 days are moved verbatim to `data/predictions/archive/<month>-*.ndjson`; prediction rows carry ≤6 history points and ≤3 reasons. |
+| 9 | fixed | only a redirect to `/watch` means `not_short`; any other redirect is `unknown`; `not_short` verdicts expire after 30 days; ids without a known duration are skipped. |
+| 10 | fixed | observations without the metric are ignored when choosing the horizon observation. |
+| 11 | fixed | a failing probe records a zero-yield entry with `lastAt`, so its cooldown applies. |
+| 12 | fixed | zero-search sources (hot-channel uploads) are recorded under `today.uploads`, outside the per-search figures. |
+| 13 | fixed | the Actions history export merges all four collector workflows. |
+| 14 | fixed | scorecard outcome counts are filtered to the predictions in the window. |
+| 15 | fixed | `observations` = max(history points, 1) + shares. |
+| 16 | fixed | Settings is keyed by hash (tab links switch), alert state is shared between the bell and the page, malformed `#/trend/` hashes no longer throw, unknown alert kinds render. |
+| 17 | fixed | workflow inputs are passed through `env:` in diagnose.yml and qa.yml. |
+| 18 | fixed | the quota ledger is saved after charts, discovery (incl. on probe failure) and tracking; `writeJson` writes to a temp file and renames. |
+| 19 | fixed | docs/PREDICTIONS.md no longer describes Bluesky predictions and documents the crossings purge and the archive policy. |

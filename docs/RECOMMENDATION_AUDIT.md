@@ -284,3 +284,33 @@ The "uncertain" bucket scores well because the system correctly refuses to type 
 ---
 
 *Limits restated: judged from titles, creators, categories and statistics only; no videos were opened; no pipeline code was run; the snapshot's history is ten hours old and the scorecard has no evaluated predictions. Scores are one reviewer's calibrated judgement and are intended to be re-run against future snapshots using the same rubric (`data/benchmark/audit-4.0.json`).*
+
+---
+
+## Owner's response (same day, after the audit)
+
+The audit was run against run `202610281124`. The following changes were made to the pipeline and the playbook
+templates in response (the audit text above is left exactly as written; a second, independent audit on a later
+snapshot is reported in `docs/PROGRESS.md`):
+
+1. **Evidence contamination** — desk evidence is now *clean* only: verified, candidate-sized, and not rejected as
+   an ad, duplicate, stream, stale or sub-floor video; format pools keep only videos whose *title* satisfies the
+   pool's own rules when at least three do; a cluster with fewer than three clean examples is excluded. The desk's
+   creator/video/new-creator facts are computed from the clean set, and the "why" line states how many cluster
+   videos were excluded.
+2. **Crawl-based "growth"** — growth is reported as *measured* only when the cluster has ≥24 h of history; younger
+   clusters are "emerging — growth not measurable yet", never "accelerating".
+3. **Type classification** — news/sports/esports (incl. strikes, military, verdicts), product launches/reviews/
+   unboxings, trailers/leaks and long recordings (median ≥30 min) are events or uncertain; a *format* needs a shared
+   title word beyond its own name; a *meme* needs five independent creators before "create today"; curated pool
+   names are never judged as fragments (the bug that hid AI-generated video, Cat videos, Animation shorts…).
+4. **Desk gate** — "create today" requires an original variation to fit in ≤2 h and ≥30 % of clean examples in
+   English/Spanish; "participate" also requires the language share; the "excluded" counts are published; a new
+   **"Your lane this week"** section shows the owner's own pools (AI, animation, characters, skits, music, stories,
+   explainers) with their clean activity whether or not they are a specific opportunity.
+5. **Briefs** — beat timings scale with the examples' median duration (long-form examples get an act structure);
+   hashtags are the trend as one tag plus Latin signature words; each brief carries one format-specific monetization
+   risk when the facts imply one (cover licensing, third-party IP, calendar deadline, made-for-kids, news footage,
+   long recordings, meme audio); grammar of generated titles/hooks fixed.
+6. **Feeds** — the creator-outlier rule is limited to 7 days (no 12-day "early"); hits with hidden likes and almost
+   no comments on ≥5M views are ranked lower and say so.
