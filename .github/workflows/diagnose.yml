@@ -14,6 +14,10 @@ on:
         description: 'Run the discovery benchmark (true/false)'
         required: false
         default: 'false'
+      probe_tiktok:
+        description: 'Probe TikTok endpoints from the runner (true/false)'
+        required: false
+        default: 'false'
 
 concurrency:
   group: collect
@@ -39,6 +43,10 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         working-directory: pipeline
         run: npx tsx src/tools/inspect.ts ${{ inputs.videos }}
+      - name: Probe TikTok
+        if: ${{ inputs.probe_tiktok == 'true' }}
+        working-directory: pipeline
+        run: npx tsx src/tools/probe-tiktok.ts
       - name: Discovery benchmark
         if: ${{ inputs.benchmark == 'true' }}
         env:
