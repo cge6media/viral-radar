@@ -48,10 +48,30 @@ same hour were not re-appended.
 | TikTok Creative Center | page is a JS shell; JSON endpoint undocumented → opt-in, unverified |
 | Reddit | blocked from this environment → not used |
 
-## Not yet verified (requires the GitHub repository)
+## First live cloud run (GitHub Actions, 2026-10-28 01:05 UTC, run `202610280105_c0dfe3bdbe4f`)
 
-- The scheduled GitHub Actions run against live endpoints from GitHub's runners.
-- The public GitHub Pages URL.
+Repository `cge6media/viral-radar`, workflow "Collect trends" #1, job `collect` → **success**, data committed by
+`viral-radar-bot` (`data: collection 2026-10-28T01:05Z`).
+
+| source | mode | items |
+|---|---|---|
+| Google Trends (US, GB, CA, AU) | live | 40 |
+| Bluesky (25 topics, topic feeds, 20 format searches) | live | 861 |
+| Mastodon (mastodon.social) | live | 20 |
+| YouTube Data API | disabled (no key yet) | 0 |
+| TikTok Creative Center | disabled (opt-in) | 0 |
+
+920 observations this run → 140 trends, 47 with video evidence, 218 real videos linked. Findings fed back into the
+pipeline the same session: stale "top" posts older than 14 days are now skipped, image-only posts dropped, bigrams that
+restate a format query merge into the format cluster, news detection looks only at the topic text, provisional
+lifecycle never claims "accelerating", history is stored as compact ticks (≥3h or ≥15% metric change).
+
+`publish` job: failed at "Configure Pages" because GitHub Pages cannot be created on a private repository from the
+workflow token (owner chose to make the repository public; publish re-run pending that change).
+
+## Not yet verified
+
+- The public GitHub Pages URL (pending repository visibility change).
 - YouTube Data API collection with a real key.
 
 See RESUME.md for the exact steps.

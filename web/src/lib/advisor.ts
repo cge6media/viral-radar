@@ -157,6 +157,31 @@ function buildConcepts(t: Trend, name: string, prefs: Preferences): Concept[] {
       push({ title: `Review by a character who hasn't seen it`, format: '30s comedic review', pitch: `A recurring critic character reviews ${name} based purely on the poster and vibes.`, hook: 'Confident wrong take.', repeatable: 'Weekly.' });
       push({ title: `Why it's back: ${cap(k1)}`, format: '60–90s video essay (Shorts cut + long-form)', pitch: `Explain the cultural reason behind ${name} with original motion graphics; no clips required.`, hook: 'State the surprising reason first.', repeatable: 'Any nostalgia cycle.' });
       break;
+    case 'Food & Cooking':
+      push({ title: `The 45-second ${cap(k1)} that actually works`, format: '45–60s vertical, overhead camera', pitch: `One dish from the ${name} wave, cooked in real time with on-screen timers and one honest failure point. No voiceover fluff; captions carry the steps.`, hook: `Finished plate first, then "here's the 45-second version".`, repeatable: 'One dish per week from whatever is trending.' });
+      push({ title: `Animated kitchen critic`, format: '20–30s animated short', pitch: `An original animated character (a very opinionated spoon, say) reviews the ${name} trend and tries it — ending on a single practical tip.`, hook: 'The character says the controversial thing in frame one.', repeatable: 'Any food trend; same character, new dish.' });
+      push({ title: `Price it out: ${cap(k1)}`, format: '45–60s, motion-graphics overlays', pitch: `Cook the trending ${name} dish and show the real cost per serving vs. takeout, with receipts on screen. Affiliate-friendly (tools, pantry items).`, hook: 'The price comparison number first.', repeatable: 'Weekly "price it out".' });
+      break;
+    case 'Lifestyle':
+      push({ title: `${cap(k1)}: the 7-day test`, format: '60–90s (Shorts cut + long-form)', pitch: `Try the ${name} routine for a week; show day 1 vs day 7 honestly with one measurable result.`, hook: 'Day-7 result in the first 3 seconds.', repeatable: 'New routine every week.' });
+      push({ title: `Animated "what they don't tell you"`, format: '30s animated explainer', pitch: `A recurring animated host lists the three things nobody mentions about ${name}, with one visual gag each.`, hook: 'Number three first, out of order.', repeatable: 'Any lifestyle trend.' });
+      push({ title: `Budget vs. splurge: ${cap(k1)}`, format: '45s split-screen', pitch: `Recreate the ${name} look/setup two ways with prices on screen; strong affiliate and sponsorship fit.`, hook: 'Total prices side by side.', repeatable: 'Weekly comparison.' });
+      break;
+    case 'Science & Education':
+      push({ title: `${cap(k1)} in one metaphor`, format: '45–60s animated explainer', pitch: `Explain ${name} with a single running metaphor drawn as an original animation; end with the one number people will quote.`, hook: 'The quotable number first.', repeatable: 'Any topic the radar surfaces.' });
+      push({ title: `Kitchen-table experiment`, format: '60s, single take', pitch: `A cheap at-home demonstration related to ${name}, filmed in one take with an on-screen prediction before the result.`, hook: 'Ask the viewer to guess.', repeatable: 'Weekly experiment.' });
+      push({ title: `Why it's trending: ${cap(k1)}`, format: '60–90s motion graphics', pitch: `Trace the news hook behind ${name} back to the underlying science with original diagrams — evergreen explainer, high-RPM category.`, hook: 'State the misconception, then correct it.', repeatable: 'Weekly.' });
+      break;
+    case 'Sports':
+      push({ title: `${cap(k1)} — the animated recap nobody asked for`, format: '45–60s animated recap', pitch: `Recap the ${name} moment with original cartoon characters (no broadcast footage), narrated like a nature documentary.`, hook: 'Documentary voice over a ridiculous drawing.', repeatable: 'Every big game.' });
+      push({ title: `Explain it to a non-fan`, format: '45s sketch', pitch: `Two recurring characters: one explains ${name} to the other, who asks the questions everyone is afraid to ask.`, hook: 'The dumbest question first.', repeatable: 'Any sport, any moment.' });
+      push({ title: `The stat that matters`, format: '30s motion graphics', pitch: `One real number behind ${name}, animated, with a sharp opinion at the end.`, hook: 'Number first.', repeatable: 'Daily during playoffs.' });
+      break;
+    case 'Photography & Visual':
+      push({ title: `${cap(k1)} in 10 frames`, format: '20–30s vertical montage + 1 tip', pitch: `Ten of your own shots for the ${name} prompt, cut to a beat, ending with one technical tip on screen.`, hook: 'Best frame first.', repeatable: 'Follows the weekly prompt calendar.' });
+      push({ title: `Phone vs. camera: ${cap(k1)}`, format: '45s split-screen', pitch: `Shoot the ${name} prompt on a phone and a camera; reveal which is which at the end. Affiliate fit for gear.`, hook: 'Guess which is the phone.', repeatable: 'Weekly.' });
+      push({ title: `Animated how-I-shot-it`, format: '30s animated breakdown', pitch: `Animate the lighting diagram and camera position behind one ${name} image, then show the photo.`, hook: 'Diagram → photo reveal.', repeatable: 'One image per week.' });
+      break;
     default:
       push({ title: `${cap(k1)} — animated explainer`, format: '45–60s vertical', pitch: `A recurring animated host explains ${name} in plain language with one visual metaphor.`, hook: 'The metaphor in frame one.', repeatable: 'Any topic the radar surfaces.' });
       push({ title: `The ${cap(k1)} sketch`, format: '30–45s comedy sketch', pitch: `Two recurring characters discover ${name}; one over-commits, the other refuses, both end up doing it.`, hook: 'Argument already in progress.', repeatable: 'Works for any trend.' });
