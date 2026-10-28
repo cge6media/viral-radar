@@ -33,7 +33,7 @@ const API = 'https://www.googleapis.com/youtube/v3';
 export const YOUTUBE_REGIONS = (process.env.VR_YT_REGIONS || 'US,GB').split(',').map((s) => s.trim()).filter(Boolean);
 /** secondary regions: two per run in rotation (international coverage at ~1/6 of the cost of charting them all every run) */
 export const YOUTUBE_SECONDARY_REGIONS = (process.env.VR_YT_SECONDARY_REGIONS || 'CA,AU,IN,MX,BR,ES,DE,FR,JP,KR,PH,ID').split(',').map((s) => s.trim()).filter(Boolean);
-export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 3);
+export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 6);
 /** entertainment categories for chart=mostPopular (documented category ids) */
 export const YT_CHART_CATEGORIES = (process.env.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24').split(',').map((s) => s.trim()).filter(Boolean);
 export const SEARCH_BUDGET = Number(process.env.VR_YT_SEARCH_BUDGET || 90);
@@ -45,7 +45,7 @@ export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 1500);
  * window, exactly how public Shorts charts are built. One search call per page (own 100/day bucket), 50 ids each.
  * Exploration that does not depend on any vocabulary: a format we have never heard of still shows up here.
  */
-export interface Probe { hours: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string; pages?: number; q?: string }
+export interface Probe { hours: number; beforeHours?: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string; pages?: number; q?: string }
 export const SEARCHES_PER_RUN = Number(process.env.VR_YT_SEARCHES_PER_RUN || 2);
 const US = 'US';
 /** the 49-slot cycle (~12h at 2 searches per run): fresh US Shorts most often, then windows, categories, regions, keywords */
@@ -57,9 +57,12 @@ export function buildSchedule(opts: { topicTerms?: string[]; trendTerms?: string
   const trends = (opts.trendTerms || []).slice(0, 2).map((q) => ({ hours: 72, q } as Probe));
   const formats = DISCOVERY_QUERIES.slice(0, 4).map((q) => ({ hours: 72, q } as Probe));
   const keywords: Probe[] = [{ hours: 72, q: '#shorts', duration: 'short' }, { hours: 72, q: 'videos virales', duration: 'short', lang: 'es' }, ...topics, ...trends, ...formats];
+  // day slices: the top 50 Shorts of EACH of the last 7 days (publishedAfter/publishedBefore) — 350 distinct leaders
+  // per week instead of the same 50 giants every time; this is where the mid-size 3–10M breakouts live
+  const days: Probe[] = Array.from({ length: 7 }, (_, i) => ({ hours: 24 * (i + 2), beforeHours: 24 * (i + 1), duration: 'short' as const, region: US }));
   const windows: Probe[] = [
-    { hours: 72, duration: 'short', region: US, pages: 2 }, { hours: 24 * 7, duration: 'short', region: US, pages: 2 }, { hours: 24 * 7, duration: 'short', region: US, pages: 3 },
-    { hours: 24 * 21, duration: 'short', region: US, pages: 2 }, { hours: 72, region: US }, { hours: 24 * 7, region: US }, { hours: 24 * 7, duration: 'medium', region: US },
+    { hours: 72, duration: 'short', region: US, pages: 2 }, { hours: 24 * 7, duration: 'short', region: US, pages: 2 }, ...days,
+    { hours: 24 * 21, duration: 'short', region: US }, { hours: 72, region: US }, { hours: 24 * 7, region: US }, { hours: 24 * 7, duration: 'medium', region: US },
   ];
   // interleave so the fresh probe recurs every ~4 slots (~2h) and every family appears each cycle
   const pool = [...windows, ...cats, ...regions, ...keywords];
@@ -207,7 +210,7 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     const probe = schedule[slot % schedule.length];
     slot++;
     if (!probe) continue;
-    const label = probe.q != null ? `yt:${probe.q}` : `top:${probe.region || 'all'}:${probe.hours}h${probe.duration ? ':' + probe.duration : ''}${probe.category ? ':cat' + probe.category : ''}`;
+    const label = probe.q != null ? `yt:${probe.q}` : `top:${probe.region || 'all'}:${probe.hours}h${probe.beforeHours ? '-' + probe.beforeHours + 'h' : ''}${probe.duration ? ':' + probe.duration : ''}${probe.category ? ':cat' + probe.category : ''}`;
     let pageToken: string | undefined;
     for (let page = 1; page <= (probe.pages || 1); page++) {
       if (ledger.searchCalls >= SEARCH_BUDGET) break;
@@ -216,7 +219,8 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
         spend('search.list', 1, `${label} p${page}`);
         spentThisRun++;
         const after = encodeURIComponent(new Date(Date.now() - probe.hours * 36e5).toISOString());
-        const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}&maxResults=50&safeSearch=moderate${probe.q != null ? `&q=${encodeURIComponent(probe.q)}` : ''}${probe.duration ? `&videoDuration=${probe.duration}` : ''}${probe.region ? `&regionCode=${probe.region}` : ''}${probe.category ? `&videoCategoryId=${probe.category}` : ''}${probe.lang ? `&relevanceLanguage=${probe.lang}` : ''}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${apiKey}`;
+        const before = probe.beforeHours ? `&publishedBefore=${encodeURIComponent(new Date(Date.now() - probe.beforeHours * 36e5).toISOString())}` : '';
+        const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}${before}&maxResults=50&safeSearch=moderate${probe.q != null ? `&q=${encodeURIComponent(probe.q)}` : ''}${probe.duration ? `&videoDuration=${probe.duration}` : ''}${probe.region ? `&regionCode=${probe.region}` : ''}${probe.category ? `&videoCategoryId=${probe.category}` : ''}${probe.lang ? `&relevanceLanguage=${probe.lang}` : ''}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${apiKey}`;
         const sr = await fetchJson<{ items: { id: { videoId: string } }[]; nextPageToken?: string }>(url, { retries: 0 });
         for (const it of sr.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${label}`);
         pageToken = sr.nextPageToken;
