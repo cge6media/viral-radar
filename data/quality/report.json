@@ -1,11 +1,11 @@
 {
- "generatedAt": "2026-10-28T03:47:39.296Z",
- "runId": "202610280347_f61a01c9c773",
+ "generatedAt": "2026-10-28T03:52:39.176Z",
+ "runId": "202610280352_cdf8710a7f15",
  "quality": {
   "relevance": {
-   "sampled": 147,
-   "relevant": 147,
-   "rate": 1
+   "sampled": 221,
+   "relevant": 211,
+   "rate": 0.955
   },
   "duplicates": 0,
   "wrongDates": 0,
@@ -15,7 +15,7 @@
    {
     "name": "format evidence passes relevance validation",
     "ok": true,
-    "detail": "147/147 (100%)"
+    "detail": "211/221 (95%)"
    },
    {
     "name": "no duplicate videos within a trend",
@@ -55,7 +55,7 @@
    {
     "name": "at least one qualified opportunity",
     "ok": true,
-    "detail": "10 qualified of 261"
+    "detail": "72 qualified of 326"
    },
    {
     "name": "no news/person events in recommendations",
@@ -79,7 +79,7 @@
    "source": "google_trends",
    "label": "Google Trends — trending searches",
    "status": "live",
-   "lastSuccess": "2026-10-28T03:47:27.676Z",
+   "lastSuccess": "2026-10-28T03:52:18.648Z",
    "items": 40,
    "uniqueVideos": 0,
    "directVideos": 0,
@@ -100,11 +100,11 @@
    "source": "bluesky",
    "label": "Bluesky — topics, feeds, video discovery",
    "status": "live",
-   "lastSuccess": "2026-10-28T03:47:34.822Z",
-   "items": 593,
-   "uniqueVideos": 357,
-   "directVideos": 224,
-   "relevantItems": 259,
+   "lastSuccess": "2026-10-28T03:52:24.139Z",
+   "items": 585,
+   "uniqueVideos": 278,
+   "directVideos": 226,
+   "relevantItems": 202,
    "metrics": [
     "likes",
     "reposts",
@@ -112,7 +112,7 @@
     "native video",
     "external video links"
    ],
-   "medianAgeHours": 5.2,
+   "medianAgeHours": 5.4,
    "historyDays": 1,
    "errorRate": 0,
    "weight": 0.7,
@@ -124,7 +124,7 @@
    "source": "mastodon",
    "label": "Mastodon — trending hashtags (7-day history)",
    "status": "live",
-   "lastSuccess": "2026-10-28T03:47:27.313Z",
+   "lastSuccess": "2026-10-28T03:52:17.949Z",
    "items": 20,
    "uniqueVideos": 0,
    "directVideos": 0,
@@ -145,11 +145,12 @@
   {
    "source": "youtube",
    "label": "YouTube Data API — charts, tracking, discovery",
-   "status": "disabled",
-   "items": 0,
-   "uniqueVideos": 0,
-   "directVideos": 0,
-   "relevantItems": 0,
+   "status": "live",
+   "lastSuccess": "2026-10-28T03:52:36.104Z",
+   "items": 906,
+   "uniqueVideos": 760,
+   "directVideos": 760,
+   "relevantItems": 423,
    "metrics": [
     "views",
     "likes",
@@ -158,12 +159,11 @@
     "duration",
     "channel"
    ],
+   "medianAgeHours": 59.9,
    "historyDays": 0,
    "errorRate": 0,
    "weight": 1,
-   "notes": [
-    "Add the free YOUTUBE_API_KEY secret to enable direct video statistics."
-   ]
+   "notes": []
   },
   {
    "source": "tiktok",
@@ -188,6 +188,303 @@
  ],
  "qualified": [
   {
+   "id": "t_national_black_cat_day",
+   "name": "National Black Cat Day",
+   "kind": "topic",
+   "grade": "developing",
+   "creators": 7,
+   "videos": 7,
+   "direct": 7
+  },
+  {
+   "id": "t_ea_shuts_down_bioware",
+   "name": "EA shuts down BioWare",
+   "kind": "topic",
+   "grade": "developing",
+   "creators": 18,
+   "videos": 18,
+   "direct": 18
+  },
+  {
+   "id": "f_ai_video",
+   "name": "AI-generated video",
+   "kind": "format",
+   "grade": "developing",
+   "creators": 17,
+   "videos": 18,
+   "direct": 18
+  },
+  {
+   "id": "f_animal_comedy",
+   "name": "Animal comedy & dubbed animals",
+   "kind": "format",
+   "grade": "developing",
+   "creators": 33,
+   "videos": 40,
+   "direct": 40
+  },
+  {
+   "id": "m_shortsfeed",
+   "name": "#shortsfeed",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 18,
+   "videos": 23,
+   "direct": 23
+  },
+  {
+   "id": "f_puppets",
+   "name": "Puppet & character videos",
+   "kind": "format",
+   "grade": "developing",
+   "creators": 18,
+   "videos": 18,
+   "direct": 18
+  },
+  {
+   "id": "m_youtubeshorts",
+   "name": "#youtubeshorts",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 36,
+   "videos": 39,
+   "direct": 39
+  },
+  {
+   "id": "m_mass_effect",
+   "name": "Mass Effect",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 19,
+   "videos": 19,
+   "direct": 19
+  },
+  {
+   "id": "m_funny_moments",
+   "name": "Funny Moments",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 11,
+   "videos": 11,
+   "direct": 11
+  },
+  {
+   "id": "m_pets",
+   "name": "#pets",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 13,
+   "videos": 14,
+   "direct": 14
+  },
+  {
+   "id": "m_memes",
+   "name": "#memes",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 41,
+   "videos": 50,
+   "direct": 50
+  },
+  {
+   "id": "m_roblox",
+   "name": "#roblox",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 25,
+   "videos": 27,
+   "direct": 27
+  },
+  {
+   "id": "m_anime",
+   "name": "#anime",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 7,
+   "videos": 9,
+   "direct": 9
+  },
+  {
+   "id": "m_cartoon",
+   "name": "#cartoon",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 14,
+   "videos": 17,
+   "direct": 17
+  },
+  {
+   "id": "m_ytshorts",
+   "name": "#ytshorts",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 12,
+   "videos": 12,
+   "direct": 12
+  },
+  {
+   "id": "t_from_season_5",
+   "name": "from season 5",
+   "kind": "topic",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_coming_soon",
+   "name": "Coming Soon",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_relatable",
+   "name": "#relatable",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 10,
+   "videos": 10,
+   "direct": 10
+  },
+  {
+   "id": "m_kitten",
+   "name": "#kitten",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 6,
+   "videos": 8,
+   "direct": 8
+  },
+  {
+   "id": "m_subscribe_channel",
+   "name": "Subscribe Channel",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 7,
+   "videos": 8,
+   "direct": 8
+  },
+  {
+   "id": "m_join_discord",
+   "name": "Join Discord",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 7,
+   "direct": 7
+  },
+  {
+   "id": "m_bioware",
+   "name": "#bioware",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_use_code",
+   "name": "Use Code",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 6,
+   "direct": 6
+  },
+  {
+   "id": "m_apple_music",
+   "name": "Apple Music",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 6,
+   "videos": 6,
+   "direct": 6
+  },
+  {
+   "id": "m_video_games",
+   "name": "#video games",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 8,
+   "direct": 8
+  },
+  {
+   "id": "m_minecraft_mod",
+   "name": "Minecraft Mod",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_viralshorts",
+   "name": "#viralshorts",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 10,
+   "videos": 11,
+   "direct": 11
+  },
+  {
+   "id": "m_funnyshorts",
+   "name": "#funnyshorts",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 6,
+   "videos": 6,
+   "direct": 6
+  },
+  {
+   "id": "m_viralvideo",
+   "name": "#viralvideo",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 7,
+   "videos": 7,
+   "direct": 7
+  },
+  {
+   "id": "m_league_legends",
+   "name": "League Legends",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_shortvideo",
+   "name": "#shortvideo",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_food",
+   "name": "#food",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_talking_tom",
+   "name": "Talking Tom",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 7,
+   "direct": 7
+  },
+  {
    "id": "m_digitalart",
    "name": "#digitalart",
    "kind": "microtrend",
@@ -197,13 +494,184 @@
    "direct": 4
   },
   {
-   "id": "m_vtuber",
-   "name": "#vtuber",
+   "id": "m_if_enjoyed",
+   "name": "If Enjoyed",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_fair_use",
+   "name": "Fair Use",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 4,
-   "videos": 11,
-   "direct": 6
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_comedyshorts",
+   "name": "#comedyshorts",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_humor",
+   "name": "#humor",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_mastering_engineer",
+   "name": "Mastering Engineer",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "f_street_interview",
+   "name": "Street interviews & vox pops",
+   "kind": "format",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 5,
+   "direct": 4
+  },
+  {
+   "id": "m_fortnite",
+   "name": "#fortnite",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_horror",
+   "name": "#horror",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_aivideo",
+   "name": "#aivideo",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_edit",
+   "name": "#edit",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_animals",
+   "name": "#animals",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_furry",
+   "name": "#furry",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 8,
+   "direct": 3
+  },
+  {
+   "id": "m_get_ready",
+   "name": "Get Ready",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_entertainment",
+   "name": "#entertainment",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_do_think",
+   "name": "Do Think",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_mbappe",
+   "name": "#mbappe",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_trendingshorts",
+   "name": "#trendingshorts",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_xbox_series",
+   "name": "Xbox Series",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_challenge",
+   "name": "#challenge",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_catvideos",
+   "name": "#catvideos",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
   },
   {
    "id": "t_favorite_simpsons_quotes",
@@ -215,31 +683,112 @@
    "direct": 1
   },
   {
-   "id": "m_musicchallenge",
-   "name": "#musicchallenge",
+   "id": "m_historia",
+   "name": "#historia",
    "kind": "microtrend",
-   "grade": "early",
-   "creators": 28,
-   "videos": 30,
-   "direct": 0
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
   },
   {
-   "id": "t_halloween_trick_or_treating_traditions",
-   "name": "Halloween trick-or-treating traditions",
-   "kind": "topic",
-   "grade": "early",
-   "creators": 2,
-   "videos": 2,
-   "direct": 1
+   "id": "m_marvel",
+   "name": "#marvel",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
   },
   {
-   "id": "t_bleach_anime_series_finale",
-   "name": "Bleach anime series finale",
-   "kind": "topic",
-   "grade": "early",
-   "creators": 2,
-   "videos": 2,
-   "direct": 1
+   "id": "m_creator_code",
+   "name": "Creator Code",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_trailer",
+   "name": "#trailer",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_comedy_show",
+   "name": "Comedy Show",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_emotional",
+   "name": "#emotional",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_pre_order",
+   "name": "Pre Order",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_minivlog",
+   "name": "#minivlog",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_viral_trend",
+   "name": "Viral Trend",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_aianimation",
+   "name": "#aianimation",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_newmusic",
+   "name": "#newmusic",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_jeff_dunham",
+   "name": "Jeff Dunham",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
   },
   {
    "id": "t_mystery_skulls_animated_finale_releases",
@@ -248,30 +797,39 @@
    "grade": "early",
    "creators": 2,
    "videos": 2,
-   "direct": 0
+   "direct": 2
   },
   {
-   "id": "f_ai_video",
-   "name": "AI-generated video",
-   "kind": "format",
-   "grade": "early",
-   "creators": 2,
-   "videos": 2,
-   "direct": 1
-  },
-  {
-   "id": "m_musicsky",
-   "name": "#musicsky",
+   "id": "m_foryou",
+   "name": "#foryou",
    "kind": "microtrend",
-   "grade": "early",
+   "grade": "developing",
    "creators": 3,
    "videos": 3,
-   "direct": 0
+   "direct": 3
   },
   {
-   "id": "f_street_interview",
-   "name": "Street interviews & vox pops",
-   "kind": "format",
+   "id": "m_humour",
+   "name": "#humour",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_twitter_facebook",
+   "name": "Twitter Facebook",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "t_bleach_anime_series_finale",
+   "name": "Bleach anime series finale",
+   "kind": "topic",
    "grade": "early",
    "creators": 2,
    "videos": 2,
