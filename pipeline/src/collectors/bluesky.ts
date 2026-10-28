@@ -84,7 +84,7 @@ function videoFromEmbed(embed?: Record<string, unknown>): EmbedVideo | undefined
 function externalPlatform(url: string): { platform: 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'other'; id: string } {
   const yt = youtubeId(url);
   if (yt) return { platform: 'youtube', id: yt };
-  const tt = url.match(/tiktok\.com\/.*video\/(\d+)/);
+  const tt = url.match(/tiktok\.com\/.*video\/(\d+)/) || url.match(/tiktok\.com\/t\/([A-Za-z0-9]+)/) || url.match(/vm\.tiktok\.com\/([A-Za-z0-9]+)/);
   if (tt) return { platform: 'tiktok', id: tt[1] };
   const ig = url.match(/instagram\.com\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/);
   if (ig) return { platform: 'instagram', id: ig[1] };
@@ -123,7 +123,8 @@ export function postToObservation(p: BskyPost, query: string, observedAt = nowIs
     const key = `${ext.platform === 'youtube' ? 'yt' : ext.platform}:${ext.id}`;
     return {
       id: `bluesky:video:${key}`, source: 'bluesky', kind: 'video', level: 'indirect', key,
-      title: (vid.title || text.split('\n')[0] || '').slice(0, 140) || '(linked video)',
+      // a link card titled just "Instagram"/"TikTok" says nothing — the post text is the better title
+      title: ((vid.title && !/^(instagram|tiktok|youtube|facebook|video)$/i.test(vid.title.trim()) ? vid.title : '') || text.split('\n')[0] || '').slice(0, 140) || '(linked video)',
       url: ext.platform === 'youtube' ? `https://www.youtube.com/watch?v=${ext.id}` : vid.url,
       observedAt, postPublishedAt: createdAt, // publishedAt intentionally unknown until verified on the video platform
       metrics: {}, postMetrics: { ...engagement, accounts: 1 }, video: { platform: ext.platform, id: ext.id, statsDirect: false },

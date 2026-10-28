@@ -92,6 +92,7 @@ export function isVideoUrl(url: string): boolean {
     !!youtubeId(url) ||
     /tiktok\.com\/.+\/video\/\d+/.test(url) ||
     /tiktok\.com\/t\//.test(url) ||
+    /vm\.tiktok\.com\//.test(url) ||
     /instagram\.com\/(reel|reels|p)\//.test(url) ||
     /facebook\.com\/(?:reel\/\d+|watch\/?\?v=\d+|[^/]+\/videos\/\d+)/.test(url) ||
     /fb\.watch\//.test(url) ||

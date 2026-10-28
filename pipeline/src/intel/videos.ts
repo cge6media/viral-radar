@@ -45,7 +45,7 @@ export const THRESHOLDS = {
     accelVelocity: 3_000, accelRatio: 1.5, accelViews: 20_000,
     youngHours: 48, youngRate: 10_000, youngViews: 100_000,
     outlierRatio: 20, outlierViews: 100_000, outlierMaxHours: 24 * 14,
-    resurgeVelocity: 20_000,
+    resurgeVelocity: 5_000,
     maxAgeHours: 24 * 30,
   },
   bluesky: {
@@ -249,9 +249,11 @@ export function decideVideo(r: VideoRecord): void {
   }
   const isHit = views >= T.hitViews || (views >= T.hitViewsWithRate && ((V ?? 0) >= T.hitRate || L >= T.hitRate));
   const breakoutMeasured = V != null && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
-  const breakoutYoung = V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews;
+  // a big channel's ordinary upload is not a breakout: when the creator's normal range is known, the video must exceed it
+  const aboveNormal = r.baselineRatio != null ? r.baselineRatio >= 2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.5 : true;
+  const breakoutYoung = V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && aboveNormal;
   const outlier = base != null && base >= T.outlierRatio && views >= T.outlierViews && age <= T.outlierMaxHours;
-  const resurging = age > T.maxAgeHours && V != null && V >= T.resurgeVelocity;
+  const resurging = age > T.maxAgeHours && V != null && V >= T.resurgeVelocity && (r.velocityRatio ?? 0) >= 5 && views >= T.outlierViews;
 
   if (age > T.maxAgeHours && !resurging) {
     rejectedBy = 'older than 30 days without measured resurgence';
@@ -273,6 +275,8 @@ export function decideVideo(r: VideoRecord): void {
     reasons.push('Creator outlier: performing far above this channel\'s normal range.');
   } else if (views < T.candidateViews) {
     rejectedBy = `below candidate floor (${fmt(T.candidateViews)} views)`;
+  } else if (V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && !aboveNormal) {
+    rejectedBy = `within the creator's normal range (${r.baselineRatio != null ? `${r.baselineRatio}× median upload` : `${r.subscriberRatio}× subscribers`})`;
   } else if (cooling) {
     rejectedBy = 'cooling and below hit threshold';
   } else if (V != null) {
