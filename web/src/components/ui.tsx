@@ -36,13 +36,15 @@ export const ACTION_LABEL: Record<DeskAction, { label: string; desc: string }> =
 export const TIMING_LABEL: Record<DeskTiming, string> = { emerging: 'Emerging', accelerating: 'Accelerating', established: 'Established', resurfacing: 'Resurfacing', peaking: 'Peaking', cooling: 'Cooling' };
 
 export function TypePill({ type }: { type: OpportunityType }) {
-  return <span className={`pill otype ${type}`} title={TYPE_LABEL[type].desc}><i aria-hidden />{TYPE_LABEL[type].label}</span>;
+  const t = TYPE_LABEL[type] ?? TYPE_LABEL.uncertain;
+  return <span className={`pill otype ${type}`} title={t.desc}><i aria-hidden />{t.label}</span>;
 }
 export function ActionPill({ action }: { action: DeskAction }) {
-  return <span className={`pill action ${action}`} title={ACTION_LABEL[action].desc}>{ACTION_LABEL[action].label}</span>;
+  const a = ACTION_LABEL[action] ?? ACTION_LABEL.monitor;
+  return <span className={`pill action ${action}`} title={a.desc}>{a.label}</span>;
 }
 export function TimingPill({ timing }: { timing: DeskTiming }) {
-  return <span className={`pill timing ${timing}`}><i aria-hidden />{TIMING_LABEL[timing]}</span>;
+  return <span className={`pill timing ${timing}`}><i aria-hidden />{TIMING_LABEL[timing] ?? String(timing)}</span>;
 }
 
 /** Page intro: full on desktop, clamped to three lines on phones with a "more" toggle (the first five seconds matter). */

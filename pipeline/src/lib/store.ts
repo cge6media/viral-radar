@@ -11,7 +11,7 @@
  *
  * Loading returns the latest state per id (full record + last tick applied) with `firstSeenAt` preserved.
  */
-import { mkdir, readdir, readFile, writeFile, appendFile, unlink } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile, appendFile, unlink, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Metrics, Observation, Platform, SourceStatus } from '../types.js';
@@ -244,7 +244,10 @@ export async function pruneHistory(): Promise<string[]> {
 export async function writeJson(rel: string, data: unknown, opts: { compact?: boolean } = {}): Promise<void> {
   const file = path.join(DATA_DIR, rel);
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, opts.compact ? JSON.stringify(data) : JSON.stringify(data, null, 1), 'utf8');
+  // atomic: a crash mid-write must never leave a truncated ledger or snapshot behind
+  const tmp = `${file}.${process.pid}.tmp`;
+  await writeFile(tmp, opts.compact ? JSON.stringify(data) : JSON.stringify(data, null, 1), 'utf8');
+  await rename(tmp, file);
 }
 
 /** append-only NDJSON logs (predictions, outcomes, health): one JSON object per line, never rewritten */
@@ -253,6 +256,14 @@ export async function appendNdjson(rel: string, rows: unknown[]): Promise<void> 
   const file = path.join(DATA_DIR, rel);
   await mkdir(path.dirname(file), { recursive: true });
   await appendFile(file, rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8');
+}
+/** maintenance only: rewrite an NDJSON log with the rows that stay active (the dropped rows were archived first) */
+export async function rewriteNdjson(rel: string, rows: unknown[]): Promise<void> {
+  const file = path.join(DATA_DIR, rel);
+  await mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  await writeFile(tmp, rows.length ? rows.map((r) => JSON.stringify(r)).join('\n') + '\n' : '', 'utf8');
+  await rename(tmp, file);
 }
 export async function readNdjsonLog<T>(rel: string): Promise<T[]> {
   return readNdjson<T>(path.join(DATA_DIR, rel));

@@ -40,6 +40,30 @@ git push -u origin main
 - `data/videos.json` is the full 30-day video index shipped with the site; `latest.json → videos` holds the top lists,
   funnel and coverage.
 
+## 2c. 4.0 operations
+
+- **Schedules.** `collect.yml` (3,33) plus `collect-b/c/d.yml` (18,48 · 11,41 · 26,56) call the same workflow;
+  GitHub tends to honour about one scheduled run per workflow per hour, so four workflows give ~4 attempts an hour
+  and the freshness gate (skip when `data/latest.json` is <22 min old) keeps the effective cadence near 30 min.
+  Manual runs are never skipped. Collection health and the Actions run history are in `data/health.json` and
+  `data/health/actions.json`; the app shows them under Diagnostics → Radar health (freshness is a state: fresh
+  <45 min, delayed <2 h, stale).
+- **Adaptive discovery.** `data/cache/youtube-yield.json` is the per-probe yield ledger (summarised in
+  `data/diagnostics/discovery-yield.json`). `VR_YT_MAX_SEARCHES_PER_RUN` caps a run (default 4); the allowance is
+  derived from the budget left and the measured cadence. Do not add keys or projects to raise the ceiling.
+- **Predictions.** `data/predictions/{predictions,outcomes,crossings}.ndjson` are append-only; never rewrite them
+  (a backtest would be a different, clearly labelled file). `scorecard.json` is rebuilt each run.
+- **Shorts verification cache:** `data/cache/youtube-shorts.json` (no quota). **Channel uploads cursor:**
+  `uploadsAt` in `data/cache/youtube-channels.json`.
+- **Alerts** are in `latest.json.alerts` (7-day log). Optional external delivery: secret `ALERT_WEBHOOK_URL` +
+  variable `VR_ALERT_WEBHOOK=1` (docs/ALERTS.md). Nothing is enabled by default.
+- **Browser QA:** Actions → **Browser QA** → screenshots + playback report committed to `data/qa/` (the runner's
+  datacenter IP hits YouTube's "confirm you're not a bot" wall for most embeds; that is not an app defect).
+- **Briefs export for audits:** `node qa/briefs.mjs` → `data/qa/briefs.json` (same templates the app uses).
+- **Private data** (journal, preferences, alert bookkeeping) lives only in the browser's localStorage; the Journal
+  page exports/imports a JSON backup. Nothing private is ever committed.
+- **Recovery checkpoints:** branches `v1-stable`, `v2-stable`, `v3-stable` (3.0 as deployed before 4.0).
+
 ## 3. Where things are
 
 | path | purpose |

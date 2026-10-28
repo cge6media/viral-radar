@@ -16,19 +16,29 @@ recommendations are useful — and whether a simple strategy would do as well.
 - Three strategies per run, from the same pool of verified, non-hit videos: **radar** (the Early Radar top-20),
   **views** (the 20 biggest non-hit videos ≤72 h old by raw views) and **velocity** (the 20 fastest by measured
   views/hour). The baselines exist so the radar's skill can be compared with the obvious alternatives.
-- `data/predictions/outcomes.ndjson` — one `OutcomeRecord` per prediction × horizon, written by a later run from
-  the observation closest to the horizon inside [0.85 H, 1.5 H]. Until it is due: **pending**. If the window passed
-  without any observation: **unobserved** (excluded from precision; never a miss, never a success).
-- `data/predictions/crossings.ndjson` — videos that crossed their hit floor while they had been in the index for
-  ≥6 h (so a prediction was possible), with the first radar prediction before the crossing and the lead time.
+- `data/predictions/outcomes.ndjson` — one `OutcomeRecord` per prediction × horizon, written by a later run **only
+  once the horizon has elapsed**, from the first observation (with the metric) at or after the horizon, inside 1.5 H.
+  Only when 1.5 H has passed with nothing after H does the closest point in [0.85 H, H) stand in. Until then:
+  **pending**. If the window passed without any usable observation: **unobserved** (excluded from precision; never
+  a miss, never a success). Open predictions keep their videos in the priority tracking set and in the history
+  load, so the 7-day horizon stays observable.
+- `data/predictions/crossings.ndjson` — videos that crossed their hit floor while predictions existed AND were
+  observed below the floor after the first prediction (so a run could have predicted them), with the last
+  below-floor observation and the first above-floor one (the true crossing lies between them), the first radar
+  prediction made by the last below-floor observation, and the lead time measured conservatively to that
+  observation. Eight release-day rows detected with the earlier, looser rule were removed on release day.
 - `data/predictions/scorecard.json` — the aggregate (rebuilt each run), summarised in `latest.json.scorecard`.
+- Only view-count platforms (YouTube, and TikTok/Instagram/Facebook once they have statistics) are predicted;
+  Bluesky's like-based lists are not part of the scorecard.
+- Retention: the active logs keep 60 days; older rows are moved verbatim to `data/predictions/archive/` by the
+  collector (a move, never an edit).
 
 ## Criteria (each reported on its own)
 
 | criterion | definition |
 |---|---|
-| reachedHit | views at the horizon ≥ the frozen floor (Bluesky: ≥5,000 likes) |
-| multiplied | ≥2× the views at prediction **and** ≥100K gained (≥1,000 likes on Bluesky) |
+| reachedHit | views at the horizon ≥ the frozen floor |
+| multiplied | ≥2× the views at prediction **and** ≥100K gained |
 | accelerated | average rate since prediction ≥ the rate known at prediction (velocity, else lifetime average) |
 | outperformedCohort | the gain ranks in the top 10 % of tracked videos of comparable age (½×…2×) observed over the same window; null below 20 comparable videos |
 | creatorJump | channel subscribers ≥ +5 % between the readings; null without both |

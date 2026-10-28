@@ -1,3 +1,49 @@
+# Test results — Viral Radar 4.0 (2026-10-28)
+
+Everything below ran in the cloud (GitHub Actions runners or Anthropic's sandbox); no personal machine was used.
+
+## Automated tests — `npm test` — 50/50 pass
+
+| file | what it proves |
+|---|---|
+| predict.test.ts (4) | age-appropriate hit floor (1M@≤24h → 5M@30d, monotonic); kinds established/early/delayed from real histories; acceleration never claimed from <1,000-view intervals; language detection (scripts, stop-words, platform hint wins); predictions are frozen before outcomes, deduplicated while open, not due before the horizon, evaluated from the observation closest to the horizon, "unobserved" after 1.5× the horizon, never re-evaluated, precision null below ten; crossings only after predictions exist, lead time, recall not claimed from one crossing |
+| discovery.test.ts (2) | reserve rule (budget ÷ runs still expected, rounded, 1…4, 0 when exhausted; Pacific-day hours left); bandit choice honours cooldowns, is deterministic per seed, exploits measured yield after cooldown, EWMA learning, day roll with history, depth only for paged probes with rich first pages |
+| formats.test.ts (2) | name shapes (calendar, fragment incl. non-English stop-words and repeated words, hashtag, entity, phrase); descriptor tags incl. non-Latin; event vs format vs uncertain from dominance, independent creators, title share (boilerplate), sports/news; the desk includes the format, excludes boilerplate; alerts dedupe inside the 48h cooldown |
+| videos.test.ts (6), intel (…), collectors, store, money | the 3.0 suite unchanged (states, velocity, cooling, outliers, duplicates, paid-reach pattern, big-channel normal range, quota day, taxonomy, relevance, money) |
+
+## Live pipeline (GitHub Actions)
+
+First 4.0 collection `202610281057_fd8cf25fe973` (10:57 UTC): 16/16 quality checks, gate passed, published.
+Adaptive discovery allowance 1 (start of the Pacific day), fresh 6h probe → 50 new ids, 7 already ≥500K views;
+hot-channel uploads → 125 new videos from 30 channels, 6 eligible; Shorts verification 150 checked (142 Shorts,
+8 not, self-test reliable); 60 predictions recorded (20 radar, 20 views, 20 velocity), 240 horizons pending;
+40 alerts (first run: everything is "new"). Second collection (11:24 UTC): 73 predictions, 8 observable crossings
+after the first prediction (none predictable yet), yield ledger 3 searches → 47 new eligible videos, 14 new alerts.
+
+## Discovery benchmark (4.0 cycle 1, dev set, 11:31 UTC — 35 minutes after the adaptive scheduler started)
+
+53/98 discovered (54.1 %), precision@10/@20 100 % on all three lists, 0 negative leaks (142 low-engagement Bluesky,
+15 duplicates, 105 streams, 196 unverified links, 208 sub-10K), classification agreement 96.0 %, 99/100 featured
+videos embeddable, 100/100 thumbnails. Full table in `data/benchmark/4.0-cycle1-dev.md`; later cycles in
+`docs/BENCHMARK.md`.
+
+## Browser QA (real Chromium on the GitHub runner, live site)
+
+`data/qa/report.json` + 36 screenshots. Three widths × eleven pages render with real thumbnails and no horizontal
+overflow after the fixes (segments wrap, scores wrap, intros clamp on phones); the Creator Desk → playbook → export
+flow works at 1440 / 768 / 390. Playback: the official embed loads in 14/15 cards; on the runner's datacenter IP
+YouTube answers most embeds with "Sign in to confirm you're not a bot" (a YouTube anti-bot wall, visible in
+`player-viral.png`), so media was delivered for 3/15 — the direct "Open original" fallback is shown in every modal.
+A residential browser is not subject to that wall; it was not used because the owner limited browser use to
+Google Cloud and GitHub.
+
+## Recommendation audit and code review
+
+Independent reviews (separate agents that did not build the system): `docs/RECOMMENDATION_AUDIT.md` (rubric-scored
+desk opportunities, feeds, microtrend label validation) and `docs/CODE_REVIEW_4.0.md` (findings and fixes).
+
+---
+
 # Test results — Viral Radar 3.0 (2026-10-28)
 
 Environment: Anthropic cloud workspace (no personal machine involved); live verification on GitHub Actions runners

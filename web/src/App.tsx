@@ -102,7 +102,7 @@ export default function App() {
   const page = (() => {
     if (!state) return null;
     const m = hash.match(/^#\/trend\/(.+)$/);
-    if (m) return <TrendDetail id={decodeURIComponent(m[1])} />;
+    if (m) { let id = m[1]; try { id = decodeURIComponent(m[1]); } catch { /* malformed hash → use it raw */ } return <TrendDetail id={id} />; }
     switch (hash.replace(/\?.*$/, '')) {
       case '#/viral': return <ViralNow />;
       case '#/radar': return <EarlyRadar />;
@@ -114,7 +114,7 @@ export default function App() {
       case '#/alerts': return <Alerts />;
       case '#/hall-of-fame': return <HallOfFame />;
       case '#/watchlist': case '#/journal': return <Watchlist />;
-      case '#/settings': case '#/diagnostics': case '#/health': return <Settings />;
+      case '#/settings': case '#/diagnostics': case '#/health': return <Settings key={hash} />;
       default: return <Discover />;
     }
   })();

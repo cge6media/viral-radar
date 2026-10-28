@@ -10,7 +10,7 @@ import path from 'node:path';
 import { DATA_DIR } from './lib/store.js';
 import type { Snapshot } from './types.js';
 
-const CRITICAL = new Set([
+export const CRITICAL_CHECKS = new Set([
   'publication dates are not share dates and not in the future',
   'no social engagement attributed to an unverified video',
   'evidence links are absolute http(s) URLs',
@@ -24,8 +24,8 @@ async function main() {
   if (snap.version !== 2) throw new Error(`unexpected snapshot version ${String((snap as { version: unknown }).version)}`);
   if (!Array.isArray(snap.trends) || !snap.generatedAt) throw new Error('snapshot malformed');
   const failed = snap.quality.checks.filter((c) => !c.ok);
-  const critical = failed.filter((c) => CRITICAL.has(c.name));
-  for (const c of snap.quality.checks) console.log(`${c.ok ? 'ok  ' : CRITICAL.has(c.name) ? 'FAIL' : 'warn'} ${c.name} — ${c.detail}`);
+  const critical = failed.filter((c) => CRITICAL_CHECKS.has(c.name));
+  for (const c of snap.quality.checks) console.log(`${c.ok ? 'ok  ' : CRITICAL_CHECKS.has(c.name) ? 'FAIL' : 'warn'} ${c.name} — ${c.detail}`);
   console.log(`trends=${snap.trends.length} qualified=${snap.stats.qualifiedTrends} sources_ok=${snap.sources.filter((s) => s.ok).length}`);
   if (critical.length) {
     console.error(`BLOCKED: ${critical.length} critical check(s) failed`);
@@ -37,7 +37,10 @@ async function main() {
     process.exit(1);
   }
 }
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isDirect = process.argv[1] && /gate\.(ts|js)$/.test(process.argv[1]);
+if (isDirect) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

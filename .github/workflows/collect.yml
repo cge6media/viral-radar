@@ -61,9 +61,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p data/health
-          gh run list --workflow collect.yml --limit 200 --json createdAt,startedAt,updatedAt,event,status,conclusion \
-            --jq '[.[] | {createdAt, event, status, conclusion, durationSec: (if .startedAt and .updatedAt then (((.updatedAt|fromdateiso8601) - (.startedAt|fromdateiso8601))) else null end)}]' \
-            > data/health/actions.json || echo "[]" > data/health/actions.json
+          : > data/health/actions.tmp
+          for wf in collect.yml collect-b.yml collect-c.yml collect-d.yml; do
+            gh run list --workflow "$wf" --limit 100 --json createdAt,startedAt,updatedAt,event,status,conclusion \
+              --jq ".[] | {workflow: \"$wf\", createdAt, event, status, conclusion, durationSec: (if .startedAt and .updatedAt then (((.updatedAt|fromdateiso8601) - (.startedAt|fromdateiso8601))) else null end)}" >> data/health/actions.tmp || true
+          done
+          node -e "const fs=require('fs'); const rows=fs.readFileSync('data/health/actions.tmp','utf8').split('\n').filter(Boolean).map((l)=>JSON.parse(l)).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)); fs.writeFileSync('data/health/actions.json', JSON.stringify(rows.slice(0,300)));" || echo "[]" > data/health/actions.json
+          rm -f data/health/actions.tmp
           node -e "const a=require('./data/health/actions.json'); console.log('actions history:', a.length, 'runs')"
 
       - name: Collect

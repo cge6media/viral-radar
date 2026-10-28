@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../App';
 import { useWatchlist, usePrefs } from '../lib/store';
-import type { Alert, AlertKind } from '../lib/types';
+import type { Alert } from '../lib/types';
 import { fmtAgo } from '../lib/data';
 import { Section, StatTile } from '../components/ui';
 import { Lede } from '../components/ui';
 import { evidenceToCard } from '../lib/videos';
 import { usePlayer } from '../components/video';
 
-const KIND: Record<AlertKind, { label: string; group: 'hits' | 'early' | 'formats' }> = {
+const KIND: Record<string, { label: string; group: 'hits' | 'early' | 'formats' }> = {
   new_hit: { label: 'New verified hit', group: 'hits' },
   acceleration: { label: 'Exceptional acceleration', group: 'early' },
   creator_outlier: { label: 'Creator outlier', group: 'early' },
@@ -19,10 +19,15 @@ const KIND: Record<AlertKind, { label: string; group: 'hits' | 'early' | 'format
 const VISIT_KEY = 'vr.alerts.lastVisit';
 const SEEN_KEY = 'vr.alerts.seen';
 
-/** "new since last visit" bookkeeping — per browser, never sent anywhere */
+const alertListeners = new Set<() => void>();
+const readVisit = () => { try { return localStorage.getItem(VISIT_KEY); } catch { return null; } };
+const readSeen = () => { try { const v = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); return new Set(Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === 'string') : []); } catch { return new Set<string>(); } };
+
+/** "new since last visit" bookkeeping — per browser, never sent anywhere; shared between the bell and the page */
 export function useAlertState(alerts: Alert[]): { unseen: Alert[]; lastVisit: string | null; markSeen: () => void } {
-  const [lastVisit, setLastVisit] = useState<string | null>(() => { try { return localStorage.getItem(VISIT_KEY); } catch { return null; } });
-  const [seen, setSeen] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]') as string[]); } catch { return new Set(); } });
+  const [lastVisit, setLastVisit] = useState<string | null>(readVisit);
+  const [seen, setSeen] = useState<Set<string>>(readSeen);
+  useEffect(() => { const l = () => { setLastVisit(readVisit()); setSeen(readSeen()); }; alertListeners.add(l); return () => void alertListeners.delete(l); }, []);
   const unseen = useMemo(() => alerts.filter((a) => !seen.has(`${a.id}@${a.at}`) && (!lastVisit || a.at > lastVisit)), [alerts, seen, lastVisit]);
   const markSeen = useCallback(() => {
     const now = new Date().toISOString();
@@ -30,6 +35,7 @@ export function useAlertState(alerts: Alert[]): { unseen: Alert[]; lastVisit: st
     for (const a of alerts) next.add(`${a.id}@${a.at}`);
     try { localStorage.setItem(VISIT_KEY, now); localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(next).slice(-400))); } catch { /* ignore */ }
     setLastVisit(now); setSeen(next);
+    alertListeners.forEach((l) => l());
   }, [alerts, seen]);
   return { unseen, lastVisit, markSeen };
 }
@@ -48,9 +54,9 @@ export default function Alerts() {
   const list = useMemo(() => alerts.filter((a) => {
     switch (filter) {
       case 'new': return unseenIds.has(`${a.id}@${a.at}`);
-      case 'hits': return KIND[a.kind].group === 'hits';
-      case 'early': return KIND[a.kind].group === 'early';
-      case 'formats': return KIND[a.kind].group === 'formats';
+      case 'hits': return KIND[a.kind]?.group === 'hits';
+      case 'early': return KIND[a.kind]?.group === 'early';
+      case 'formats': return KIND[a.kind]?.group === 'formats';
       case 'preferred': return prefs.interests.includes(a.category);
       case 'saved': return a.subject.type === 'trend' && savedIds.has(a.subject.id);
       default: return true;
@@ -65,9 +71,9 @@ export default function Alerts() {
         <Lede>Only unusually strong signals: a video crossing its hit floor while tracked, acceleration ≥2.5× at ≥20K views/h, creator outliers ≥100× their median upload, formats gaining ≥3 independent creators in 48h, category waves measured at ≥2×, older videos resurfacing. Deduplicated per subject with a 48-hour cooldown. Every alert shows what caused it; none of them is a promise of future virality.</Lede>
         <div className="tiles">
           <StatTile v={unseen.length} k="New since last visit" cls={unseen.length ? 'good' : ''} na={!unseen.length} />
-          <StatTile v={alerts.filter((a) => KIND[a.kind].group === 'hits').length} k="Verified hits (7d)" />
-          <StatTile v={alerts.filter((a) => KIND[a.kind].group === 'early').length} k="Early signals (7d)" />
-          <StatTile v={alerts.filter((a) => KIND[a.kind].group === 'formats').length} k="Formats & categories (7d)" />
+          <StatTile v={alerts.filter((a) => KIND[a.kind]?.group === 'hits').length} k="Verified hits (7d)" />
+          <StatTile v={alerts.filter((a) => KIND[a.kind]?.group === 'early').length} k="Early signals (7d)" />
+          <StatTile v={alerts.filter((a) => KIND[a.kind]?.group === 'formats').length} k="Formats & categories (7d)" />
         </div>
         <div className="row wrap" style={{ gap: 8 }}>
           <div className="seg" role="group" aria-label="Filter alerts">
@@ -83,7 +89,7 @@ export default function Alerts() {
               <article key={`${a.id}@${a.at}`} className={`alert card tight ${a.severity}${unseenIds.has(`${a.id}@${a.at}`) ? ' unseen' : ''}`}>
                 <div className="row wrap between" style={{ gap: 8 }}>
                   <div className="row wrap" style={{ gap: 6 }}>
-                    <span className={`pill akind ${a.kind}`}><i aria-hidden />{KIND[a.kind].label}</span>
+                    <span className={`pill akind ${a.kind}`}><i aria-hidden />{KIND[a.kind]?.label || a.kind}</span>
                     <span className="pill kind">{a.category}</span>
                     {unseenIds.has(`${a.id}@${a.at}`) && <span className="pill measured">new</span>}
                   </div>

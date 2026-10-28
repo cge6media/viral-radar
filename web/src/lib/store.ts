@@ -9,7 +9,12 @@ function read<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
-    return { ...fallback, ...(JSON.parse(raw) as T) };
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    const merged = { ...fallback, ...parsed } as Record<string, unknown>;
+    // arrays in the defaults must stay arrays of strings
+    for (const [k, v] of Object.entries(fallback as Record<string, unknown>)) if (Array.isArray(v) && !(Array.isArray(merged[k]) && (merged[k] as unknown[]).every((x) => typeof x === 'string'))) merged[k] = v;
+    return merged as T;
   } catch {
     return fallback;
   }
@@ -84,19 +89,44 @@ export function importPrivateData(json: string, mode: 'merge' | 'replace'): { it
   const data = JSON.parse(json) as Record<string, unknown>;
   let items = 0;
   if (Array.isArray(data[WATCH_KEY])) {
-    const list = data[WATCH_KEY] as WatchItem[];
+    const list = sanitize(data[WATCH_KEY]);
     if (mode === 'replace') { write(WATCH_KEY, list); items = list.length; }
-    else { const cur = readList(); const ids = new Set(cur.map((x) => x.trendId)); const add = list.filter((x) => x && typeof x.trendId === 'string' && !ids.has(x.trendId)); write(WATCH_KEY, [...add, ...cur]); items = add.length; }
+    else { const cur = readList(); const ids = new Set(cur.map((x) => x.trendId)); const add = list.filter((x) => !ids.has(x.trendId)); write(WATCH_KEY, [...add, ...cur]); items = add.length; }
+  } else if (mode === 'replace') {
+    throw new Error('no journal in this file');
   }
-  if (data[PREF_KEY] && typeof data[PREF_KEY] === 'object' && mode === 'replace') write(PREF_KEY, data[PREF_KEY]);
+  const prefs = data[PREF_KEY] as Partial<Preferences> | undefined;
+  if (prefs && typeof prefs === 'object' && mode === 'replace') {
+    const safe: Partial<Preferences> = {};
+    for (const k of ['interests', 'tools', 'platforms'] as const) if (Array.isArray(prefs[k]) && (prefs[k] as unknown[]).every((v) => typeof v === 'string')) safe[k] = prefs[k] as string[];
+    if (prefs.appetite === 'early' || prefs.appetite === 'balanced' || prefs.appetite === 'proven') safe.appetite = prefs.appetite;
+    if (typeof prefs.showGeneric === 'boolean') safe.showGeneric = prefs.showGeneric;
+    write(PREF_KEY, { ...DEFAULT_PREFS, ...safe });
+  }
   notify();
   return { items };
 }
 
+const STATUSES = new Set(['watching', 'selected', 'producing', 'published', 'completed', 'skipped', 'planning']);
+/** a journal row is only accepted with the shape the pages rely on; anything else is dropped, never rendered */
+export function validItem(x: unknown): x is WatchItem {
+  if (!x || typeof x !== 'object') return false;
+  const i = x as Record<string, unknown>;
+  if (typeof i.trendId !== 'string' || typeof i.name !== 'string' || typeof i.category !== 'string') return false;
+  if (typeof i.status !== 'string' || !STATUSES.has(i.status)) return false;
+  if (typeof i.addedAt !== 'string' || isNaN(new Date(i.addedAt).getTime())) return false;
+  if (i.published != null && typeof i.published !== 'object') return false;
+  if (i.assessment != null && typeof i.assessment !== 'object') return false;
+  return true;
+}
+function sanitize(list: unknown): WatchItem[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter(validItem).map((i) => ({ ...i, published: i.published ? Object.fromEntries(Object.entries(i.published).filter(([, v]) => v == null || typeof v === 'string' || typeof v === 'number')) : undefined }));
+}
 function readList(): WatchItem[] {
   try {
     const raw = localStorage.getItem(WATCH_KEY);
-    return raw ? (JSON.parse(raw) as WatchItem[]) : [];
+    return raw ? sanitize(JSON.parse(raw)) : [];
   } catch {
     return [];
   }

@@ -58,13 +58,59 @@ const POOL_SUBJECT: Record<string, string> = {
   puppets: 'a puppet / character bit', street_interview: 'a street interview', explainer: 'a 45-second explainer',
 };
 const SIG_SKIP = new Set(['version', 'official', 'explained', 'video', 'videos', 'shorts', 'short', 'full', 'new', 'best', 'cover', 'song', 'live', 'part', 'episode']);
+const latin = (w: string) => /^[a-z0-9'’-]+$/i.test(w);
 function subject(o: DeskOpportunity): string {
   const pool = POOL_SUBJECT[o.trendId.replace(/^f_/, '')];
-  const latin = (w: string) => /^[a-z0-9'’-]+$/i.test(w);
   const sig = o.features.signature.filter((w) => w.length > 2 && latin(w) && !SIG_SKIP.has(w.toLowerCase()) && !o.name.toLowerCase().includes(w.toLowerCase())).slice(0, 2);
   if (pool) return sig.length ? `${pool} (${sig.join(' / ')})` : pool;
   const name = o.name.replace(/^#/, '').toLowerCase();
   return sig.length ? `${name} (${sig.join(' / ')})` : name;
+}
+const POOL_TAG: Record<string, string> = { cooking: 'recipe', cats: 'cat', dogs: 'dog', animal_comedy: 'talkinganimals', animation: 'animation', short_film: 'shortfilm', ai_video: 'aivideo', comedy_skit: 'skit', satisfying: 'satisfying', timelapse: 'timelapse', storytime: 'storytime', cover_song: 'cover', music_video: 'musicvideo', gaming_clip: 'gaming', puppets: 'puppet', street_interview: 'streetinterview', explainer: 'explained' };
+/** the subject as a bare noun phrase for titles/captions ("cover performance", "spiderman") */
+function noun(o: DeskOpportunity): string {
+  const pool = POOL_SUBJECT[o.trendId.replace(/^f_/, '')];
+  const base = pool ? pool.replace(/^(a|an) /, '').replace(/ \/.*$/, '') : o.name.replace(/^#/, '').toLowerCase();
+  return base;
+}
+
+/** one format-specific monetization risk, when the observed facts imply one */
+function riskFor(o: DeskOpportunity): string | undefined {
+  const h = o.features.hooks; const n = Math.max(1, o.features.videos);
+  const name = o.name.toLowerCase();
+  const titles = o.evidence.map((e) => e.title.toLowerCase()).join(' ');
+  if (o.trendId === 'f_cover_song' || /\bcover\b/.test(name)) return 'Covers of copyrighted songs are claimed by Content ID: ad revenue usually goes to the rights holder. Write an original song (or a parody with new lyrics and melody) to keep the revenue and the streams.';
+  if (/spider|marvel|disney|pixar|pokemon|pokémon|nintendo|mario|minecraft|roblox|fortnite|gta|batman|superman|star wars|harry potter|naruto|dragon ball|one piece|hololive|vtuber/.test(name + ' ' + titles)) return 'Third-party IP in the examples: fan content can be claimed, blocked or demonetized by the rights holder. Use an original character and an original design — reference the genre, not the brand.';
+  if (o.type === 'event' && o.features.nameShape === 'calendar') return 'Calendar window: attention collapses after the date. Publish before it or skip; nothing evergreen is being built.';
+  if (/kids|nursery|rhyme|toddler|baby shark|cocomelon|preschool/.test(name + ' ' + titles) || (h.animated && /kids/.test(titles))) return 'Made-for-kids content: limited ads, no personalized ads, no comments and no notifications on YouTube — RPM is far lower than general audiences.';
+  if (o.category === 'News & Politics' || o.category === 'Sports') return 'News/sports footage: limited advertiser-friendliness and third-party rights on the footage itself; only original commentary or animation is safely monetizable.';
+  if ((o.features.medianDurationSec ?? 0) >= 1800) return 'Long recordings: watch-time economics, not Shorts economics — a different production model from a 2-hour window.';
+  if (o.type === 'meme') return 'Meme audio and clips are often owned by someone else; use an original sound so re-uses pay you instead of a label.';
+  return undefined;
+}
+
+/** scale the beat timings to the suggested duration (the examples' median), instead of a fixed 20-second skeleton */
+function beats(sec: number | undefined, kind: 'character' | 'ladder' | 'reversal' | 'song' | 'explainer' | 'mashup'): { beat: string; what: string }[] {
+  const d = Math.max(12, Math.round(sec || 35));
+  const t = (f: number) => `${Math.round(d * f)} s`;
+  const long = d > 180;
+  if (long) {
+    const m = (f: number) => `${Math.max(1, Math.round((d * f) / 60))} min`;
+    return [
+      { beat: `Cold open (0–${t(0.05)})`, what: 'Start inside the strongest moment, then cut to the title card.' },
+      { beat: `Act 1 (to ${m(0.3)})`, what: 'Establish the character/premise and the first complication.' },
+      { beat: `Act 2 (to ${m(0.75)})`, what: 'Three escalating beats; change the location or stakes each time.' },
+      { beat: `Act 3 (to ${m(1)})`, what: 'Payoff, then a 10-second tease of the next episode.' },
+    ];
+  }
+  switch (kind) {
+    case 'ladder': return [{ beat: `Level 1 (0–${t(0.15)})`, what: 'The ordinary version, played straight.' }, { beat: `Levels 2–3 (to ${t(0.55)})`, what: 'Bigger stakes, same framing, faster cuts.' }, { beat: `Level 4 (to ${t(0.8)})`, what: 'The version the audience did not expect.' }, { beat: `Level 5 + tease (to ${t(1)})`, what: 'Break the format; end on "Level 6 next time?"' }];
+    case 'reversal': return [{ beat: `Recognition (0–${t(0.12)})`, what: 'The familiar setup, no twist yet.' }, { beat: `Commitment (to ${t(0.75)})`, what: 'Lean into the expected direction; add one detail that will matter.' }, { beat: `Turn (to ${t(0.95)})`, what: 'The detail flips the outcome.' }, { beat: 'Button (last second)', what: 'A single-word reaction; hard cut to loop.' }];
+    case 'song': return [{ beat: `Chorus (0–${t(0.2)})`, what: 'The earworm line, straight in.' }, { beat: `Verse (to ${t(0.6)})`, what: 'Three specific details from the format, one per bar.' }, { beat: `Chorus 2 + twist (to ${t(0.93)})`, what: 'Same line, one word changed.' }, { beat: 'Tag (last 2 s)', what: 'Spoken button; loop to the chorus.' }];
+    case 'explainer': return [{ beat: `Wrong (0–${t(0.3)})`, what: 'Confident, specific, wrong.' }, { beat: `Doubt (to ${t(0.45)})`, what: 'One visual cue the audience notices first.' }, { beat: `Correct (to ${t(0.9)})`, what: 'The real explanation, fast, with one diagram.' }, { beat: 'Button', what: 'The wrong character takes credit.' }];
+    case 'mashup': return [{ beat: `Setting (0–${t(0.08)})`, what: 'One establishing shot that says where we are.' }, { beat: `Mechanism (to ${t(0.4)})`, what: 'The format plays exactly as the examples do.' }, { beat: `Collision (to ${t(0.85)})`, what: 'The setting pushes back; two beats.' }, { beat: `Payoff (to ${t(1)})`, what: "The mechanism wins in the setting's own terms." }];
+    default: return [{ beat: `Open (0–${t(0.07)})`, what: 'Character already inside the situation; text states the premise.' }, { beat: `Setup (to ${t(0.3)})`, what: "One line of dialogue establishes the trait; the format's expected course begins." }, { beat: `Escalation (to ${t(0.85)})`, what: 'Two beats where the trait makes things worse/funnier; each beat a new shot.' }, { beat: `Payoff + loop (last ${t(0.12)})`, what: 'The trait wins or backfires; the last line can be the first line again so the video loops.' }];
+  }
 }
 
 function durationLine(o: DeskOpportunity): string {
@@ -127,7 +173,12 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
   const animated = hooks.includes('animated') || hooks.includes('ai') || o.category === 'Animation & Art';
   const shortForm = f.shortsShare >= 0.5 || (f.medianDurationSec ?? 61) <= 60;
   const effortBase = o.production.effortHours;
-  const hashtags = Array.from(new Set([...f.signature.slice(0, 3), ...o.name.replace(/^#/, '').toLowerCase().split(/\s+/)])).filter((x) => x.length > 2).slice(0, 5).map((x) => '#' + x.replace(/[^\p{L}\p{N}]/gu, ''));
+  const nameTag = POOL_TAG[o.trendId.replace(/^f_/, '')] || o.name.replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const hashtags = Array.from(new Set([nameTag, ...f.signature.filter((x) => latin(x) && x.length >= 4 && !nameTag.includes(x.toLowerCase())).slice(0, 3)])).filter((x) => x.length > 2).slice(0, 4).map((x) => '#' + x);
+  const risk = riskFor(o);
+  const revenueWithRisk = risk ? [risk, ...revenue] : revenue;
+  const nounPhrase = noun(o);
+  const d = f.medianDurationSec;
 
   const briefs: Brief[] = [];
 
@@ -138,18 +189,13 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     title: `An original recurring character takes on ${subj}`,
     concept: `An original ${animated ? 'animated' : 'AI-generated'} character with one strong trait (overconfident, deadpan, tiny-but-furious) is dropped into the ${o.type === 'format' ? 'format' : 'moment'} the examples share (${subj}). The trait, not the format, produces the joke or payoff.`,
     hook: `First frame: the character mid-action with the ${hookStyle ? HOOK_TEXT[hookStyle] : 'situation'} stated in on-screen text in ≤ 6 words — e.g. “${cap(subj)}, but ${['pov', 'when'].includes(hookStyle || '') ? 'it is me' : 'something is wrong'}”.`,
-    structure: [
-      { beat: 'Open (0–2 s)', what: `Character already inside the situation; text states the premise (${hookDesc}).` },
-      { beat: 'Setup (2–8 s)', what: 'One line of dialogue establishes the trait; the format\'s expected course begins.' },
-      { beat: 'Escalation (8–20 s)', what: 'Two beats where the trait makes things worse/funnier; each beat a new shot.' },
-      { beat: 'Payoff + loop (last 3 s)', what: 'The trait wins or backfires; last line can be the first line again so the video loops.' },
-    ],
+    structure: beats(d, 'character').map((b, i) => (i === 0 ? { ...b, what: `${b.what} (${hookDesc}).` } : b)),
     duration: dur,
     approach: [animated ? 'Character sheet (3 poses) generated once and reused; scenes via image-to-video' : 'AI video for scenes, one consistent character reference image', 'Synthesized or recorded voice with a signature catchphrase', 'Captions + 1 sound effect per beat; no copyrighted music'],
     steps: baseSteps(o, ['Design the character: one visual trait, one verbal tic, a 2-word name; save the reference image.', 'Generate 4 scenes from the structure; regenerate only the beat that misses the joke.']),
     effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: effortBase[1] <= 2 ? 'Low' : 'Medium', why: `${shortForm ? 'Short-form' : 'Longer'} target; one character, four scenes.` },
-    publishing: { platform, titleIdea: `${cap(subj)} ${hookStyle === 'pov' ? '(POV)' : ''} — part 1`.replace(/\s+/g, ' ').trim(), caption: `${cap(subj)}, but with ${'an original character'}. ${hashtags.join(' ')}`, notes: ['Post the same cut to Shorts, TikTok and Reels within an hour.', 'Pin a comment asking which situation the character should face next (the series hook).'] },
-    revenue, uncertainty, evidence,
+    publishing: { platform, titleIdea: `${hookStyle === 'pov' ? 'POV: ' : ''}${nounPhrase} — part 1`, caption: `${cap(subj)}, but with ${'an original character'}. ${hashtags.join(' ')}`, notes: ['Post the same cut to Shorts, TikTok and Reels within an hour.', 'Pin a comment asking which situation the character should face next (the series hook).'] },
+    revenue: revenueWithRisk, uncertainty, evidence,
   });
 
   // 2 — escalation / series or reversal, whichever the observed hooks support
@@ -157,41 +203,31 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     briefs.push({
       variation: 'Escalating series',
       variationWhy: `The examples use ${hooks.includes('series') ? 'episodic "part N" titles' : hooks.includes('escalation') ? 'level-by-level escalation' : 'challenge/number framing'} — a built-in reason to return.`,
-      title: `${cap(subj)}, levels 1 to 5`,
+      title: `${cap(nounPhrase)}, levels 1 to 5`,
       concept: `One video = one ladder. The same ${subj} situation is attempted at five escalating levels (easy → absurd); each level is a 4–6 s scene; the fifth breaks the rules of the format itself.`,
       hook: 'Text in the first frame: “Level 1” over the simplest version; viewers stay to see how far it goes.',
-      structure: [
-        { beat: 'Level 1 (0–5 s)', what: 'The ordinary version, played straight.' },
-        { beat: 'Levels 2–3', what: 'Bigger stakes, same framing, faster cuts.' },
-        { beat: 'Level 4', what: 'The version the audience did not expect.' },
-        { beat: 'Level 5 + tease', what: 'Break the format; end on “Level 6 next week?”' },
-      ],
+      structure: beats(d, 'ladder'),
       duration: dur,
       approach: ['Five generated scenes sharing one background/lighting prompt for continuity', 'A counter graphic (“Level n”) as the only recurring overlay', 'Rising music bed (original or royalty-free) with a hard cut at level 5'],
       steps: baseSteps(o, ['List the five levels first; cut any level that is not visibly different from the previous one.', 'Generate level 5 first — if it does not work, the video has no ending yet.']),
       effort: { hours: `${effortBase[0] + 0.5}–${effortBase[1] + 0.5} h`, difficulty: 'Medium', why: 'Five scenes with continuity.' },
-      publishing: { platform, titleIdea: `${cap(subj)}: level 1 vs level 5`, caption: `Which level are you? ${hashtags.join(' ')}`, notes: ['Natural series: publish level 6–10 as the next video if the first clears your baseline.'] },
-      revenue, uncertainty, evidence,
+      publishing: { platform, titleIdea: `${cap(nounPhrase)}: level 1 vs level 5`, caption: `Which level are you? ${hashtags.join(' ')}`, notes: ['Natural series: publish level 6–10 as the next video if the first clears your baseline.'] },
+      revenue: revenueWithRisk, uncertainty, evidence,
     });
   } else {
     briefs.push({
       variation: 'Reversal',
       variationWhy: `The examples promise ${hooks.includes('payoff') ? 'a payoff' : hooks.includes('transformation') ? 'a transformation' : 'an expected outcome'} — subverting it is the cheapest originality.`,
-      title: `${cap(subj)} — with the opposite ending`,
+      title: `${cap(nounPhrase)} — with the opposite ending`,
       concept: `Set up the exact expectation the examples create (${subj}), then land the opposite outcome in the last two seconds; the reversal is the joke/payoff and makes the video quotable.`,
       hook: 'First frame copies the format\'s familiar setup so the audience recognises it instantly (text: “you know how this goes…”).',
-      structure: [
-        { beat: 'Recognition (0–3 s)', what: 'The familiar setup, no twist yet.' },
-        { beat: 'Commitment (3–12 s)', what: 'Lean into the expected direction; add one detail that will matter.' },
-        { beat: 'Turn (last 4 s)', what: 'The detail flips the outcome.' },
-        { beat: 'Button (last 1 s)', what: 'A single-word reaction; hard cut to loop.' },
-      ],
+      structure: beats(d, 'reversal'),
       duration: dur,
       approach: ['Two generated scenes (expected / reversed) sharing one subject reference image', 'Sound design sells the turn: silence 0.5 s before the flip', 'Captions only on the setup, not on the twist'],
       steps: baseSteps(o, ['Write the expected ending in one sentence, then write its opposite; the second sentence is the video.']),
       effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: 'Low', why: 'Two scenes, one turn.' },
-      publishing: { platform, titleIdea: `${cap(subj)}… wait for it`, caption: `Not what you expected. ${hashtags.join(' ')}`, notes: ['Reply to the top comment with a second reversal (cheap follow-up).'] },
-      revenue, uncertainty, evidence,
+      publishing: { platform, titleIdea: `${cap(nounPhrase)}… wait for it`, caption: `Not what you expected. ${hashtags.join(' ')}`, notes: ['Reply to the top comment with a second reversal (cheap follow-up).'] },
+      revenue: revenueWithRisk, uncertainty, evidence,
     });
   }
 
@@ -200,46 +236,46 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     briefs.push({
       variation: 'Original track',
       variationWhy: 'Music-led examples: an original song or parody adds streaming revenue and Content ID on re-uses.',
-      title: `A 30-second original song for ${subj}`,
+      title: `A 30-second original song about ${nounPhrase}`,
       concept: `Write a hook-first original song (8 bars, one earworm line) about ${subj}; the video is the character performing it with one visual gag per bar.`,
       hook: 'The chorus line in the first second, sung, with the lyric on screen.',
-      structure: [{ beat: 'Chorus (0–6 s)', what: 'The earworm line, straight in.' }, { beat: 'Verse (6–18 s)', what: 'Three specific details from the format, one per bar.' }, { beat: 'Chorus 2 + twist (18–28 s)', what: 'Same line, one word changed.' }, { beat: 'Tag (last 2 s)', what: 'Spoken button; loop to the chorus.' }],
+      structure: beats(30, 'song'),
       duration: '25–35 s (one chorus + verse)',
       approach: ['Original lyrics and melody (no sampled or copyrighted audio)', 'AI or DIY instrumental; vocals recorded or synthesized', 'Lyric captions with the animated character lip-syncing the chorus only'],
       steps: baseSteps(o, ['Write the chorus line first; if it is not quotable on its own, rewrite before anything else.', 'Produce the 30 s track; distribute the full version separately for streams.']),
       effort: { hours: `${effortBase[0] + 1}–${effortBase[1] + 1} h`, difficulty: 'Medium', why: 'Writing + producing the track.' },
-      publishing: { platform, titleIdea: `the ${subj} song`, caption: `Full song on streaming. ${hashtags.join(' ')}`, notes: ['Release the audio to streaming platforms so re-uses of the sound pay you.'] },
-      revenue, uncertainty, evidence,
+      publishing: { platform, titleIdea: `the ${nounPhrase} song`, caption: `Full song on streaming. ${hashtags.join(' ')}`, notes: ['Release the audio to streaming platforms so re-uses of the sound pay you.'] },
+      revenue: revenueWithRisk, uncertainty, evidence,
     });
   } else if (hooks.includes('tutorial') || o.category === 'Education' || o.category === 'Science' || o.category === 'Tech & AI') {
     briefs.push({
       variation: 'Explainer as a skit',
       variationWhy: 'The examples teach or explain — a character explaining it badly, then well, keeps the information and adds comedy.',
-      title: `${cap(subj)}, explained by someone who should not be explaining it`,
+      title: `${cap(nounPhrase)}, explained by someone who should not be explaining it`,
       concept: `An unqualified original character confidently explains ${subj} wrong; a second character (or on-screen text) corrects it in one line; the correct version is the payoff.`,
       hook: 'The wrong explanation starts mid-sentence in the first frame.',
-      structure: [{ beat: 'Wrong (0–8 s)', what: 'Confident, specific, wrong.' }, { beat: 'Doubt (8–12 s)', what: 'One visual cue the audience notices first.' }, { beat: 'Correct (12–25 s)', what: 'The real explanation, fast, with one diagram.' }, { beat: 'Button', what: 'The wrong character takes credit.' }],
+      structure: beats(d, 'explainer'),
       duration: dur,
       approach: ['Two characters from one reference sheet', 'One simple animated diagram for the correct part', 'Captions throughout (informational content is watched muted)'],
       steps: baseSteps(o, ['Verify the correct explanation from a primary source before writing the wrong one.']),
       effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: 'Medium', why: 'Accuracy check + two characters.' },
-      publishing: { platform, titleIdea: `${cap(subj)}, explained (badly, then properly)`, caption: `Which part did you believe? ${hashtags.join(' ')}`, notes: ['Educational framing widens the advertiser-friendly range.'] },
-      revenue, uncertainty, evidence,
+      publishing: { platform, titleIdea: `${cap(nounPhrase)}, explained (badly, then properly)`, caption: `Which part did you believe? ${hashtags.join(' ')}`, notes: ['Educational framing widens the advertiser-friendly range.'] },
+      revenue: revenueWithRisk, uncertainty, evidence,
     });
   } else {
     briefs.push({
       variation: 'Cross-genre mashup',
       variationWhy: 'Transplanting the mechanism into an unexpected setting is original by construction and cheap to produce with generated scenes.',
-      title: `${cap(subj)} — in the wrong world`,
+      title: `${cap(nounPhrase)} — in the wrong world`,
       concept: `Keep the exact mechanism the examples share (${subj}) and move it to a setting where it should not exist (a medieval court, a space station, a nature documentary, a corporate meeting); the mismatch generates the beats.`,
       hook: 'The setting is visible in the first frame; the familiar mechanism starts anyway.',
-      structure: [{ beat: 'Setting (0–2 s)', what: 'One establishing shot that says where we are.' }, { beat: 'Mechanism (2–10 s)', what: 'The format plays exactly as the examples do.' }, { beat: 'Collision (10–20 s)', what: 'The setting pushes back; two beats.' }, { beat: 'Payoff', what: 'The mechanism wins in the setting\'s own terms.' }],
+      structure: beats(d, 'mashup'),
       duration: dur,
       approach: ['Generated establishing shot + 3 scenes with one style prompt', 'Narration in the setting\'s register (documentary voice, courtroom voice)', 'Diegetic sound only; no trending audio'],
       steps: baseSteps(o, ['Pick the setting whose rules most contradict the mechanism; write the collision beats from those rules.']),
       effort: { hours: `${effortBase[0]}–${effortBase[1]} h`, difficulty: 'Low', why: 'Four scenes, one style.' },
-      publishing: { platform, titleIdea: `${cap(subj)}, but it's a nature documentary`, caption: `Same thing, wrong world. ${hashtags.join(' ')}`, notes: ['If it works, the setting becomes the series (same mechanism, new world each time).'] },
-      revenue, uncertainty, evidence,
+      publishing: { platform, titleIdea: `${cap(nounPhrase)}, but it's a nature documentary`, caption: `Same thing, wrong world. ${hashtags.join(' ')}`, notes: ['If it works, the setting becomes the series (same mechanism, new world each time).'] },
+      revenue: revenueWithRisk, uncertainty, evidence,
     });
   }
   return briefs;

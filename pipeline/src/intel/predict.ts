@@ -38,6 +38,8 @@ export interface CrossingRecord {
   platformId: string;
   title: string;
   crossedAt: string;
+  /** the last observation below the floor (the crossing happened between this and crossedAt) */
+  lastBelowAt?: string;
   floor: number;
   views: number;
   /** earliest observation while still below the floor (proves it was observable before crossing) */
@@ -81,7 +83,7 @@ function toPrediction(r: VideoRecord, strategy: PredictionStrategy, rank: number
     ageHours: r.ageHours, views: r.metrics.views, likes: r.metrics.likes, lifetimeRate: r.lifetimeRate,
     velocityPerHour: v?.perHour, velocityHours: v?.hours, acceleration: r.acceleration, baselineRatio: r.baselineRatio, subscriberRatio: r.subscriberRatio,
     breakoutScore: r.breakoutScore, viralScore: r.viralScore, confidence: r.confidence, confidenceBand: r.confidenceBand, kind: r.kind,
-    reasons: r.reasons.slice(0, 4),
+    reasons: r.reasons.slice(0, 3),
     history: [], // filled by the caller from the metric history (points ≤ now only)
     horizons: [...PREDICTION_HORIZONS], hitFloorAt,
     trends: r.trends.slice(0, 6).map((id) => ({ id, creators: trendCreators.get(id) || 0 })),
@@ -92,20 +94,34 @@ function toPrediction(r: VideoRecord, strategy: PredictionStrategy, rank: number
 export function attachHistory(preds: PredictionRecord[], metricHistory: Map<string, MetricPoint[]>, now: string): void {
   for (const p of preds) {
     const pts = (metricHistory.get(p.videoId) || []).filter((x) => x.t <= now);
-    p.history = pts.slice(-8).map((x) => ({ t: x.t, views: x.metrics.views, likes: x.metrics.likes }));
+    p.history = pts.slice(-6).map((x) => ({ t: x.t, views: x.metrics.views, likes: x.metrics.likes }));
   }
 }
 
-function pointAt(points: MetricPoint[], atIso: string, horizonHours: number): MetricPoint | undefined {
+/**
+ * The observation used for a horizon: the FIRST one at or after the horizon (inside 1.5 H). Only when the window has
+ * fully passed (`elapsed ≥ 1.5 H`) and nothing exists after H, the closest point in [0.85 H, H) stands in, so an
+ * outcome is never measured early while a later observation could still arrive.
+ */
+function pointAt(points: MetricPoint[], atIso: string, horizonHours: number, elapsedHours: number, metric: 'views' | 'likes' = 'views'): MetricPoint | undefined {
   const at = new Date(atIso).getTime();
-  const lo = at + horizonHours * 36e5 * TOLERANCE.early, hi = at + horizonHours * 36e5 * TOLERANCE.late;
-  let best: MetricPoint | undefined;
-  for (const p of points) {
+  const target = at + horizonHours * 36e5, hi = at + horizonHours * 36e5 * TOLERANCE.late, lo = at + horizonHours * 36e5 * TOLERANCE.early;
+  const usable = points.filter((p) => p.metrics[metric] != null);
+  let after: MetricPoint | undefined;
+  for (const p of usable) {
     const t = new Date(p.t).getTime();
-    if (t < lo || t > hi) continue;
-    if (!best || Math.abs(t - (at + horizonHours * 36e5)) < Math.abs(new Date(best.t).getTime() - (at + horizonHours * 36e5))) best = p;
+    if (t < target || t > hi) continue;
+    if (!after || t < new Date(after.t).getTime()) after = p;
   }
-  return best;
+  if (after) return after;
+  if (elapsedHours < horizonHours * TOLERANCE.late) return undefined;
+  let before: MetricPoint | undefined;
+  for (const p of usable) {
+    const t = new Date(p.t).getTime();
+    if (t < lo || t >= target) continue;
+    if (!before || t > new Date(before.t).getTime()) before = p;
+  }
+  return before;
 }
 function nearest(points: MetricPoint[], atIso: string, maxHours: number): MetricPoint | undefined {
   const at = new Date(atIso).getTime();
@@ -143,8 +159,8 @@ export function evaluatePredictions(input: EvalInput): OutcomeRecord[] {
       const key = `${p.id}:${h}`;
       if (done.has(key)) continue;
       const elapsed = hoursBetween(p.predictedAt, now);
-      if (elapsed < h * TOLERANCE.early) continue; // not due yet → pending
-      const obs = pointAt(pts, p.predictedAt, h);
+      if (elapsed < h) continue; // the horizon has not elapsed → pending
+      const obs = pointAt(pts, p.predictedAt, h, elapsed, metric);
       if (!obs) {
         if (elapsed < h * TOLERANCE.late) continue; // still pending: an observation may still arrive inside the tolerance window
         out.push({ predictionId: p.id, horizon: h, evaluatedAt: now, observedAt: '', observedHours: 0, reachedHit: false, multiplied: false, accelerated: null, outperformedCohort: null, cohortSize: 0, creatorJump: null, formatSpread: null, breakout: false, unobserved: true } as OutcomeRecord);
@@ -168,7 +184,7 @@ export function evaluatePredictions(input: EvalInput): OutcomeRecord[] {
           const rp = metricHistory.get(r.id);
           if (!rp || rp.length < 2) continue;
           const a = nearest(rp, p.predictedAt, Math.max(3, h * 0.15));
-          const b = pointAt(rp, p.predictedAt, h);
+          const b = pointAt(rp, p.predictedAt, h, elapsed, metric);
           if (!a || !b || a === b) continue;
           const g = Math.max(0, (b.metrics[metric] || 0) - (a.metrics[metric] || 0));
           cohortSize++;
@@ -206,11 +222,14 @@ export function detectCrossings(records: VideoRecord[], metricHistory: Map<strin
     }
     if (!crossed || !lastBelow) continue;
     const firstBelow = pts[0];
-    if (crossed.t < since) continue;
+    // the video must have been OBSERVED below the floor after predictions existed — otherwise no run could have predicted it
+    if (lastBelow.t < since) continue;
     if (hoursBetween(firstBelow.t, crossed.t) < 6) continue; // not observable long enough before crossing
-    const preds = (radarByVideo.get(r.id) || []).filter((p) => p.predictedAt < crossed!.t).sort((a, b) => a.predictedAt.localeCompare(b.predictedAt));
+    const preds = (radarByVideo.get(r.id) || []).filter((p) => p.predictedAt <= lastBelow!.t).sort((a, b) => a.predictedAt.localeCompare(b.predictedAt));
     const first = preds[0];
-    out.push({ videoId: r.id, platformId: r.platformId, title: r.title.slice(0, 100), crossedAt: crossed.t, floor: hitFloorViews(hoursBetween(r.publishedAt, crossed.t)), views: crossed.metrics.views!, observableSince: firstBelow.t, predictedAt: first?.predictedAt, leadHours: first ? round(hoursBetween(first.predictedAt, crossed.t), 1) : undefined, runId });
+    // the true crossing lies between the last below-floor tick and the first above-floor tick; lead time is measured
+    // conservatively to the last below-floor observation
+    out.push({ videoId: r.id, platformId: r.platformId, title: r.title.slice(0, 100), crossedAt: crossed.t, lastBelowAt: lastBelow.t, floor: hitFloorViews(hoursBetween(r.publishedAt, crossed.t)), views: crossed.metrics.views!, observableSince: firstBelow.t, predictedAt: first?.predictedAt, leadHours: first ? round(Math.max(0, hoursBetween(first.predictedAt, lastBelow.t)), 1) : undefined, runId });
   }
   return out;
 }
@@ -224,7 +243,9 @@ export interface Scorecard extends ScorecardSummary {
   crossingsRecent: CrossingRecord[];
 }
 
-export function buildScorecard(predictions: PredictionRecord[], outcomes: OutcomeRecord[], crossings: CrossingRecord[], now: string): Scorecard {
+export function buildScorecard(predictions: PredictionRecord[], allOutcomes: OutcomeRecord[], crossings: CrossingRecord[], now: string): Scorecard {
+  const predIds = new Set(predictions.map((p) => p.id));
+  const outcomes = allOutcomes.filter((o) => predIds.has(o.predictionId));
   const outByPred = new Map<string, OutcomeRecord[]>();
   for (const o of outcomes) (outByPred.get(o.predictionId) || outByPred.set(o.predictionId, []).get(o.predictionId)!).push(o);
   const strategies: PredictionStrategy[] = ['radar', 'views', 'velocity'];

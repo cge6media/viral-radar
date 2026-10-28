@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: '26,56 * * * *'
 
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
 permissions:
   contents: write
   actions: read

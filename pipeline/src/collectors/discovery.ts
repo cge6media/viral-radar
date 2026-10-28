@@ -40,7 +40,7 @@ export interface ProbeYield {
   /** how it was chosen the last time */
   lastPick?: 'explore' | 'exploit' | 'depth' | 'rotation';
 }
-export interface DayYield { day: string; searches: number; returned: number; newIds: number; newCandidates: number; newEligible: number; newFresh: number; runs: number; firstRunAt?: string; picks: { explore: number; exploit: number; depth: number } }
+export interface DayYield { day: string; searches: number; returned: number; newIds: number; newCandidates: number; newEligible: number; newFresh: number; runs: number; firstRunAt?: string; picks: { explore: number; exploit: number; depth: number }; /** zero-search sources (hot-channel uploads), kept apart from the per-search figures */ uploads?: { newIds: number; newEligible: number } }
 export interface YieldLedger { probes: Record<string, ProbeYield>; today: DayYield; history: DayYield[] }
 
 export const PRIOR_YIELD = 3; // optimistic prior for a never-run probe: 3 new eligible videos per search
@@ -170,6 +170,10 @@ export function recordYield(ledger: YieldLedger, r: ProbeResult, now: string): v
   y.runs++; y.searches += r.searches; y.returned += r.returned; y.newIds += r.newIds; y.newCandidates += r.newCandidates; y.newEligible += r.newEligible; y.newFresh += r.newFresh;
   y.lastAt = now; y.lastReturned = r.returned; y.lastNew = r.newIds; y.lastEligible = r.newEligible; y.lastPick = r.how;
   const d = ledger.today;
+  if (r.searches === 0) {
+    d.uploads = { newIds: (d.uploads?.newIds || 0) + r.newIds, newEligible: (d.uploads?.newEligible || 0) + r.newEligible };
+    return;
+  }
   d.searches += r.searches; d.returned += r.returned; d.newIds += r.newIds; d.newCandidates += r.newCandidates; d.newEligible += r.newEligible; d.newFresh += r.newFresh;
   if (r.how !== 'rotation') d.picks[r.how]++;
 }

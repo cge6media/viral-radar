@@ -33,9 +33,10 @@ jobs:
           npx playwright install --with-deps chromium
         working-directory: qa
       - name: Run QA against the live site
-        run: node qa/playwright-qa.mjs "${{ github.event.inputs.site }}" data/qa
+        run: node qa/playwright-qa.mjs "$SITE" data/qa
         env:
           NODE_PATH: qa/node_modules
+          SITE: ${{ github.event.inputs.site }}
       - name: Commit results
         run: |
           git config user.name "viral-radar-bot"

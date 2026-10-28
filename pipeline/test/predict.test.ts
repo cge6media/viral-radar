@@ -127,14 +127,41 @@ test('4.0 crossings: a video that crossed the hit floor while observable counts 
   const cross = detectCrossings(records, hist, [pred], new Set(), now, 'run');
   assert.equal(cross.length, 1);
   assert.equal(cross[0].crossedAt, at(T0, 26));
-  assert.equal(cross[0].leadHours, 24);
+  assert.equal(cross[0].lastBelowAt, at(T0, 10), 'the crossing happened between the last below-floor tick and the first above-floor tick');
+  assert.equal(cross[0].leadHours, 8, 'lead time is measured conservatively to the last below-floor observation');
   const other: PredictionRecord = { ...pred, id: 'q', videoId: 'youtube:video:other', platformId: 'other', predictedAt: at(T0, -1) };
   const none = detectCrossings(records, hist, [other], new Set(), now, 'run');
   assert.equal(none[0].predictedAt, undefined, 'a crossing without a prior prediction is a miss');
   assert.equal(detectCrossings(records, hist, [], new Set(), now, 'run').length, 0, 'before any prediction exists nothing can be missed');
   assert.equal(detectCrossings(records, hist, [{ ...other, predictedAt: at(T0, 27) }], new Set(), now, 'run').length, 0, 'crossings before the first prediction are not counted');
+  assert.equal(detectCrossings(records, hist, [{ ...other, predictedAt: at(T0, 12) }], new Set(), now, 'run').length, 0, 'a video never observed below the floor after predictions started was not predictable');
   const card = buildScorecard([pred], [] as OutcomeRecord[], cross, now);
   assert.equal(card.crossings.observed, 1);
   assert.equal(card.crossings.recall, null, 'recall is not claimed from one crossing');
-  assert.equal(card.leadTimeHours?.median, 24);
+  assert.equal(card.leadTimeHours?.median, 8);
+});
+
+test('4.0 outcomes are never measured before the horizon; a later observation is preferred; metric-less ticks are ignored', () => {
+  const now0 = T0;
+  const v = yt('h1', 'Horizon test', 300_000, 20, now0, 'small');
+  const hist = new Map<string, { t: string; metrics: { views?: number; likes?: number } }[]>([[v.id, [{ t: at(now0, -3), metrics: { views: 180_000 } }, { t: now0, metrics: { views: 300_000 } }]]]);
+  const channels = new Map([['UCsmall', { subscribers: 5_000, medianRecentViews: 4_000 }]]);
+  const records = buildVideoRecords({ observations: [v], metricHistory: hist, channels, now: now0 });
+  const preds = selectPredictions({ records, radar: records, open: [], trendCreators: new Map(), now: now0, runId: 'r' }).filter((p) => p.strategy === 'radar');
+  assert.equal(preds.length, 1);
+  // 20.6h later with a tick at 20.5h showing 1.1M: NOT evaluated (the horizon has not elapsed)
+  const h1 = new Map(hist); h1.set(v.id, [...hist.get(v.id)!, { t: at(now0, 20.5), metrics: { views: 1_100_000 } }]);
+  assert.equal(evaluatePredictions({ predictions: preds, outcomes: [], metricHistory: h1, records, channels, trendCreators: new Map(), now: at(now0, 20.6) }).length, 0, 'pending until 24h have elapsed');
+  // 24.2h later with ticks at 20.5h (1.1M) and 24.1h (1.6M, above the floor): the later one is used
+  const h2 = new Map(h1); h2.set(v.id, [...h1.get(v.id)!, { t: at(now0, 24.1), metrics: { likes: 1 } }, { t: at(now0, 24.15), metrics: { views: 1_600_000 } }]);
+  const out = evaluatePredictions({ predictions: preds, outcomes: [], metricHistory: h2, records, channels, trendCreators: new Map(), now: at(now0, 24.2) });
+  const o = out.find((x) => x.horizon === 24)!;
+  assert.ok(o, 'evaluated once the horizon elapsed');
+  assert.equal(o.observedAt, at(now0, 24.15), 'first observation WITH the metric at or after the horizon');
+  assert.equal(o.reachedHit, true);
+  // 25h later with only a 20.5h tick: still pending (an observation may still arrive), then "stand-in" after 1.5H
+  const out2 = evaluatePredictions({ predictions: preds, outcomes: [], metricHistory: h1, records, channels, trendCreators: new Map(), now: at(now0, 25) });
+  assert.equal(out2.length, 0, 'no observation at/after the horizon yet → pending');
+  const out3 = evaluatePredictions({ predictions: preds, outcomes: [], metricHistory: h1, records, channels, trendCreators: new Map(), now: at(now0, 37) });
+  assert.equal(out3.find((x) => x.horizon === 24)?.observedAt, at(now0, 20.5), 'after 1.5H the closest point inside [0.85H, H) stands in');
 });

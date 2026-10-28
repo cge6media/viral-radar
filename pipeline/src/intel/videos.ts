@@ -71,7 +71,7 @@ export const THRESHOLDS = {
     breakoutVelocity: 10_000, breakoutVelocityViews: 50_000,
     accelVelocity: 3_000, accelRatio: 1.5, accelViews: 20_000,
     youngHours: 48, youngRate: 10_000, youngViews: 100_000,
-    outlierRatio: 20, outlierViews: 100_000, outlierMaxHours: 24 * 14,
+    outlierRatio: 20, outlierViews: 100_000, outlierMaxHours: 24 * 7,
     resurgeVelocity: 5_000,
     maxAgeHours: 24 * 30,
   },
@@ -199,7 +199,7 @@ export function buildVideoRecords(input: VideoBuildInput): VideoRecord[] {
       baselineRatio: ch?.medianRecentViews && metrics.views ? round(metrics.views / Math.max(ch.medianRecentViews, 1), 1) : undefined,
       subscriberRatio: ch?.subscribers && metrics.views ? round(metrics.views / Math.max(ch.subscribers, 1), 2) : undefined,
       state: 'rejected', reasons: [], viralScore: 0, breakoutScore: 0, engagementScore: 0, outlierScore: 0, confidence: 0, confidenceBand: 'low',
-      crossPlatform: [], trends: trendIndex?.get(primary.id) || [], observations: group.length + (metricHistory.get(direct?.id || '')?.length || 0),
+      crossPlatform: [], trends: trendIndex?.get(primary.id) || [], observations: Math.max(1, metricHistory.get(direct?.id || '')?.length || 0, direct ? 1 : 0) + shares.length,
     };
     records.push(rec);
   }
@@ -360,6 +360,11 @@ export function decideVideo(r: VideoRecord): void {
   // scores
   const velFactor = V != null ? ratioToScore(r.velocityRatio || 1) : 0.5;
   r.viralScore = round(100 * clamp(0.45 * logNorm(views, 1e5, 5e7) + 0.25 * logNorm(L, 1e3, 3e5) + 0.15 * velFactor + 0.15 * clamp((r.likeRate || 0) / 0.06, 0, 1)), 0);
+  // engagement anomaly: likes hidden and almost no comments on a huge count — not proof of paid reach, but ranked lower and said so
+  if (r.metrics.likes == null && r.metrics.comments != null && views >= 5_000_000 && r.metrics.comments < views * 0.00002) {
+    r.viralScore = round(r.viralScore * 0.7, 0);
+    reasons.push(`Engagement unusually low for the view count (likes hidden, ${fmt(r.metrics.comments)} comments on ${fmt(views)} views) — ranked lower; organic hits of this size usually draw far more comments.`);
+  }
   const growthRate = V ?? (age <= T.youngHours ? L : 0);
   const youth = 1 - clamp(age / 168, 0, 1);
   const outlierTerm = base != null ? logNorm(base, 1, 100) : 0.25;

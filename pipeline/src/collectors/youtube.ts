@@ -68,7 +68,7 @@ export interface YtVideo {
   contentDetails?: { duration?: string };
 }
 
-export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; slot?: number; rounds?: number; chartRound?: number; runsToday?: number; firstRunAt?: string; calls: { t: string; method: string; units: number; note?: string }[] }
+export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; slot?: number; rounds?: number; chartRound?: number; runsToday?: number; firstRunAt?: string; /** set on the first quotaExceeded answer: nothing more is spent that quota day */ exhaustedAt?: string; calls: { t: string; method: string; units: number; note?: string }[] }
 
 /** hours until the next Pacific midnight (quota reset) */
 export function hoursLeftInQuotaDay(iso = nowIso()): number {
@@ -154,7 +154,8 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     else ledger.units += units;
     ledger.calls.push({ t: nowIso(), method, units, note });
   };
-  const canSpend = (units: number) => ledger.units + units <= UNIT_BUDGET;
+  const canSpend = (units: number) => !ledger.exhaustedAt && ledger.units + units <= UNIT_BUDGET;
+  const noteQuotaError = (msg: string) => { if (/quotaExceeded|HTTP 403/.test(msg) && !ledger.exhaustedAt) { ledger.exhaustedAt = nowIso(); errors.push('YouTube answered quotaExceeded — no further calls this quota day'); } };
   const redact = (m: string) => m.split(apiKey).join('***');
 
   // A. charts — primary regions every run, a rotating slice of secondary regions
@@ -173,10 +174,13 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
         (res.items || []).forEach((v, i) => add(videoToObservation(v, `chart:${region}:${cat || 'all'}`, i + 1, observedAt, region)));
       } catch (e) {
         const msg = redact((e as Error).message);
+        noteQuotaError(msg);
         if (!/HTTP 400/.test(msg)) errors.push(`chart ${region}/${cat || 'all'}: ${msg}`); // some categories are not chartable in some regions
       }
     }
   }
+
+  await saveLedger(ledger); // charts spent — persist before the long phases so a crash never loses the spend
 
   // C. discovery — adaptive allocation (4.0): reserve rule → allowance; bandit choice over the probe pool; yield ledger
   let discovered = 0;
@@ -255,9 +259,14 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
       probeResults.push(r);
     } catch (e) {
       errors.push(`${pick.label}: ${redact((e as Error).message)}`);
+      noteQuotaError((e as Error).message);
+      // a failing probe still gets its cooldown (and a zero yield), so it is not re-picked every run while it keeps failing
+      recordYield(yieldLedger, { label: pick.label, family: pick.probe.family, searches: 1, returned: 0, newIds: 0, newCandidates: 0, newEligible: 0, newFresh: 0, how: pick.how }, observedAt);
+      await saveLedger(ledger);
     }
   }
   ledger.lastDiscoveryAt = nowIso();
+  await saveLedger(ledger);
   await writeJson('cache/youtube-yield.json', yieldLedger);
 
   // F. hot-channel uploads (units only): the newest uploads of channels that just produced a hit or breakout
@@ -313,8 +322,12 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
       }
     } catch (e) {
       errors.push(`track: ${redact((e as Error).message)}`);
+      noteQuotaError((e as Error).message);
+      if (ledger.exhaustedAt) break;
     }
   }
+
+  await saveLedger(ledger); // tracking spent
 
   // E. diagnostics — re-measure watched videos (benchmark cases), kept out of the observation store
   const diagnostics: YouTubeRunResult['diagnostics'] = [];
@@ -420,7 +433,8 @@ async function headShorts(id: string): Promise<'short' | 'not_short' | 'unknown'
     if (res.status === 200) return 'short';
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get('location') || '';
-      return /\/watch\?v=|youtube\.com\/watch/.test(loc) ? 'not_short' : /consent|sorry/.test(loc) ? 'unknown' : 'not_short';
+      // only a redirect to the watch page proves "not a Short"; any other redirect (consent, bot wall, regional host) is unknown
+      return /\/watch\?v=|youtube\.com\/watch/.test(loc) ? 'not_short' : 'unknown';
     }
     return 'unknown';
   } catch {
@@ -438,8 +452,10 @@ export async function verifyShorts(ids: string[], items: Observation[], max = 15
     if (r === 'short') { result.reliable = false; break; }
   }
   if (result.reliable && longs.length) {
-    const todo = Array.from(new Set(ids)).filter((id) => /^[A-Za-z0-9_-]{6,}$/.test(id) && !cache[id] && (byId.get(id)?.video?.durationSec ?? 0) <= 180).slice(0, max);
     const now = nowIso();
+    // "not a Short" verdicts expire after 30 days (a redirect policy can change); Shorts verdicts are stable
+    const fresh = (id: string) => { const c = cache[id]; return !!c && (c.s === 1 || hoursBetween(c.t, now) < 24 * 30); };
+    const todo = Array.from(new Set(ids)).filter((id) => /^[A-Za-z0-9_-]{6,}$/.test(id) && !fresh(id) && byId.get(id)?.video?.durationSec != null && (byId.get(id)!.video!.durationSec as number) <= 180).slice(0, max);
     for (let i = 0; i < todo.length; i += 4) {
       const rs = await Promise.all(todo.slice(i, i + 4).map(async (id) => [id, await headShorts(id)] as const));
       for (const [id, r] of rs) {

@@ -24,8 +24,9 @@ import { classify, decideNewsEvent, profileFor } from './intel/taxonomy.js';
 import { FORMAT_BY_ID, validateObservation } from './intel/relevance.js';
 import { contentTime, inWindow, interestLevel, scoreWindow, uniqByExample, videoRate, type MetricPoint } from './intel/score.js';
 import { runQualityChecks } from './quality.js';
+import { CRITICAL_CHECKS } from './gate.js';
 import {
-  appendNdjson, appendObservations, appendScores, loadMetricHistory, loadObservations, loadScores, loadSourceCache, pruneHistory, readNdjsonLog,
+  appendNdjson, appendObservations, appendScores, loadMetricHistory, loadObservations, loadScores, loadSourceCache, pruneHistory, readNdjsonLog, rewriteNdjson,
   saveSourceCache, writeJson, readJson, DATA_DIR, type ScoreRecord,
 } from './lib/store.js';
 import { fixtureMode } from './lib/http.js';
@@ -106,7 +107,8 @@ export async function main(): Promise<Snapshot> {
   const predictionsAll = await readNdjsonLog<PredictionRecord>('predictions/predictions.ndjson');
   const openPredictionIds = new Set(predictionsAll.filter((p) => p.platform === 'youtube' && hoursBetween(p.predictedAt, runStart) <= 168 * 1.5).map((p) => p.platformId));
   const featured = new Set<string>([...Object.values(previous?.videos?.viralNow || {}).flat(), ...(previous?.videos?.earlyRadar || [])].filter((c) => c.platform === 'youtube').map((c) => c.platformId));
-  for (const id of openPredictionIds) featured.add(id);
+  for (const id of openPredictionIds) { featured.add(id); knownYt.add(id); if (!firstSeenById.has(id)) firstSeenById.set(id, runStart); }
+  const openPredictionVideoIds = new Set(predictionsAll.filter((p) => hoursBetween(p.predictedAt, runStart) <= 168 * 1.5).map((p) => p.videoId));
   // every YouTube id known over the 30-day retention window: the discovery scheduler measures yield as "new to us"
   const knownYt30 = new Set<string>();
   for (const o of existing) if (o.video?.platform === 'youtube') knownYt30.add(o.video.id);
@@ -254,7 +256,7 @@ export async function main(): Promise<Snapshot> {
 
   // ---- 8b. video-native intelligence (3.0): one record per unique video over 30 days ----
   const recent30 = all.filter((o) => o.kind === 'video' && hoursBetween(contentTime(o) || o.firstSeenAt || o.observedAt, now) <= 24 * 30);
-  const metricHistory30 = await loadMetricHistory(recent30.filter((o) => o.level === 'direct').map((o) => o.id));
+  const metricHistory30 = await loadMetricHistory(new Set([...recent30.filter((o) => o.level === 'direct').map((o) => o.id), ...openPredictionVideoIds]), 12);
   const trendIndex = trendIndexFrom(trends);
   const channelCache = await loadChannelCache();
   const toStats = (c: Record<string, { subscribers?: number; videos?: number; views?: number; medianRecentViews?: number; baselineSampled?: number; baselineAt?: string }>) => new Map<string, ChannelStats>(Object.entries(c).map(([id, x]) => [id, { subscribers: x.subscribers, videos: x.videos, views: x.views, medianRecentViews: x.medianRecentViews, baselineSampled: x.baselineSampled, baselineAt: x.baselineAt }]));
@@ -285,8 +287,27 @@ export async function main(): Promise<Snapshot> {
   const recordById = new Map(videoRecords.map((r) => [r.id, r]));
   const radarRecords = videoIntel.earlyRadar.map((c) => recordById.get(c.id)).filter((r): r is VideoRecord => !!r);
   const channelStats = toStats(await loadChannelCache());
-  const outcomesAll = await readNdjsonLog<OutcomeRecord>('predictions/outcomes.ndjson');
-  const crossingsAll = await readNdjsonLog<CrossingRecord>('predictions/crossings.ndjson');
+  const outcomesAll0 = await readNdjsonLog<OutcomeRecord>('predictions/outcomes.ndjson');
+  const crossingsAll0 = await readNdjsonLog<CrossingRecord>('predictions/crossings.ndjson');
+  // the active logs keep 60 days; older rows move verbatim to data/predictions/archive/ (maintenance, never an edit of a row)
+  const ARCHIVE_HOURS = 24 * 60;
+  const stale = new Set(predictionsAll.filter((p) => hoursBetween(p.predictedAt, now) > ARCHIVE_HOURS).map((p) => p.id));
+  let outcomesAll = outcomesAll0, crossingsAll = crossingsAll0;
+  if (stale.size && !fixtureMode()) {
+    const month = now.slice(0, 7);
+    const oldPreds = predictionsAll.filter((p) => stale.has(p.id)), oldOut = outcomesAll0.filter((o) => stale.has(o.predictionId)), oldCross = crossingsAll0.filter((c) => hoursBetween(c.crossedAt, now) > ARCHIVE_HOURS);
+    await appendNdjson(`predictions/archive/${month}-predictions.ndjson`, oldPreds);
+    await appendNdjson(`predictions/archive/${month}-outcomes.ndjson`, oldOut);
+    await appendNdjson(`predictions/archive/${month}-crossings.ndjson`, oldCross);
+    const keepP = predictionsAll.filter((p) => !stale.has(p.id));
+    outcomesAll = outcomesAll0.filter((o) => !stale.has(o.predictionId));
+    crossingsAll = crossingsAll0.filter((c) => hoursBetween(c.crossedAt, now) <= ARCHIVE_HOURS);
+    await rewriteNdjson('predictions/predictions.ndjson', keepP);
+    await rewriteNdjson('predictions/outcomes.ndjson', outcomesAll);
+    await rewriteNdjson('predictions/crossings.ndjson', crossingsAll);
+    predictionsAll.splice(0, predictionsAll.length, ...keepP);
+    console.log(`  predictions: archived ${oldPreds.length} predictions / ${oldOut.length} outcomes / ${oldCross.length} crossings older than 60 days`);
+  }
   const newPredictions = fixtureMode() ? [] : selectPredictions({ records: videoRecords, radar: radarRecords, open: predictionsAll, trendCreators, now, runId });
   attachHistory(newPredictions, metricHistory30, now);
   const newOutcomes = evaluatePredictions({ predictions: predictionsAll, outcomes: outcomesAll, metricHistory: metricHistory30, records: videoRecords, channels: channelStats, trendCreators, now });
@@ -312,7 +333,7 @@ export async function main(): Promise<Snapshot> {
   const earliest = all.map((o) => o.firstSeenAt || o.observedAt).sort()[0];
   const ledger = await readJson<{ units: number; searchCalls: number; day: string }>('cache/youtube-quota.json');
   const quality = runQualityChecks({ trends, observations: recent, sources, now, records: videoRecords });
-  const health = await recordHealth({ runId, startedAt: runStart, durationSec: round((Date.now() - new Date(runStart).getTime()) / 1000, 0), sourcesOk: sources.filter((s) => s.ok).length, sourcesTotal: sources.length, items: fresh.length, units: ledger?.day === quotaDay(now) ? ledger.units : undefined, searches: ledger?.day === quotaDay(now) ? ledger.searchCalls : undefined, published: quality.checks.every((c) => c.ok), trigger: process.env.GITHUB_EVENT_NAME }, sources, now);
+  const health = await recordHealth({ runId, startedAt: runStart, durationSec: round((Date.now() - new Date(runStart).getTime()) / 1000, 0), sourcesOk: sources.filter((s) => s.ok).length, sourcesTotal: sources.length, items: fresh.length, units: ledger?.day === quotaDay(now) ? ledger.units : undefined, searches: ledger?.day === quotaDay(now) ? ledger.searchCalls : undefined, published: quality.checks.every((c) => c.ok || !CRITICAL_CHECKS.has(c.name)) && sources.some((x) => x.ok), trigger: process.env.GITHUB_EVENT_NAME }, sources, now);
   const snapshot: Snapshot = {
     version: 2, generatedAt: now, runId, sources, sourceQuality, trends: shipped.map(slimTrend), categories, quality, videos: videoIntel,
     desk, alerts, health, scorecard: summaryOf(scorecard),

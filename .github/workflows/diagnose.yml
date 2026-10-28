@@ -49,14 +49,16 @@ jobs:
         if: ${{ inputs.videos != '' }}
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          VIDEOS: ${{ inputs.videos }}
         working-directory: pipeline
-        run: npx tsx src/tools/inspect.ts ${{ inputs.videos }}
+        run: npx tsx src/tools/inspect.ts $VIDEOS
       - name: Batch verify
         if: ${{ inputs.batch != '' }}
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          BATCH: ${{ inputs.batch }}
         working-directory: pipeline
-        run: npx tsx src/tools/inspect.ts --batch ${{ inputs.batch }}
+        run: npx tsx src/tools/inspect.ts --batch $BATCH
       - name: Probe TikTok
         if: ${{ inputs.probe_tiktok == 'true' }}
         working-directory: pipeline
@@ -65,8 +67,10 @@ jobs:
         if: ${{ inputs.benchmark != '' }}
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          BENCH_SET: ${{ inputs.benchmark }}
+          BENCH_LABEL: ${{ inputs.benchmark_label || inputs.benchmark }}
         working-directory: pipeline
-        run: npx tsx src/tools/benchmark.ts --set ${{ inputs.benchmark }} --label ${{ inputs.benchmark_label || inputs.benchmark }}
+        run: npx tsx src/tools/benchmark.ts --set "$BENCH_SET" --label "$BENCH_LABEL"
       - name: Commit results
         run: |
           git config user.name "viral-radar-bot"

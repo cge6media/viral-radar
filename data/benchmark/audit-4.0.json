@@ -1,0 +1,863 @@
+{
+  "schema": "viral-radar/recommendation-audit/4.0",
+  "auditedAt": "2026-10-28",
+  "auditor": "independent review from exposed data only (titles, creators, statistics, dates, categories, reasons); no videos opened; no pipeline code run",
+  "generatedAt": "2026-10-28T11:25:19.027Z",
+  "runId": "202610281124_b061055c328d",
+  "briefsRunId": "202610281124_b061055c328d",
+  "scale": "1 (fails) - 5 (excellent) per dimension",
+  "desk": [
+    {
+      "name": "Covers & musical performances",
+      "id": "desk:f_cover_song",
+      "type": "format",
+      "typeConfidence": 90,
+      "timing": "established",
+      "action": "create_today",
+      "scores": {
+        "relevance": 2,
+        "classification": 3,
+        "specificity": 2,
+        "evidence": 2,
+        "timing": 3,
+        "feasibility": 2,
+        "originality": 2,
+        "monetization": 2
+      },
+      "notes": "Only 2-3 of 6 evidence videos are covers/performances; a Tom and Jerry cat clip (pulled in by \"#dancecover\" in its description), a Telugu news reaction short and a 6-minute TikTok dance mashup (state=rejected) are listed as examples. Trend is qualified:false/isGeneric:true yet surfaces as create_today. production.feasibleIn2h=false (1.5-4 h) contradicts action=create_today and the owner's 2 h window. \"Best example 2.4M\" while a 9.8M video sits in the same evidence list. Format is \"covers\" but the production approach says \"no copyrighted audio\" and the monetization block never mentions cover licensing / publisher Content ID claims, which is the one revenue issue that matters for covers. Brief beats total ~20 s against a 241-447 s target; title idea \"the a cover performance song\".",
+      "avg": 2.25
+    },
+    {
+      "name": "Storytime & narration",
+      "id": "desk:f_storytime",
+      "type": "format",
+      "typeConfidence": 86,
+      "timing": "established",
+      "action": "create_today",
+      "scores": {
+        "relevance": 2,
+        "classification": 3,
+        "specificity": 3,
+        "evidence": 2,
+        "timing": 3,
+        "feasibility": 4,
+        "originality": 2,
+        "monetization": 3
+      },
+      "notes": "Evidence is hashtag-stuffed couple/prank shorts (#storytime as a tag, not narration): two of six from the same creator (Nyx and Ollie) while the headline says 16 independent creators; a FIFA rewards video (rejected) and a sibling-prank short are not storytime. Qualified:false/isGeneric:true. The approach (\"a short scripted story with a voiceover\") is concrete and feasible in 2 h, which is the item's saving grace. Briefs are templates; the hook text is broken (\"the character mid-action with the a told story with a narrator stated in on-screen text\").",
+      "avg": 2.75
+    },
+    {
+      "name": "spiderman",
+      "id": "desk:m_spiderman",
+      "type": "format",
+      "typeConfidence": 77,
+      "timing": "accelerating",
+      "action": "create_today",
+      "scores": {
+        "relevance": 2,
+        "classification": 1,
+        "specificity": 1,
+        "evidence": 1,
+        "timing": 1,
+        "feasibility": 3,
+        "originality": 1,
+        "monetization": 2
+      },
+      "notes": "Not a format: an IP/topic hashtag with four unrelated videos (a GTA 5 spider challenge, a Spider-Man movie edit, a 75-minute BeamNG ride (rejected), and a Thor/Mjolnir video that is not even about Spider-Man). The basis \"several independent creators keep producing it with a shared, recognisable structure\" is false; the \"signature\" is the words spider and man. \"Accelerating 1.333x over 2.5h\" is 3 -> 4 creators discovered between runs (history: adoption flat at 3 from 07:08 to 10:58, 4 at 11:25). 53% dominance acknowledged in caution but action is still create_today on 4 videos. No mention that Spider-Man is Marvel/Sony IP, which conflicts with the owner's \"original formats\" goal and with YouTube reuse policy. Briefs: \"Spiderman, but it's a nature documentary\", caption \"#spider #man #spiderman\".",
+      "avg": 1.5
+    },
+    {
+      "name": "halloween",
+      "id": "desk:m_halloween",
+      "type": "event",
+      "typeConfidence": 85,
+      "timing": "peaking",
+      "action": "participate",
+      "scores": {
+        "relevance": 5,
+        "classification": 5,
+        "specificity": 2,
+        "evidence": 4,
+        "timing": 3,
+        "feasibility": 4,
+        "originality": 2,
+        "monetization": 3
+      },
+      "notes": "The best item in the desk: all six evidence videos are Halloween content from six creators, Google Trends corroborates, event label is right and \"one piece on the day, not a series\" is good advice. But the cluster category is \"Music\" (no music in the evidence), which drives the production approach (\"original music or parody track\") and the revenue line (\"streams of the original track\"). No deadline/caution is shown (caution=undefined) although the window closes on Oct 31. \"Peaking\" three days before the date is premature; the evidence actually contains nameable sub-formats (costume rankings \"Part N\", pet costumes, SFX makeup) that the recommendation never names.",
+      "avg": 3.5
+    },
+    {
+      "name": "Iphone Duo",
+      "id": "desk:m_iphone_duo",
+      "type": "format",
+      "typeConfidence": 95,
+      "timing": "peaking",
+      "action": "participate",
+      "scores": {
+        "relevance": 5,
+        "classification": 1,
+        "specificity": 2,
+        "evidence": 3,
+        "timing": 3,
+        "feasibility": 3,
+        "originality": 2,
+        "monetization": 3
+      },
+      "notes": "All evidence is genuinely about the iPhone Duo, but it is a product-launch news moment covered by hardware reviewers (durability test, case review, camera comparison, listicle, sandwich gag) with no shared structure; labelled \"format\" at the highest confidence in the desk (95). 3 of 6 evidence videos are one creator (CarterPCs) and the others are mega-channels (JerryRigEverything, Mrwhosetheboss) that are not comparable to a solo AI creator. \"Crowded and flat\" and participate are honest. Suitability 80 is a category profile, not evidence. Only the \"Explainer as a skit\" variation makes sense for an AI creator without the device.",
+      "avg": 2.75
+    },
+    {
+      "name": "vtuber",
+      "id": "desk:m_vtuber",
+      "type": "meme",
+      "typeConfidence": 90,
+      "timing": "emerging",
+      "action": "research",
+      "scores": {
+        "relevance": 2,
+        "classification": 1,
+        "specificity": 1,
+        "evidence": 1,
+        "timing": 2,
+        "feasibility": 2,
+        "originality": 1,
+        "monetization": 2
+      },
+      "notes": "All six evidence videos are 2-5 hour Hololive live-stream recordings of the \"ホロ鯖ARK\" server event; every one is state=rejected (stream >3 h rule) yet evidenceScore is 96. \"18 independent creators\" are talents of one agency; \"16 new creators in 48 h\" is one crawl step (history: adoption 5 -> 18 between the 05:19 and 05:27 runs). liveShare=0 although every example is a stream. Labelled meme; it is an organised event/topic. Zero en/es evidence for an en/es creator; fit 42, yet it ranks above cooking and explainers. Briefs propose a 5818-10804 s video with a 20-second beat structure and Hololive hashtags.",
+      "avg": 1.5
+    },
+    {
+      "name": "Cooking & recipes",
+      "id": "desk:f_cooking",
+      "type": "format",
+      "typeConfidence": 90,
+      "timing": "established",
+      "action": "research",
+      "scores": {
+        "relevance": 2,
+        "classification": 3,
+        "specificity": 1,
+        "evidence": 2,
+        "timing": 3,
+        "feasibility": 3,
+        "originality": 2,
+        "monetization": 3
+      },
+      "notes": "2 of 6 evidence videos are cooking (an AI \"dogs cook dinner\" story and a Kaju Katli recipe drama); the rest are #cooking-tagged family vlogs, a cat/popcorn clip and a Korone game stream that is also listed under vtuber. In the Trends view the same cluster's top evidence includes \"Incredible ideas for Halloween!\" and a shipping-container home. Signature is empty, so the recommendation has no mechanism; the production approach (\"an original short-form skit using AI characters\") is the generic template. Qualified:false/isGeneric:true. Suitability 82 is the highest in the desk on no evidence. \"research\" is the right action, for the wrong reasons.",
+      "avg": 2.38
+    },
+    {
+      "name": "Explainers & edutainment",
+      "id": "desk:f_explainer",
+      "type": "format",
+      "typeConfidence": 80,
+      "timing": "established",
+      "action": "research",
+      "scores": {
+        "relevance": 4,
+        "classification": 4,
+        "specificity": 2,
+        "evidence": 2,
+        "timing": 3,
+        "feasibility": 4,
+        "originality": 2,
+        "monetization": 3
+      },
+      "notes": "Relevance is good (5 of 6 are explainers) and this is one of the most feasible formats for an AI/character creator, but 4 of 6 evidence videos are state=rejected (below the viral thresholds) including the \"best example 1.7M views\"; evidenceScore still 93. Languages hi/te/ar/pt-mislabelled (an English WoW title is tagged \"pt\"). Qualified:false/isGeneric:true. Signature is just \"explained\". The brief invents \"a 45-second explainer\" with a 123-229 s duration and offers \"with the opposite ending\" and \"in the wrong world\" variations that do not fit an explainer; the one explainer-specific template (\"Explainer as a skit\") is used on iPhone Duo instead.",
+      "avg": 3
+    }
+  ],
+  "feeds": {
+    "viralNow": [
+      {
+        "title": "Diwali Ki Rat Do Logon Ki 3 Parchhaiyan Kaise Bni?",
+        "creator": "JAI HIND OFFICIAL",
+        "ok": false,
+        "issue": "Engagement anomaly: 23.9M views with 127 comments (0.0005%) and engagementScore 8; romanised Hindi labelled \"en\". Measured +2.6M/h is real but this looks like a Shorts-feed push, not a replicable trend; not en/es."
+      },
+      {
+        "title": "INDIA'S GOT LATENT S2 EP8",
+        "creator": "Samay Raina",
+        "ok": true,
+        "issue": "50-minute show episode from a 12.1M-subscriber channel (3.8x subs): organic, but a mega-channel release rather than a trend signal; measured rate is 0.42x the lifetime average (decelerating) while the card says \"accelerating vs previous interval\"."
+      },
+      {
+        "title": "I removed this from the swan's throat",
+        "creator": "The Waterfowl Sanctuary",
+        "ok": true,
+        "issue": "Genuine organic hit (35.5M, 616K likes, 36x creator baseline). Not replicable by an AI creator but correctly featured."
+      },
+      {
+        "title": "ازاااي بوبا الاوريو",
+        "creator": "7amoda Gaming",
+        "ok": false,
+        "issue": "16.2M-subscriber channel at only 2x subs; 32.4M views with 110 comments (0.0003%) is a comment-restricted/anomalous pattern; Arabic. Shows that \"viral\" here is mostly absolute views from huge channels."
+      },
+      {
+        "title": "Valid crash out",
+        "creator": "Videos that make your day better",
+        "ok": true,
+        "issue": "Numbers are organic (13.6M in 22h, 3.9% likes) but the channel name signals a compilation/repost account; the system has no reused-content flag."
+      },
+      {
+        "title": "#gta #gta6 #shorts (41.0M)",
+        "creator": "GTA6-罪恶都市",
+        "ok": false,
+        "issue": "Duplicate creator in the top 10 (#6 and #9 are the same channel with identical hashtag-only titles); no measured velocity (band medium, breakout 20) yet ranked in Viral Now; 425 comments on 41M views; a GTA6 clip farm, not a trend."
+      },
+      {
+        "title": "when your glass breaks but LISA is playing",
+        "creator": "vivivibes",
+        "ok": true,
+        "issue": "Genuine viral short (33.7M in 20h, 929x creator baseline) but it is a K-pop fan edit built on copyrighted audio/footage: a reach model that cannot be copied legitimately."
+      },
+      {
+        "title": "Hero Climbs Down A Bridge To Save A Stranded Puppy",
+        "creator": "Sassy",
+        "ok": true,
+        "issue": "Organic (12.7M, 4.3% likes, 22K comments) but very likely a repost of a news/rescue clip by a 1.7M-sub aggregator; no originality signal available."
+      },
+      {
+        "title": "#gta #gta6 #shorts (45.0M)",
+        "creator": "GTA6-罪恶都市",
+        "ok": false,
+        "issue": "Same channel as #6; 72 comments on 45M views (0.0002%); duplicate-creator and near-duplicate-title entries should be collapsed."
+      },
+      {
+        "title": "iPhone DUO से पूरी Team को दिया Surprise!",
+        "creator": "Tech Master",
+        "ok": true,
+        "issue": "35.8M-subscriber channel at 0.15x its subscriber count: a normal upload for the channel, not an outlier; Hindi. Fine as \"biggest videos\", misleading as a trend signal."
+      }
+    ],
+    "earlyRadar": [
+      {
+        "title": "#lol #funny #meme #viral #fyp #100kview #trending #shorts #anime",
+        "creator": "POMIEE ♡",
+        "ok": false,
+        "issue": "Hashtag-only title, likes hidden, engagementScore 0, probably a reposted anime clip; card itself says \"top 47% of tracked videos of similar age\" (i.e. median). Not a credible early signal."
+      },
+      {
+        "title": "後ろにトラック来てる!!",
+        "creator": "yoosomchi",
+        "ok": true,
+        "issue": "77h old with 1.3M views below the 2.1M floor at 2.4x lifetime rate: a plausible late riser, but \"early\" at 3+ days is a stretch; no acceleration measured."
+      },
+      {
+        "title": "Radha & Krishna: The Funny Fair Puppet Dance Fight",
+        "creator": "Prabhu Darshan",
+        "ok": false,
+        "issue": "277K views, 2 comments, 0.52% likes, engagementScore 1 on a 10-second clip: engagement far below organic levels; should be caught by the paid-reach/engagement rule."
+      },
+      {
+        "title": "#Pappuraj #comedy video#short video#funny video#viral video",
+        "creator": "Pappu Raj",
+        "ok": true,
+        "issue": "933-subscriber channel at 1.3M views (1133x baseline) is a genuine creator outlier, though 68h old; romanised Hindi labelled \"latin\"."
+      },
+      {
+        "title": "Zuhause läuft das eben anders...",
+        "creator": "Frankys Odyssey",
+        "ok": true,
+        "issue": "The best early call in the sample: 24h, 515K, 1.7x lifetime and accelerating 1.73x, Animation & Art, 8.5x subs. Also the only top-10 entry relevant to an animation creator."
+      },
+      {
+        "title": "賢いリスも突破できない「回転装置」の秘密",
+        "creator": "となりのママ",
+        "ok": false,
+        "issue": "133h (5.6 days) old with 2.6M views against a 2.7M floor: this is a near-hit about to cross, not an early breakout; \"early\" label is misleading."
+      },
+      {
+        "title": "Epic Escape Lightning McQueen vs TOXIC ALIEN MONSTER TRUCK in BeamNG.Drive",
+        "creator": "Frog McQueen",
+        "ok": false,
+        "issue": "Measured rate is 0.67x lifetime and slowing (0.57x) while the reason text claims \"the measured rate is abnormal\"; a 24-minute BeamNG kids-bait upload from a 369-subscriber channel (content-farm pattern), kept only by the creator-outlier rule."
+      },
+      {
+        "title": "Dudi Dudi Dum Dum Dance | Kids Dance",
+        "creator": "Kidz TV Cartoon",
+        "ok": false,
+        "issue": "Made-for-kids 27-minute nursery video: 0 comments, 0.35% likes, engagementScore 0; kids content is not organic creator virality and is monetised differently (no personalised ads)."
+      },
+      {
+        "title": "MISSION : BHAUCHA DHAKKA | Official Trailer",
+        "creator": "Atelier Filmz",
+        "ok": false,
+        "issue": "An official film trailer is a promotional release (likely paid distribution), not organic early virality; should be excluded like news clips and premieres."
+      },
+      {
+        "title": "Wer kann mit 20€ das SCHÖNERE Trikot bauen?",
+        "creator": "Romeo439_rssl",
+        "ok": true,
+        "issue": "Plausible (843K at 47h, 20x baseline) but the velocity signals contradict each other: 0.48x the lifetime average yet \"accelerating 5.26x\" from one short interval; noisy."
+      }
+    ]
+  },
+  "labels": {
+    "format": {
+      "agree": 3,
+      "disagree": 3,
+      "unsure": 4
+    },
+    "meme": {
+      "agree": 1,
+      "disagree": 9,
+      "unsure": 0
+    },
+    "event": {
+      "agree": 5,
+      "disagree": 4,
+      "unsure": 1
+    },
+    "uncertain": {
+      "agree": 9,
+      "disagree": 0,
+      "unsure": 1
+    },
+    "overall": {
+      "agree": 18,
+      "disagree": 16,
+      "unsure": 6,
+      "total": 40,
+      "rate": 0.45,
+      "excludingUncertainBucket": {
+        "agree": 9,
+        "total": 30,
+        "rate": 0.3
+      }
+    },
+    "rule": "agree = label fits both the name and the shown evidence; unsure = the name fits but the evidence does not demonstrate it (or it is ambiguous); disagree = another label clearly fits better",
+    "misclassified": [
+      {
+        "name": "Iphone Duo",
+        "id": "m_iphone_duo",
+        "labelled": "format",
+        "shouldBe": "event (product launch) / topic",
+        "why": "Product-launch coverage by reviewers (durability test, case review, camera comparison, listicle): no shared structure; the \"shared, recognisable structure\" basis is false."
+      },
+      {
+        "name": "#spiderman",
+        "id": "m_spiderman",
+        "labelled": "format",
+        "shouldBe": "topic / uncertain",
+        "why": "An IP hashtag: a GTA challenge, a movie edit, a 75-minute BeamNG video and a Thor/Mjolnir short share nothing but the franchise."
+      },
+      {
+        "name": "Gaming clips & streams",
+        "id": "f_gaming_clip",
+        "labelled": "format",
+        "shouldBe": "uncertain (category/medium)",
+        "why": "\"Gaming clips & streams\" is a category, not a reusable structure; evidence is a Roblox short, a Sonic animation and two GTA V live streams."
+      },
+      {
+        "name": "#vtuber",
+        "id": "m_vtuber",
+        "labelled": "meme",
+        "shouldBe": "event (organised stream event) / topic",
+        "why": "Hololive \"ホロ鯖ARK\" server-event streams from one agency, 2-5 hours each, all rejected as streams; nothing is being imitated."
+      },
+      {
+        "name": "#acousticcover",
+        "id": "m_acousticcover",
+        "labelled": "meme",
+        "shouldBe": "format (genre tag) / uncertain",
+        "why": "3 creators, 18 videos: 5 of the 7 shown are the same Roohani Dhun upload re-posted under identical titles; a generic genre hashtag."
+      },
+      {
+        "name": "#furry",
+        "id": "m_furry",
+        "labelled": "meme",
+        "shouldBe": "uncertain / topic (community tag)",
+        "why": "Community hashtag with 3K-11K-view shorts and two Bluesky posts; no shared moment, nothing viral."
+      },
+      {
+        "name": "Chemical Plant",
+        "id": "m_chemical_plant",
+        "labelled": "meme",
+        "shouldBe": "event (news)",
+        "why": "Four Bluesky OSINT posts about a strike on the Novomoskovsk/Azot chemical plant in Russia; isNewsEvent=false and \"meme (85)\" are both wrong."
+      },
+      {
+        "name": "#cinema",
+        "id": "m_cinema",
+        "labelled": "meme",
+        "shouldBe": "format (movie recap) / uncertain",
+        "why": "4 of 6 are one creator's Spanish movie-recap series (Lil Resumen); the hashtag of a recap format, not a meme."
+      },
+      {
+        "name": "#gta6",
+        "id": "m_gta6",
+        "labelled": "meme",
+        "shouldBe": "topic",
+        "why": "One Chinese channel's \"#gta #gta6 #shorts\" uploads (4 of 7) plus unrelated podcasts; an upcoming game, not a participatory meme."
+      },
+      {
+        "name": "#reaction",
+        "id": "m_reaction",
+        "labelled": "meme",
+        "shouldBe": "uncertain (generic tag)",
+        "why": "German reaction shorts and two 24-minute LUCREW videos; the only link is the tag."
+      },
+      {
+        "name": "#laugh",
+        "id": "m_laugh",
+        "labelled": "meme",
+        "shouldBe": "uncertain (generic tag)",
+        "why": "Four unrelated funny videos (monkeys, a dentist, costumes, a tattoo gag) sharing a tag; 0 new creators in 48h contradicts the meme basis."
+      },
+      {
+        "name": "#리트리버",
+        "id": "m_리트리버",
+        "labelled": "meme",
+        "shouldBe": "uncertain / topic (pet tag)",
+        "why": "Retriever/dog clips plus a kitten-reacts-to-a-dog video; a subject tag, no shared moment."
+      },
+      {
+        "name": "Get Ready",
+        "id": "m_get_ready",
+        "labelled": "event",
+        "shouldBe": "none (merged phrase, exclude)",
+        "why": "A Honey Singh song, a Bigg Boss promo, a Phantom Blade Zero trailer, cricket commentary and a Salman Khan clip: unrelated promos sharing the word \"trailer\"; titleShare 0."
+      },
+      {
+        "name": "Theft Auto",
+        "id": "m_theft_auto",
+        "labelled": "event",
+        "shouldBe": "format",
+        "why": "\"Indian Theft Auto Simulator\" comedy-gameplay skits with a repeated title template (\"X ne Y hag diya\") across several creators: a reused structure, not a release; first example is an unrelated GTA 5 video."
+      },
+      {
+        "name": "Minecraft Mod",
+        "id": "m_minecraft_mod",
+        "labelled": "event",
+        "shouldBe": "topic / uncertain",
+        "why": "Generic Minecraft content (camman18, Spanish roleplay, \"Birth to Death\" videos); no release or moment in the titles."
+      },
+      {
+        "name": "Join Discord",
+        "id": "m_join_discord",
+        "labelled": "event",
+        "shouldBe": "none (description boilerplate, exclude)",
+        "why": "GTA6, Minecraft, Skibidi, ohnepixel, a CyberVision trailer, Ludwig and Hermitcraft: unrelated; the basis is a category heuristic (\"Gaming = news-style content\")."
+      }
+    ],
+    "items": [
+      {
+        "type": "format",
+        "name": "Animal comedy & dubbed animals",
+        "id": "f_animal_comedy",
+        "labelled": "format",
+        "verdict": "unsure",
+        "shouldBe": "format (name) / unsupported by evidence",
+        "why": "The name is a real format family, but the shown evidence is hashtag spam: a 6.5-hour \"Talking Tom Cat 2 live\" game stream, a bichon haircut, a drawing video tagged #Catsoftiktok."
+      },
+      {
+        "type": "format",
+        "name": "생기는 일",
+        "id": "m_생기는_일",
+        "labelled": "format",
+        "verdict": "agree",
+        "shouldBe": "format",
+        "why": "A genuine Korean title template (\"...하면 생기는 일\" = \"what happens when...\") reused by 4 creators with a shared structure, although 4 of 7 videos are one creator."
+      },
+      {
+        "type": "format",
+        "name": "Iphone Duo",
+        "id": "m_iphone_duo",
+        "labelled": "format",
+        "verdict": "disagree",
+        "shouldBe": "event (product launch) / topic",
+        "why": "Product-launch coverage by reviewers (durability test, case review, camera comparison, listicle): no shared structure; the \"shared, recognisable structure\" basis is false."
+      },
+      {
+        "type": "format",
+        "name": "Street interviews & vox pops",
+        "id": "f_street_interview",
+        "labelled": "format",
+        "verdict": "agree",
+        "shouldBe": "format",
+        "why": "3 of 5 examples are street interviews, so the type fits; but the examples have 1K-11K views and two are Bluesky text posts, so \"independent adoption\" is not shown."
+      },
+      {
+        "type": "format",
+        "name": "#spiderman",
+        "id": "m_spiderman",
+        "labelled": "format",
+        "verdict": "disagree",
+        "shouldBe": "topic / uncertain",
+        "why": "An IP hashtag: a GTA challenge, a movie edit, a 75-minute BeamNG video and a Thor/Mjolnir short share nothing but the franchise."
+      },
+      {
+        "type": "format",
+        "name": "#시니어드라마",
+        "id": "m_시니어드라마",
+        "labelled": "format",
+        "verdict": "agree",
+        "shouldBe": "format",
+        "why": "Korean AI \"senior short drama\" genre: 5 creators, shared revenge/twist structure (\"...의 최후\"), consistent 60-140 s length."
+      },
+      {
+        "type": "format",
+        "name": "Cooking & recipes",
+        "id": "f_cooking",
+        "labelled": "format",
+        "verdict": "unsure",
+        "shouldBe": "format (name) / unsupported by evidence",
+        "why": "Only 1 of the 4 Trends-view examples is cooking (AI dogs cooking); the others are a #cooking-tagged vlog, \"Incredible ideas for Halloween!\" and a shipping-container home."
+      },
+      {
+        "type": "format",
+        "name": "Covers & musical performances",
+        "id": "f_cover_song",
+        "labelled": "format",
+        "verdict": "unsure",
+        "shouldBe": "format (name) / unsupported by evidence",
+        "why": "1 of 4 examples is a cover; a Tom and Jerry cat clip, a Hololive ARK stream and a Telugu news reaction are in the cluster (description keyword matching)."
+      },
+      {
+        "type": "format",
+        "name": "Gaming clips & streams",
+        "id": "f_gaming_clip",
+        "labelled": "format",
+        "verdict": "disagree",
+        "shouldBe": "uncertain (category/medium)",
+        "why": "\"Gaming clips & streams\" is a category, not a reusable structure; evidence is a Roblox short, a Sonic animation and two GTA V live streams."
+      },
+      {
+        "type": "format",
+        "name": "Storytime & narration",
+        "id": "f_storytime",
+        "labelled": "format",
+        "verdict": "unsure",
+        "shouldBe": "format (name) / unsupported by evidence",
+        "why": "Storytime is a format, but the evidence is couple pranks tagged #storytime, a pennies prank and a sibling prank: tag stuffing, not narration."
+      },
+      {
+        "type": "meme",
+        "name": "#vtuber",
+        "id": "m_vtuber",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "event (organised stream event) / topic",
+        "why": "Hololive \"ホロ鯖ARK\" server-event streams from one agency, 2-5 hours each, all rejected as streams; nothing is being imitated."
+      },
+      {
+        "type": "meme",
+        "name": "#acousticcover",
+        "id": "m_acousticcover",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "format (genre tag) / uncertain",
+        "why": "3 creators, 18 videos: 5 of the 7 shown are the same Roohani Dhun upload re-posted under identical titles; a generic genre hashtag."
+      },
+      {
+        "type": "meme",
+        "name": "#furry",
+        "id": "m_furry",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "uncertain / topic (community tag)",
+        "why": "Community hashtag with 3K-11K-view shorts and two Bluesky posts; no shared moment, nothing viral."
+      },
+      {
+        "type": "meme",
+        "name": "Chemical Plant",
+        "id": "m_chemical_plant",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "event (news)",
+        "why": "Four Bluesky OSINT posts about a strike on the Novomoskovsk/Azot chemical plant in Russia; isNewsEvent=false and \"meme (85)\" are both wrong."
+      },
+      {
+        "type": "meme",
+        "name": "#cinema",
+        "id": "m_cinema",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "format (movie recap) / uncertain",
+        "why": "4 of 6 are one creator's Spanish movie-recap series (Lil Resumen); the hashtag of a recap format, not a meme."
+      },
+      {
+        "type": "meme",
+        "name": "#gta6",
+        "id": "m_gta6",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "topic",
+        "why": "One Chinese channel's \"#gta #gta6 #shorts\" uploads (4 of 7) plus unrelated podcasts; an upcoming game, not a participatory meme."
+      },
+      {
+        "type": "meme",
+        "name": "#reaction",
+        "id": "m_reaction",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "uncertain (generic tag)",
+        "why": "German reaction shorts and two 24-minute LUCREW videos; the only link is the tag."
+      },
+      {
+        "type": "meme",
+        "name": "#laugh",
+        "id": "m_laugh",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "uncertain (generic tag)",
+        "why": "Four unrelated funny videos (monkeys, a dentist, costumes, a tattoo gag) sharing a tag; 0 new creators in 48h contradicts the meme basis."
+      },
+      {
+        "type": "meme",
+        "name": "#neon",
+        "id": "m_neon",
+        "labelled": "meme",
+        "verdict": "agree",
+        "shouldBe": "meme",
+        "why": "A K-pop dance challenge (\"NEON 챌린지\") with choreographer and idol participation: a participatory moment with new creators."
+      },
+      {
+        "type": "meme",
+        "name": "#리트리버",
+        "id": "m_리트리버",
+        "labelled": "meme",
+        "verdict": "disagree",
+        "shouldBe": "uncertain / topic (pet tag)",
+        "why": "Retriever/dog clips plus a kitten-reacts-to-a-dog video; a subject tag, no shared moment."
+      },
+      {
+        "type": "event",
+        "name": "Mass Effect",
+        "id": "m_mass_effect",
+        "labelled": "event",
+        "verdict": "agree",
+        "shouldBe": "event",
+        "why": "A BioWare/EA news cycle (\"crash and burn of BioWare\", \"Mass Effect 5 writer unmasked\", \"EA can't afford to care\") within 34h across 54 creators."
+      },
+      {
+        "type": "event",
+        "name": "#halloween",
+        "id": "m_halloween",
+        "labelled": "event",
+        "verdict": "agree",
+        "shouldBe": "event",
+        "why": "Calendar moment; all evidence is Halloween content; Google Trends corroborates."
+      },
+      {
+        "type": "event",
+        "name": "Free Fire",
+        "id": "m_free_fire",
+        "labelled": "event",
+        "verdict": "agree",
+        "shouldBe": "event",
+        "why": "Free Fire India relaunch moment (FFMAI finals, \"Free Fire India coming\", official \"IS HERE\"), although two examples are multi-hour live streams."
+      },
+      {
+        "type": "event",
+        "name": "Get Ready",
+        "id": "m_get_ready",
+        "labelled": "event",
+        "verdict": "disagree",
+        "shouldBe": "none (merged phrase, exclude)",
+        "why": "A Honey Singh song, a Bigg Boss promo, a Phantom Blade Zero trailer, cricket commentary and a Salman Khan clip: unrelated promos sharing the word \"trailer\"; titleShare 0."
+      },
+      {
+        "type": "event",
+        "name": "Theft Auto",
+        "id": "m_theft_auto",
+        "labelled": "event",
+        "verdict": "disagree",
+        "shouldBe": "format",
+        "why": "\"Indian Theft Auto Simulator\" comedy-gameplay skits with a repeated title template (\"X ne Y hag diya\") across several creators: a reused structure, not a release; first example is an unrelated GTA 5 video."
+      },
+      {
+        "type": "event",
+        "name": "Minecraft Mod",
+        "id": "m_minecraft_mod",
+        "labelled": "event",
+        "verdict": "disagree",
+        "shouldBe": "topic / uncertain",
+        "why": "Generic Minecraft content (camman18, Spanish roleplay, \"Birth to Death\" videos); no release or moment in the titles."
+      },
+      {
+        "type": "event",
+        "name": "Join Discord",
+        "id": "m_join_discord",
+        "labelled": "event",
+        "verdict": "disagree",
+        "shouldBe": "none (description boilerplate, exclude)",
+        "why": "GTA6, Minecraft, Skibidi, ohnepixel, a CyberVision trailer, Ludwig and Hermitcraft: unrelated; the basis is a category heuristic (\"Gaming = news-style content\")."
+      },
+      {
+        "type": "event",
+        "name": "Steal Egg",
+        "id": "m_steal_egg",
+        "labelled": "event",
+        "verdict": "unsure",
+        "shouldBe": "topic (or event if it just launched)",
+        "why": "Videos about the Roblox game \"Steal an Egg\" (ban, dark truth, starting from 0); whether this is a launch moment cannot be told from titles; one example is about Roblox Rivals."
+      },
+      {
+        "type": "event",
+        "name": "Avengers Doomsday",
+        "id": "m_avengers_doomsday",
+        "labelled": "event",
+        "verdict": "agree",
+        "shouldBe": "event",
+        "why": "The \"Special Look\" trailer drop with breakdowns and reactions; the category \"Sports / Baseball\" is wrong (an MLB crossover clip)."
+      },
+      {
+        "type": "event",
+        "name": "Modern Warfare",
+        "id": "m_modern_warfare",
+        "labelled": "event",
+        "verdict": "agree",
+        "shouldBe": "event",
+        "why": "Call of Duty: Modern Warfare 4 launch/reviews inside 14h (official trailer, IGN review, dunkey)."
+      },
+      {
+        "type": "uncertain",
+        "name": "Black Cat",
+        "id": "m_black_cat",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (exclude)",
+        "why": "Merged phrase \"national black cat [day]\" from descriptions; the videos are unrelated AI animal stories; the honest label, but the cluster should not be \"qualified / strong\"."
+      },
+      {
+        "type": "uncertain",
+        "name": "AI-generated video",
+        "id": "f_ai_video",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (a medium) but the most owner-relevant cluster",
+        "why": "A medium rather than a structure, so \"uncertain\" is defensible; yet its evidence (AI shorts at 5-35M views from 28 creators) is the closest match to the owner's profile and never reaches the desk."
+      },
+      {
+        "type": "uncertain",
+        "name": "#minivlog",
+        "id": "m_minivlog",
+        "labelled": "uncertain",
+        "verdict": "unsure",
+        "shouldBe": "format (mini vlog) or uncertain",
+        "why": "Mini-vlog is arguably a format (short day-in-the-life with a hook); the evidence is consistent family-vlog shorts from 13 creators."
+      },
+      {
+        "type": "uncertain",
+        "name": "#kitten",
+        "id": "m_kitten",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (subject tag)",
+        "why": "Subject tag; evidence even includes non-kitten videos (a Thai movie test, a Spanish gym gag)."
+      },
+      {
+        "type": "uncertain",
+        "name": "Fair Use",
+        "id": "m_fair_use",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (exclude)",
+        "why": "Description boilerplate (\"fair use disclaimer\"); unrelated videos; titleShare 0."
+      },
+      {
+        "type": "uncertain",
+        "name": "#food",
+        "id": "m_food",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (subject tag)",
+        "why": "Subject tag spanning recipes, a pumpkin animation and a sandwich challenge."
+      },
+      {
+        "type": "uncertain",
+        "name": "#lucu",
+        "id": "m_lucu",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (generic tag)",
+        "why": "Indonesian \"funny\" tag; unrelated comedy shorts."
+      },
+      {
+        "type": "uncertain",
+        "name": "Auto Generated",
+        "id": "m_auto_generated",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (exclude)",
+        "why": "\"Auto-generated by YouTube\" Topic channels, i.e. label releases; not creator content at all."
+      },
+      {
+        "type": "uncertain",
+        "name": "Subscribe Channel",
+        "id": "m_subscribe_channel",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain (exclude)",
+        "why": "Boilerplate: a Marvel trailer, a laughing baby, nursery rhymes and a PMGO watch party."
+      },
+      {
+        "type": "uncertain",
+        "name": "Puppet & character videos",
+        "id": "f_puppets",
+        "labelled": "uncertain",
+        "verdict": "agree",
+        "shouldBe": "uncertain",
+        "why": "78% of views in one video; evidence includes an ABC News sentencing clip and a 56-minute Giggleland playthrough; the name is a format, the cluster is not."
+      }
+    ]
+  },
+  "summary": {
+    "avgDeskScore": 2.45,
+    "dimensionAverages": {
+      "relevance": 3,
+      "classification": 2.63,
+      "specificity": 1.75,
+      "evidence": 2.13,
+      "timing": 2.63,
+      "feasibility": 3.13,
+      "originality": 1.75,
+      "monetization": 2.63
+    },
+    "deskItemAverages": {
+      "Covers & musical performances": 2.25,
+      "Storytime & narration": 2.75,
+      "spiderman": 1.5,
+      "halloween": 3.5,
+      "Iphone Duo": 2.75,
+      "vtuber": 1.5,
+      "Cooking & recipes": 2.38,
+      "Explainers & edutainment": 3
+    },
+    "feedsOk": {
+      "viralNow": "6/10",
+      "earlyRadar": "4/10"
+    },
+    "strengths": [
+      "Evidence is real and auditable: every desk and feed item links to a verifiable video with platform statistics, publish date, duration and the measurement interval; lifetime averages and measured rates are kept apart and labelled.",
+      "Honest uncertainty language in the right places: \"provisional\" growth, \"an average, not a measured recent rate\", the brief's \"visual style, pacing and audio were not inspected\" disclaimer, and the one-video-dominance caution.",
+      "The calendar-event path works: \"halloween\" is correctly typed, correctly actioned (\"one piece on the day, not a series\") and corroborated by Google Trends.",
+      "Platform eligibility facts (YPP 1,000 subs + 4,000 watch hours / 10M Shorts views; TikTok Creator Rewards 10K followers, 100K views, >1 min; the July-2025 \"inauthentic content\" wording) are accurate and not overpromised.",
+      "The \"uncertain\" type is used conservatively: description boilerplate and subject tags are mostly flagged as uncertain rather than sold as formats.",
+      "The age-aware hit floor and the \"top N% of tracked videos of similar age\" line give the viewer a usable yardstick on every card."
+    ],
+    "weaknesses": [
+      "Cluster membership is keyword/hashtag matching on titles and descriptions, so desk evidence is contaminated: a Tom and Jerry clip under \"Covers\" (via #dancecover), a Korone game stream under both \"vtuber\" and \"Cooking\", couple pranks under \"Storytime\", \"Incredible ideas for Halloween!\" under \"Cooking\". Across the 8 desk items about half of the evidence videos (23 of 46) are genuine examples of the trend as typed; in four items it is two or fewer.",
+      "\"Measured growth\" and \"N new creators in 48h\" measure the system's own crawl, not adoption: the score history shows adoption flat for hours and then jumping in a single run (Black Cat 40 -> 61 at 11:25, vtuber 5 -> 18 between 05:19 and 05:27, spiderman 3 -> 4), and those jumps become \"accelerating 1.5x\" / \"16 new creators\" claims. The whole history is 10 hours old.",
+      "Type classification is unreliable outside calendar events: only 1 of 10 \"meme\" labels holds (a dance challenge); a Russian chemical-plant strike is a \"meme\", a Hololive stream event is a \"meme (90)\", the iPhone Duo launch is a \"format (95)\", \"spiderman\" is a \"format (77)\". Substantive agreement (format/meme/event) is 30%.",
+      "The desk admits unqualified clusters: 4 of 8 opportunities (covers, storytime, cooking, explainers) are qualified:false / isGeneric:true in the Trends layer, and 15 of 46 desk evidence videos are state=rejected (all six vtuber examples), yet evidenceScores are 93-96 for six of the eight items.",
+      "Action and feasibility disagree: \"Covers\" is create_today with feasibleIn2h=false (1.5-4 h); \"spiderman\" is create_today on 4 videos with 53% dominance; \"vtuber\" (fit 42, zero en/es evidence, 2-5 h streams) outranks cooking and explainers.",
+      "The briefs are mad-libs: 24 briefs come from 6 templates with the trend name substituted; beat structures end at ~20 s regardless of a 241-447 s or 5818-10804 s target; grammar breaks (\"the character mid-action with the a told story\", \"the a cover performance song\"); hashtags like \"#spider #man\" and Hololive tags for an en/es creator; the explainer-specific template is applied to iPhone Duo and not to Explainers.",
+      "Category and language detection errors propagate: \"halloween\" is categorised Music (so the brief proposes an original track), \"Avengers Doomsday\" is Sports/Baseball, an English WoW title is \"pt\", romanised Hindi is \"en\"/\"latin\"/\"tr\"; language counts cover only a third of a cluster's videos.",
+      "The feeds reward absolute views from mega-channels and farms: the Viral Now top 10 has a duplicate channel (GTA6-罪恶都市 twice, hashtag-only titles, 72-425 comments on 41-45M views), three entries with comment ratios under 0.001%, and only one or two items a solo creator could learn from; the Early Radar top 10 includes hashtag spam with hidden likes, a made-for-kids 27-minute video, a film trailer, a 5.6-day-old near-hit and a slowing video, and the list contains a 12-day-old entry despite the documented 7-day rule.",
+      "The owner-relevant clusters never reach the desk: \"AI-generated video\" (28 creators, AI shorts at 5-35M views) is \"uncertain\" and absent, \"Animal comedy & AI animals\" (43 creators, format 90, qualified) is absent, \"Animation shorts\" (176 creators) is absent, while vtuber streams and an iPhone launch are shown.",
+      "Monetization is boilerplate with the one format-specific risk missing each time: cover licensing/publisher Content ID claims for \"Covers\", Marvel/Sony IP for \"spiderman\", the Oct 31 deadline for \"halloween\", agency IP for \"vtuber\"; suitability numbers (cooking 82, iPhone Duo 80) are category profiles, not evidence.",
+      "No outcome evidence yet: the prediction scorecard has 73 predictions, 0 evaluated and 0 of 12 observed crossings predicted, so the system cannot yet show that any \"early\" or \"create today\" call was right."
+    ],
+    "fixes": [
+      "1. Fix cluster membership before anything else: require the format/meme signature to appear in the TITLE (or tags), not the description; drop description-keyword matches (\"#dancecover\", \"fair use\", \"join discord\", \"auto-generated\"); never let a state=rejected video (streams, below-floor, duplicates) be desk evidence; show in the desk only evidence that passed a per-video relevance check, and compute facts (creators, topViews, growth) from that filtered set.",
+      "2. Stop calling crawl expansion growth: only compare creator counts between runs for creators whose videos were PUBLISHED after the previous run (or use publishedAt-based cohorts), suppress growth claims while historySpanHours < 24, and report \"N new creators in 48h\" only for creators whose first qualifying video was published in that window.",
+      "3. Rebuild the type classifier around evidence, not counts: \"format\" requires >= 3 creators sharing a title template or hook structure (as 생기는 일 and 시니어드라마 do), \"meme\" requires a participatory signal (challenge/dance/sound/phrase in >= 40% of titles with imitation across creators), \"event\" takes news/releases/launches including product launches and organised stream events; route topic/IP hashtags (spiderman, gta6, vtuber) and generic tags to topic/uncertain, and exclude boilerplate clusters from the Trends list entirely.",
+      "4. Make the desk gate honest: only qualified, non-generic clusters (or evergreen formats explicitly shown as \"evergreen\", ranked below true trends); action must respect feasibleIn2h and the owner profile (en/es evidence share, fit >= 55 for any create/participate action); cap desk evidence from one creator at 1-2; add the owner-relevant clusters (AI-generated video, AI animals, animation shorts) as a first-class \"your lane\" section.",
+      "5. Rewrite the briefs so that they derive from the evidence: pick the three variations from the observed hooks/sub-formats (e.g. Halloween costume ranking \"Part N\"), scale the beat structure to the target duration, fix the template grammar, generate hashtags from real title signatures (not \"#spider #man\"), and add the one format-specific monetization risk (cover licensing, IP, kids content, calendar deadline) per brief."
+    ]
+  }
+}
