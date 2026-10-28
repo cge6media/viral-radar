@@ -1,211 +1,19 @@
 import type { ReactNode } from 'react';
-import type { Observation, Trend, SourceStatus } from '../lib/types';
-import { KIND_LABEL, PLATFORM_LABEL, STAGE, TIME_WINDOWS, type TimeWindow } from '../lib/types';
-import { fmtAgo, metricLine } from '../lib/data';
+import type { Observation, SourceStatus, SourceQuality, Window } from '../lib/types';
+import { GRADE, KIND_LABEL, KIND_OF_TREND, PLATFORM_LABEL, STAGE, WINDOWS, WINDOW_LABEL } from '../lib/types';
+import { bestThumb, coverHue, exampleLine, fmtAgo, fmtNum, type ViewTrend } from '../lib/data';
 
-export function ScoreBars({ t, compact, showConfidence }: { t: Trend; compact?: boolean; showConfidence?: boolean }) {
-  const s = t.scores;
-  const Bar = ({ cls, label, v, title }: { cls: string; label: string; v: number; title: string }) => (
-    <div className={`score ${cls}`} title={title}>
-      <div className="lbl">
-        <span>{label}</span>
-        <b>{v}</b>
-      </div>
-      <div className="bar" role="img" aria-label={`${label} ${v} of 100`}>
-        <i style={{ width: `${v}%` }} />
-      </div>
-    </div>
-  );
-  return (
-    <div className={`scores${compact ? ' compact' : ''}`}>
-      <Bar cls="momentum" label="Momentum" v={s.momentum} title={`Momentum ${s.momentum}/100 (${s.momentumBasis})`} />
-      <Bar cls="money" label="Money" v={s.monetization} title={`Monetization opportunity ${s.monetization}/100`} />
-      <Bar cls="creator" label="Creator fit" v={s.creator} title={`Creator opportunity ${s.creator}/100`} />
-      {showConfidence && <Bar cls="confidence" label="Confidence" v={s.confidence} title={`Evidence confidence ${s.confidence}/100`} />}
-    </div>
-  );
-}
+export const Icon = {
+  play: <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M8 5v14l11-7z" /></svg>,
+  radar: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" opacity=".6" /><path d="M12 12l6-6" /></svg>,
+  compass: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M15 9l-2 6-4 2 2-6z" /></svg>,
+  money: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M7 12h.01M17 12h.01" /></svg>,
+  studio: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" /></svg>,
+  bookmark: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 4h12v17l-6-4-6 4z" /></svg>,
+  gear: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>,
+};
 
-export function StageBadge({ stage }: { stage: string }) {
-  const s = STAGE[stage] || STAGE.insufficient_data;
-  return (
-    <span className={`badge stage ${stage}`} style={{ ['--stage' as string]: `var(--st-${stage})` }} title={s.desc}>
-      <span className="dot" aria-hidden />
-      {s.label}
-    </span>
-  );
-}
-
-export function BasisBadge({ t }: { t: Trend }) {
-  const observed = t.scores.momentumBasis === 'observed';
-  return (
-    <span className={`badge ${observed ? 'observed' : 'provisional'}`} title={observed ? 'Growth measured from ≥2 data points' : 'First observation — growth not yet measured'}>
-      {observed ? 'Measured growth' : 'Provisional'}
-    </span>
-  );
-}
-
-export function KindBadges({ t }: { t: Trend }) {
-  return (
-    <>
-      {t.evidenceKinds.map((k) => (
-        <span key={k} className="badge kind">{KIND_LABEL[k] || k}</span>
-      ))}
-    </>
-  );
-}
-
-export function PlatformList({ t }: { t: Trend }) {
-  return <span>{t.platforms.map((p) => PLATFORM_LABEL[p] || p).join(' · ')}</span>;
-}
-
-export function ConfidenceText({ t }: { t: Trend }) {
-  const c = t.scores.confidence;
-  const word = c >= 70 ? 'High' : c >= 40 ? 'Medium' : c >= 20 ? 'Low' : 'Very low';
-  return (
-    <span className="num" title="Evidence confidence 0–100: evidence count, independent sources, videos with stats, history length">
-      {word} confidence ({c})
-    </span>
-  );
-}
-
-export function TrendRow({ t, n, now }: { t: Trend; n: number; now: number }) {
-  return (
-    <a className="rank" href={`#/trend/${encodeURIComponent(t.id)}`}>
-      <div className="n">{n}</div>
-      <div style={{ minWidth: 0 }}>
-        <div className="title truncate">{t.name.replace(/ \(format\)$/, '')}</div>
-        <div className="meta">
-          <span>{t.category} › {t.subcategory}</span>
-          <StageBadge stage={t.lifecycle} />
-          <BasisBadge t={t} />
-          {t.isNewsEvent && <span className="badge news" title="A news/person event rather than a repeatable format">News event</span>}
-        </div>
-      </div>
-      <ScoreBars t={t} compact />
-      <div className="right small muted">
-        <div><PlatformList t={t} /></div>
-        <div className="num">{t.evidenceCount} items · {t.videoCount} videos</div>
-        <div className="num" title={t.lastSeen}>updated {fmtAgo(t.lastSeen, now)}</div>
-        <div className="num" title="Evidence confidence">conf. {t.scores.confidence}</div>
-      </div>
-    </a>
-  );
-}
-
-export function EvidenceItem({ e, now }: { e: Observation; now: number }) {
-  const isVideo = e.kind === 'video';
-  const m = metricLine(e);
-  return (
-    <div className="ev">
-      {e.thumbnail ? (
-        <img className="thumb" src={e.thumbnail} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(ev) => ((ev.target as HTMLImageElement).style.visibility = 'hidden')} />
-      ) : (
-        <div className="thumb ph">{KIND_LABEL[e.kind] || e.kind}</div>
-      )}
-      <div style={{ minWidth: 0 }}>
-        <a className="t clamp2" href={e.url} target="_blank" rel="noopener noreferrer">
-          {e.title || e.url}
-        </a>
-        <div className="m">
-          <span className="badge kind">{isVideo ? (/youtu\.?be/.test(e.url) ? 'YouTube video' : /video\.bsky/.test(e.url + ' ' + (e.thumbnail || '')) ? 'Bluesky video' : /tiktok/.test(e.url) ? 'TikTok video' : 'Video') : KIND_LABEL[e.kind] || e.kind}</span>
-          <span>{PLATFORM_LABEL[e.source] || e.source}{e.region ? ` · ${e.region}` : ''}</span>
-          {e.creator?.name && (
-            <span>
-              by{' '}
-              {e.creator.url ? (
-                <a href={e.creator.url} target="_blank" rel="noopener noreferrer">{e.creator.name}</a>
-              ) : (
-                e.creator.name
-              )}
-            </span>
-          )}
-          {m && <span className="num">{m}</span>}
-          {e.publishedAt && <span className="num" title={e.publishedAt}>published {fmtAgo(e.publishedAt, now)}</span>}
-          <span className="num" title={e.observedAt}>seen {fmtAgo(e.observedAt, now)}</span>
-        </div>
-        {e.links && e.links.length > 0 && e.kind !== 'video' && (
-          <div className="m">
-            {e.links.slice(0, 3).map((l) => (
-              <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="truncate" style={{ maxWidth: 320 }}>
-                {l.source ? `${l.source}: ` : ''}{l.title}
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export function EvidenceList({ t, now, max = 8 }: { t: Trend; now: number; max?: number }) {
-  const list = t.evidence.slice(0, max);
-  if (!list.length) return <div className="empty">No evidence inside the selected time window.</div>;
-  return (
-    <div className="evidence">
-      {list.map((e) => (
-        <EvidenceItem key={e.id} e={e} now={now} />
-      ))}
-    </div>
-  );
-}
-
-export function Filters({
-  window: w, platforms, available, onWindow, onPlatforms, historyHours,
-}: {
-  window: TimeWindow; platforms: string[]; available: string[]; onWindow: (w: TimeWindow) => void; onPlatforms: (p: string[]) => void; historyHours: number;
-}) {
-  const toggle = (p: string) => onPlatforms(platforms.includes(p) ? platforms.filter((x) => x !== p) : [...platforms, p]);
-  return (
-    <div className="stack" style={{ gap: 8 }}>
-      <div className="chips" role="group" aria-label="Time window">
-        {TIME_WINDOWS.map((tw) => {
-          const beyond = tw.hours > Math.max(4, historyHours) && tw.hours > 24;
-          return (
-            <button key={tw.id} className={`chip${w === tw.id ? ' on' : ''}`} onClick={() => onWindow(tw.id)} title={beyond ? `Collection history covers ~${Math.ceil(historyHours)}h so far; this window will show the same data` : tw.label}>
-              {tw.label}
-            </button>
-          );
-        })}
-      </div>
-      <div className="chips" role="group" aria-label="Platforms">
-        <button className={`chip${platforms.length === 0 ? ' on' : ''}`} onClick={() => onPlatforms([])}>All sources</button>
-        {available.map((p) => (
-          <button key={p} className={`chip${platforms.includes(p) ? ' on' : ''}`} onClick={() => toggle(p)}>
-            {PLATFORM_LABEL[p] || p}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function SourceStatusList({ sources, now }: { sources: SourceStatus[]; now: number }) {
-  return (
-    <div className="sources">
-      {sources.map((s) => {
-        const cls = s.mode === 'disabled' ? 'disabled' : !s.ok && s.mode !== 'cached' ? 'error' : s.mode;
-        return (
-          <div className="source" key={s.source}>
-            <span className={`dot ${cls}`} aria-hidden />
-            <div style={{ minWidth: 0 }}>
-              <div className="truncate">{s.label}</div>
-              {s.mode === 'disabled' && <div className="err">Not configured — {s.note}</div>}
-              {s.mode === 'cached' && <div className="err">Serving cached results · {s.error}</div>}
-              {!s.ok && s.mode === 'live' && <div className="err">Failed · {s.error}</div>}
-              {s.ok && s.error && <div className="err">Partial · {s.error}</div>}
-            </div>
-            <div className="small muted num nowrap">
-              {s.items} items{s.fetchedAt ? ` · ${fmtAgo(s.fetchedAt, now)}` : ''}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export function Section({ title, sub, children, right }: { title: string; sub?: string; children: ReactNode; right?: ReactNode }) {
+export function Section({ title, sub, children, more, moreHref }: { title: string; sub?: string; children: ReactNode; more?: string; moreHref?: string }) {
   return (
     <section className="section">
       <div className="section-head">
@@ -213,9 +21,161 @@ export function Section({ title, sub, children, right }: { title: string; sub?: 
           <h2>{title}</h2>
           {sub && <div className="sub">{sub}</div>}
         </div>
-        {right}
+        {more && moreHref && <a className="more" href={moreHref}>{more} →</a>}
       </div>
       {children}
     </section>
   );
 }
+
+export function WindowSwitch({ value, onChange }: { value: Window; onChange: (w: Window) => void }) {
+  return (
+    <div className="seg" role="group" aria-label="Time window">
+      {WINDOWS.map((w) => (
+        <button key={w} className={value === w ? 'on' : ''} onClick={() => onChange(w)} title={WINDOW_LABEL[w]}>{w}</button>
+      ))}
+    </div>
+  );
+}
+
+export function StagePill({ stage, onDark }: { stage: string; onDark?: boolean }) {
+  const s = STAGE[stage] || STAGE.insufficient_data;
+  return (
+    <span className={`pill stage ${stage}${onDark ? ' on-dark' : ''}`} style={{ ['--stage' as string]: `var(--st-${stage})` }} title={s.desc}>
+      <i aria-hidden />{s.label}
+    </span>
+  );
+}
+export function GradePill({ grade, onDark }: { grade: string; onDark?: boolean }) {
+  const g = GRADE[grade] || GRADE.insufficient;
+  return <span className={`pill grade ${grade}${onDark ? ' on-dark' : ''}`} title={g.desc}><i aria-hidden />{g.label}</span>;
+}
+export function GrowthPill({ v }: { v: ViewTrend }) {
+  const measured = v.w.growth.basis === 'measured' || !!v.w.velocity?.videosMeasured;
+  return <span className={`pill ${measured ? 'measured' : 'provisional'}`} title={measured ? 'Growth measured from repeated observations' : 'First observation — growth not yet measured'}>{measured ? 'Measured' : 'Provisional'}</span>;
+}
+export function KindPill({ kind }: { kind: string }) {
+  return <span className="pill kind">{KIND_OF_TREND[kind] || kind}</span>;
+}
+
+/** Thumbnail with graceful fallback cover. */
+export function Thumb({ src, name, portrait, play, overlay, className = '' }: { src?: string; name: string; portrait?: boolean; play?: boolean; overlay?: ReactNode; className?: string }) {
+  const [c1, c2] = coverHue(name);
+  const initials = name.replace(/^#/, '').split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('');
+  return (
+    <div className={`thumb${portrait ? ' portrait' : ''} ${className}`}>
+      <div className="cover" style={{ ['--c1' as string]: c1, ['--c2' as string]: c2 }}>{initials}</div>
+      {src && <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')} style={{ position: 'absolute', inset: 0 }} />}
+      {play && <span className="play" aria-hidden>{Icon.play}</span>}
+      {overlay}
+    </div>
+  );
+}
+
+export function TrendCard({ v, now }: { v: ViewTrend; now: number }) {
+  const th = bestThumb(v);
+  const href = `#/trend/${encodeURIComponent(v.id)}`;
+  return (
+    <a className="tcard" href={href}>
+      <Thumb src={th.src} name={v.name} play={v.videoCount > 0} overlay={<><div className="shade" /><div className="tl"><StagePill stage={v.w.lifecycle} onDark /></div><div className="br"><GradePill grade={v.w.grade} onDark /></div></>} />
+      <div style={{ padding: '0 4px' }}>
+        <div className="ttl clamp2">{v.name.replace(/^#/, '#')}</div>
+        <div className="meta">{v.category} · {KIND_OF_TREND[v.kind]} · {v.w.creators} creator{v.w.creators === 1 ? '' : 's'}{v.w.directVideos ? ` · ${v.w.directVideos} measured` : ''}</div>
+      </div>
+      <div className="foot">
+        <span className="mbar" title={`Momentum ${v.w.momentum}/100`}>Momentum <span className="bar"><i style={{ width: `${v.w.momentum}%` }} /></span><b>{v.w.momentum}</b></span>
+        <span className="tiny dim num">{fmtAgo(v.lastSeen, now)}</span>
+      </div>
+    </a>
+  );
+}
+
+export function TrendRow({ v, now, n }: { v: ViewTrend; now: number; n?: number }) {
+  const th = bestThumb(v);
+  return (
+    <a className="lrow" href={`#/trend/${encodeURIComponent(v.id)}`}>
+      <Thumb src={th.src} name={v.name} />
+      <div style={{ minWidth: 0 }}>
+        <div className="t truncate">{n ? `${n}. ` : ''}{v.name}</div>
+        <div className="m truncate">{v.category} · {v.w.creators} creators · {GRADE[v.w.grade].label}{v.w.directVideos ? ` · ${v.w.directVideos} measured` : ''} · {fmtAgo(v.lastSeen, now)}</div>
+      </div>
+      <div className="row" style={{ gap: 6 }}>
+        <StagePill stage={v.w.lifecycle} />
+        <b className="num">{v.w.momentum}</b>
+      </div>
+    </a>
+  );
+}
+
+export function ScoreBars({ v }: { v: ViewTrend }) {
+  const Bar = ({ cls, label, val, title }: { cls: string; label: string; val: number; title: string }) => (
+    <div className={`score ${cls}`} title={title}>
+      <div className="lbl"><span>{label}</span><b>{val}</b></div>
+      <div className="bar" role="img" aria-label={`${label} ${val} of 100`}><i style={{ width: `${val}%` }} /></div>
+    </div>
+  );
+  return (
+    <div className="scores">
+      <Bar cls="momentum" label="Momentum" val={v.w.momentum} title="Adoption, measured signal, recency, interest, growth" />
+      <Bar cls="money" label="Money fit" val={v.monetizationSuitability} title="Category monetization suitability (editorial)" />
+      <Bar cls="creator" label="Creator fit" val={v.w.creatorOpportunity} title="Creator opportunity incl. your preferences" />
+    </div>
+  );
+}
+
+export function EvidenceCard({ e, now }: { e: Observation; now: number }) {
+  const isVideo = e.kind === 'video';
+  const plat = e.video?.platform ? { youtube: 'YouTube', bluesky: 'Bluesky', tiktok: 'TikTok', instagram: 'Instagram', other: 'Video' }[e.video.platform] : PLATFORM_LABEL[e.source];
+  const line = exampleLine(e);
+  const when = e.videoPublishedAt ? `published ${fmtAgo(e.videoPublishedAt, now)}` : e.postPublishedAt ? (isVideo && e.level === 'indirect' ? `shared ${fmtAgo(e.postPublishedAt, now)}` : `posted ${fmtAgo(e.postPublishedAt, now)}`) : e.publishedAt ? `seen ${fmtAgo(e.publishedAt, now)}` : `seen ${fmtAgo(e.observedAt, now)}`;
+  return (
+    <div className="ecard">
+      <a href={e.url} target="_blank" rel="noopener noreferrer" aria-label={`Open: ${e.title}`}>
+        <Thumb src={e.thumbnail} name={e.title} portrait={!!e.thumbnail && /video\.bsky\.app/.test(e.thumbnail)} play={isVideo} overlay={<div className="tl"><span className="pill kind on-dark">{isVideo ? (e.level === 'direct' ? `${plat} · measured` : `${plat} · shared`) : KIND_LABEL[e.kind]}</span></div>} />
+      </a>
+      <div style={{ minWidth: 0 }}>
+        <a className="t clamp2" href={e.url} target="_blank" rel="noopener noreferrer">{e.title || e.url}</a>
+        <div className="m clamp2">
+          {e.creator?.name ? <a href={e.creator.url} target="_blank" rel="noopener noreferrer">{e.creator.name}</a> : e.sharedBy?.name ? <span>shared by {e.sharedBy.name}</span> : null}
+          {line && <> · {line}</>}
+          <> · {when}</>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SourceList({ sources, quality, now }: { sources: SourceStatus[]; quality?: SourceQuality[]; now: number }) {
+  return (
+    <div className="sources">
+      {sources.map((s) => {
+        const q = quality?.find((x) => x.source === s.source);
+        const cls = s.mode === 'disabled' ? 'disabled' : !s.ok && s.mode !== 'cached' ? 'error' : s.mode;
+        return (
+          <div className="source" key={s.source}>
+            <span className={`dot ${cls}`} aria-hidden />
+            <div>
+              <div className="truncate" style={{ fontWeight: 700 }}>{s.label}</div>
+              <div className="err">
+                {s.mode === 'disabled' ? `Not configured — ${s.note}` : q ? `${q.uniqueVideos} unique videos (${q.directVideos} measured) · ${q.relevantItems} relevant · median age ${q.medianAgeHours != null ? `${q.medianAgeHours}h` : '—'} · errors ${Math.round(q.errorRate * 100)}%` : s.error || ''}
+              </div>
+            </div>
+            <div className="small muted num" style={{ whiteSpace: 'nowrap' }}>{s.items} items{s.fetchedAt ? ` · ${fmtAgo(s.fetchedAt, now)}` : ''}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function StatTile({ v, k, s, cls, na }: { v: ReactNode; k: string; s?: string; cls?: string; na?: boolean }) {
+  return (
+    <div className={`tile ${cls || ''}`}>
+      <div className={`v num${na ? ' na' : ''}`}>{v}</div>
+      <div className="k">{k}</div>
+      {s && <div className="s">{s}</div>}
+    </div>
+  );
+}
+
+export const n = fmtNum;

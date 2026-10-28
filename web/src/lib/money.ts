@@ -196,3 +196,79 @@ export function defaultsFor(platformId: string): Pick<CalcInput, 'rpm' | 'rpmLow
     eligibleShare: p.eligibleShareDefault,
   };
 }
+
+/* ------------------------------------------------------------------------------------------------
+   Money Engine v2 — separated dimensions + Content Investment Calculator
+   ------------------------------------------------------------------------------------------------ */
+import { profileFor } from '../../../pipeline/src/intel/taxonomy.js';
+
+/** Monetization suitability (0-100): how well a category fits available programs — an editorial profile, not earnings. */
+export function monetizationSuitability(category: string): { score: number; parts: { label: string; value: number }[] } {
+  const p = profileFor(category);
+  const parts = [
+    { label: 'Advertiser suitability', value: Math.round(p.advertiser * 100) },
+    { label: 'Sponsorship demand', value: Math.round(p.sponsorship * 100) },
+    { label: 'Affiliate fit', value: Math.round(p.affiliate * 100) },
+    { label: 'Content longevity', value: Math.round(p.longevity * 100) },
+    { label: 'Audience demand', value: Math.round(p.demand * 100) },
+  ];
+  const score = Math.round(100 * (0.3 * p.advertiser + 0.2 * p.sponsorship + 0.15 * p.affiliate + 0.15 * p.longevity + 0.1 * p.demand + 0.1 * (1 - p.cost)));
+  return { score, parts };
+}
+
+/** Production economics: rough hours and cash per video by category and the creator's tools. */
+export function productionEconomics(category: string, tools: string[]): { hours: [number, number]; cash: [number, number]; label: 'Low' | 'Medium' | 'High' } {
+  const p = profileFor(category);
+  let cost = p.cost;
+  if (tools.includes('animation') && /anim/i.test(category)) cost -= 0.25;
+  if (tools.includes('ai-video')) cost -= 0.05;
+  if (cost <= 0.3) return { hours: [1, 3], cash: [0, 40], label: 'Low' };
+  if (cost <= 0.55) return { hours: [3, 10], cash: [40, 150], label: 'Medium' };
+  return { hours: [10, 40], cash: [150, 600], label: 'High' };
+}
+
+export interface InvestmentInput {
+  videosPerMonth: number;
+  costPerVideo: number;
+  fixedMonthly: number;
+  /** expected views per video under three outlooks */
+  viewsLow: number;
+  viewsBase: number;
+  viewsHigh: number;
+  /** platforms to compare (ids from PROGRAMS) */
+  platformIds: string[];
+  /** overrides: platformId → { rpm?, eligibleShare?, eligible? } */
+  overrides?: Record<string, { rpm?: number; eligibleShare?: number; eligible?: boolean }>;
+}
+export interface InvestmentRow {
+  platformId: string;
+  platform: string;
+  eligible: boolean;
+  rpm: number;
+  eligibleShare: number;
+  scenarios: { name: 'Low' | 'Base' | 'High'; views: number; gross: number; net: number; perVideo: number }[];
+  breakEvenViewsPerVideo: number | null;
+  costs: number;
+}
+
+/** Compare the same production plan across platforms. Program revenue only (sponsorship/affiliate are modelled in the main calculator). */
+export function investmentScenarios(i: InvestmentInput): InvestmentRow[] {
+  const n = (v: number) => (Number.isFinite(v) ? Math.max(0, v) : 0);
+  const videos = n(i.videosPerMonth);
+  const costs = videos * n(i.costPerVideo) + n(i.fixedMonthly);
+  return i.platformIds.map((pid) => {
+    const p = PROGRAMS.find((x) => x.id === pid) || PROGRAMS[0];
+    const o = i.overrides?.[pid] || {};
+    const rpm = n(o.rpm ?? p.rpm.base);
+    const eligibleShare = Math.min(1, n(o.eligibleShare ?? p.eligibleShareDefault));
+    const eligible = o.eligible ?? true;
+    const perView = eligible ? (rpm * eligibleShare) / 1000 : 0;
+    const mk = (name: 'Low' | 'Base' | 'High', views: number) => {
+      const monthly = videos * n(views);
+      const gross = monthly * perView;
+      return { name, views: n(views), gross, net: gross - costs, perVideo: videos ? gross / videos : 0 };
+    };
+    const breakEvenViewsPerVideo = perView > 0 && videos > 0 ? costs / videos / perView : null;
+    return { platformId: pid, platform: p.name, eligible, rpm, eligibleShare, scenarios: [mk('Low', i.viewsLow), mk('Base', i.viewsBase), mk('High', i.viewsHigh)], breakEvenViewsPerVideo, costs };
+  });
+}

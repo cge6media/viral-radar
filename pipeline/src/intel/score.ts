@@ -270,7 +270,7 @@ export function scoreWindow(input: ScoreInput): WindowScores {
   const firstDetected = members.map((m) => m.firstSeenAt || m.observedAt).sort()[0] || now;
   const earliestContent = times[0] || now;
   const ageHours = Math.max(hoursBetween(firstDetected, now), Math.min(hoursBetween(earliestContent, now), 24 * 14));
-  const lifecycle = decideLifecycle({ grade, momentum, videoPerformance, growth: growthScore, growthMeasured: growth.basis === 'measured', velocityRatio: vels.length ? median(vels.map((v) => v.ratio)) : undefined, newCreators, creators, ageHours, hSinceLatest: hoursBetween(latest, now), sources: sources.size });
+  const lifecycle = decideLifecycle({ grade, momentum, videoPerformance, growth: growthScore, growthMeasured: growth.basis === 'measured', velocityRatio: vels.length ? median(vels.map((v) => v.ratio)) : undefined, newCreators, creators, ageHours, hSinceLatest: hoursBetween(latest, now), sources: sources.size, isFormat: cluster.kind === 'format' });
 
   return {
     window, items: members.length, videos: videos.length, directVideos: direct.length, creators, newCreators,
@@ -281,7 +281,7 @@ export function scoreWindow(input: ScoreInput): WindowScores {
 
 export function decideLifecycle(x: {
   grade: EvidenceGrade; momentum: number; videoPerformance: number | null; growth: number; growthMeasured: boolean;
-  velocityRatio?: number; newCreators: number; creators: number; ageHours: number; hSinceLatest: number; sources: number;
+  velocityRatio?: number; newCreators: number; creators: number; ageHours: number; hSinceLatest: number; sources: number; isFormat?: boolean;
 }): Lifecycle {
   if (x.grade === 'insufficient') return 'insufficient_data';
   if (x.hSinceLatest > 72) return 'cooling';
@@ -290,6 +290,8 @@ export function decideLifecycle(x: {
   if (falling) return 'cooling';
   if (x.momentum >= 70 && x.sources >= 2 && (accelerating || x.newCreators >= 2)) return 'breaking_out';
   if (accelerating) return 'accelerating';
+  // an evergreen format pool is never "emerging" — it is steady (peaking) unless measured growth says otherwise
+  if (x.isFormat) return x.creators >= 3 ? 'peaking' : 'cooling';
   if (x.ageHours <= 48 || (x.newCreators >= 2 && x.ageHours <= 96)) return 'emerging';
   if ((x.videoPerformance ?? 0) >= 60 || x.creators >= 6) return 'peaking';
   return x.hSinceLatest > 36 ? 'cooling' : 'peaking';

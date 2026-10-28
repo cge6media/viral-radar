@@ -2,116 +2,106 @@ import { useState } from 'react';
 import { useApp } from '../App';
 import { usePrefs } from '../lib/store';
 import { CATEGORIES } from '../../../pipeline/src/intel/taxonomy';
-import { SourceStatusList } from '../components/ui';
+import { SourceList } from '../components/ui';
 import { fmtAgo } from '../lib/data';
 
-const TOOLS = [
-  ['editing', 'Professional video editing'],
-  ['animation', 'Animation'],
-  ['ai-video', 'AI video generation'],
-  ['image', 'Image generation'],
-  ['audio', 'Audio production'],
-  ['music', 'Music / songwriting'],
-  ['camera', 'On-camera / live action'],
-] as const;
-const PLATFORMS = [
-  ['youtube_shorts', 'YouTube Shorts'],
-  ['youtube', 'YouTube long-form'],
-  ['tiktok', 'TikTok'],
-  ['instagram', 'Instagram Reels'],
-  ['facebook', 'Facebook'],
-  ['bluesky', 'Bluesky'],
-] as const;
-
-const REPO_DEFAULT = (import.meta.env.VITE_REPO as string | undefined) || '';
+const TOOLS = [['editing', 'Professional video editing'], ['animation', 'Animation'], ['ai-video', 'AI video generation'], ['image', 'Image generation'], ['audio', 'Audio production'], ['music', 'Music / songwriting'], ['camera', 'On-camera / live action']] as const;
+const PLATFORMS = [['youtube_shorts', 'YouTube Shorts'], ['youtube', 'YouTube long-form'], ['tiktok', 'TikTok'], ['instagram', 'Instagram Reels'], ['facebook', 'Facebook'], ['bluesky', 'Bluesky']] as const;
+const REPO = (import.meta.env.VITE_REPO as string | undefined) || '';
 
 export default function Settings() {
   const app = useApp();
   const [prefs, update] = usePrefs();
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const repo = prefs.githubRepo || REPO_DEFAULT;
+  const initialTab = new URLSearchParams(location.hash.split('?')[1] || '').get('tab') || 'prefs';
+  const [tab, setTab] = useState(initialTab);
   const toggle = (key: 'interests' | 'tools' | 'platforms', v: string) => {
     const cur = prefs[key];
     update({ [key]: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v] } as never);
   };
-
-  const dispatch = async () => {
-    if (!repo || !prefs.githubToken) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/collect.yml/dispatches`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${prefs.githubToken}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ref: 'main' }),
-      });
-      if (res.status === 204) setMsg('Collection started in the cloud. It usually takes 2–4 minutes; then reload the data.');
-      else setMsg(`GitHub answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    } catch (e) {
-      setMsg(`Could not reach GitHub: ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const s = app.snapshot;
+  const repo = prefs.githubRepo || REPO;
 
   return (
     <>
       <h1>Settings</h1>
-      <p className="muted" style={{ margin: '4px 0 14px' }}>Preferences shape the creator-fit score and the recommendations. Everything here stays in this browser.</p>
+      <div className="seg" style={{ margin: '12px 0 18px' }}>
+        {[['prefs', 'Preferences'], ['data', 'Data & quality'], ['about', 'How scores work']].map(([id, label]) => <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>)}
+      </div>
 
-      <div className="grid cols-2">
-        <div className="card">
-          <h2 style={{ marginBottom: 4 }}>Refresh</h2>
-          <div className="small muted" style={{ marginBottom: 10 }}>Collection runs automatically in the cloud on a schedule (every 30 minutes by default). Data last generated {fmtAgo(app.snapshot.generatedAt, app.now)}.</div>
-          <div className="row wrap">
-            <button className="btn" onClick={() => { app.reload(); app.toast('Reloading latest data'); }}>Reload latest data</button>
-            {repo && <a className="btn" href={`https://github.com/${repo}/actions/workflows/collect.yml`} target="_blank" rel="noopener noreferrer">Open cloud collector</a>}
-            <button className="btn primary" onClick={dispatch} disabled={busy || !repo || !prefs.githubToken} title={!prefs.githubToken ? 'Add a GitHub token below to trigger a run from here' : 'Trigger a collection run now'}>{busy ? 'Starting…' : 'Run collection now'}</button>
+      {tab === 'prefs' && (
+        <div className="grid cols-2">
+          <div className="card">
+            <h3 style={{ marginBottom: 4 }}>Your interests</h3>
+            <div className="small muted" style={{ marginBottom: 10 }}>+10 creator fit for these categories.</div>
+            <div className="chips">{CATEGORIES.map((c) => <button key={c.name} className={`chip${prefs.interests.includes(c.name) ? ' on' : ''}`} onClick={() => toggle('interests', c.name)}>{c.name}</button>)}</div>
+            <div className="hr" />
+            <h3 style={{ marginBottom: 4 }}>Your tools</h3>
+            <div className="small muted" style={{ marginBottom: 10 }}>+5 creator fit when a trend suits them; lowers estimated difficulty and budget.</div>
+            <div className="chips">{TOOLS.map(([id, label]) => <button key={id} className={`chip${prefs.tools.includes(id) ? ' on' : ''}`} onClick={() => toggle('tools', id)}>{label}</button>)}</div>
           </div>
-          {msg && <div className="notice" style={{ marginTop: 10 }}>{msg}</div>}
-          <div className="form-grid" style={{ marginTop: 12 }}>
-            <div className="field"><label>GitHub repository (owner/name)</label><input type="text" value={prefs.githubRepo ?? REPO_DEFAULT} placeholder="you/viral-radar" onChange={(e) => update({ githubRepo: e.target.value })} /></div>
-            <div className="field"><label>Fine-grained token (Actions: read & write)</label><input type="password" value={prefs.githubToken || ''} placeholder="github_pat_…" onChange={(e) => update({ githubToken: e.target.value })} /><div className="hint">Optional. Lets the button above start a run. Stored only in this browser; without it, use "Open cloud collector" → Run workflow.</div></div>
+          <div className="card">
+            <h3 style={{ marginBottom: 4 }}>Publishing platforms</h3>
+            <div className="chips" style={{ marginTop: 8 }}>{PLATFORMS.map(([id, label]) => <button key={id} className={`chip${prefs.platforms.includes(id) ? ' on' : ''}`} onClick={() => toggle('platforms', id)}>{label}</button>)}</div>
+            <div className="hr" />
+            <h3 style={{ marginBottom: 4 }}>Risk appetite</h3>
+            <div className="chips" style={{ marginTop: 8 }}>
+              {([['early', 'Early — catch trends before they peak'], ['balanced', 'Balanced'], ['proven', 'Proven — breaking out / peaking only']] as const).map(([id, label]) => <button key={id} className={`chip${prefs.appetite === id ? ' on' : ''}`} onClick={() => update({ appetite: id })}>{label}</button>)}
+            </div>
+            <div className="hr" />
+            <label className="row small" style={{ gap: 10 }}><input type="checkbox" checked={prefs.hideNews} onChange={(e) => update({ hideNews: e.target.checked })} /> Hide news / person events from rankings</label>
+            <label className="row small" style={{ gap: 10, marginTop: 8 }}><input type="checkbox" checked={prefs.showGeneric} onChange={(e) => update({ showGeneric: e.target.checked })} /> Let evergreen categories (cooking, cat videos…) count as opportunities without measured growth</label>
           </div>
-          <div className="hr" />
-          <SourceStatusList sources={app.snapshot.sources} now={app.now} />
-          <div className="small muted" style={{ marginTop: 10 }}>To add YouTube view/like statistics, add a free YouTube Data API key as the repository secret <code>YOUTUBE_API_KEY</code> (see README).</div>
         </div>
+      )}
 
-        <div className="card">
-          <h2 style={{ marginBottom: 4 }}>Your interests</h2>
-          <div className="small muted" style={{ marginBottom: 10 }}>+10 creator fit for these categories.</div>
-          <div className="chips">{CATEGORIES.map((c) => <button key={c.name} className={`chip${prefs.interests.includes(c.name) ? ' on' : ''}`} onClick={() => toggle('interests', c.name)}>{c.name}</button>)}</div>
-          <div className="hr" />
-          <h2 style={{ marginBottom: 4 }}>Your tools</h2>
-          <div className="small muted" style={{ marginBottom: 10 }}>+5 creator fit when a trend suits them; lowers estimated difficulty.</div>
-          <div className="chips">{TOOLS.map(([id, label]) => <button key={id} className={`chip${prefs.tools.includes(id) ? ' on' : ''}`} onClick={() => toggle('tools', id)}>{label}</button>)}</div>
-          <div className="hr" />
-          <h2 style={{ marginBottom: 4 }}>Publishing platforms</h2>
-          <div className="chips" style={{ marginTop: 8 }}>{PLATFORMS.map(([id, label]) => <button key={id} className={`chip${prefs.platforms.includes(id) ? ' on' : ''}`} onClick={() => toggle('platforms', id)}>{label}</button>)}</div>
-          <div className="hr" />
-          <h2 style={{ marginBottom: 4 }}>Risk appetite</h2>
-          <div className="chips" style={{ marginTop: 8 }}>
-            {([['early', 'Early — catch trends before they peak'], ['balanced', 'Balanced'], ['proven', 'Proven — only breaking out / peaking']] as const).map(([id, label]) => (
-              <button key={id} className={`chip${prefs.appetite === id ? ' on' : ''}`} onClick={() => update({ appetite: id })}>{label}</button>
+      {tab === 'data' && (
+        <div className="grid cols-2">
+          <div className="card">
+            <h3 style={{ marginBottom: 4 }}>Sources</h3>
+            <div className="small muted" style={{ marginBottom: 10 }}>Quality over quantity: unique videos, direct measurements, relevance and freshness per source. Data generated {fmtAgo(s.generatedAt, app.now)}.</div>
+            <SourceList sources={s.sources} quality={s.sourceQuality} now={app.now} />
+            <div className="hr" />
+            <div className="small muted">
+              YouTube quota today: {s.stats.youtube?.quotaUnitsToday ?? 0} units · {s.stats.youtube?.searchCallsToday ?? 0} search calls · {s.stats.youtube?.trackedVideos ?? 0} tracked videos.
+              {s.sources.find((x) => x.source === 'youtube')?.mode === 'disabled' && ' Add a free YouTube Data API key as the repository secret YOUTUBE_API_KEY to enable direct video statistics (README).'}
+            </div>
+            <div className="hr" />
+            <h3 style={{ marginBottom: 4 }}>Refresh</h3>
+            <div className="small muted" style={{ marginBottom: 8 }}>Collection runs automatically in the cloud every 30 minutes. A manual run starts from the cloud collector page (GitHub sign-in required) — no credentials are stored in this browser.</div>
+            <div className="row wrap">
+              <button className="btn" onClick={() => { app.reload(); app.toast('Reloading latest data'); }}>Reload latest data</button>
+              {repo && <a className="btn" href={`https://github.com/${repo}/actions/workflows/collect.yml`} target="_blank" rel="noopener noreferrer">Run collection now ↗</a>}
+            </div>
+          </div>
+          <div className="card">
+            <h3 style={{ marginBottom: 4 }}>Quality checks (this run)</h3>
+            <div className="small muted" style={{ marginBottom: 8 }}>Automated checks run at the end of every collection. Relevance rate = format evidence that passes the validator.</div>
+            {s.quality.checks.map((c) => (
+              <div className="check" key={c.name}><span className={c.ok ? 'ok' : 'fail'}>{c.ok ? '✓' : '✕'}</span><span>{c.name}</span><span className="muted num">{c.detail}</span></div>
             ))}
+            <div className="hr" />
+            <div className="small muted">Run {s.runId} · {s.stats.observationsThisRun} observations this run · {s.stats.observationsTotal} in the 35-day window · {s.stats.historyDays} day{s.stats.historyDays === 1 ? '' : 's'} of history.</div>
           </div>
-          <div className="hr" />
-          <label className="row small"><input type="checkbox" checked={prefs.hideNews} onChange={(e) => update({ hideNews: e.target.checked })} /> Hide news / person events from rankings and recommendations</label>
         </div>
-      </div>
+      )}
 
-      <div className="card section">
-        <h2 style={{ marginBottom: 6 }}>How scores work</h2>
-        <ul className="explain">
-          <li><b>Momentum (0–100)</b> = 25% recency + 30% growth + 10% acceleration + 20% breadth (sources × evidence count) + 15% attention level. Growth is only "measured" with ≥2 data points; otherwise neutral and marked provisional.</li>
-          <li><b>Confidence (0–100)</b> = evidence count, independent sources, videos with real statistics, number of creators and how many runs/days the trend has been observed.</li>
-          <li><b>Monetization (0–100)</b> = category profile (advertiser suitability, sponsorship, affiliate, longevity, demand, cost) with a −45% penalty for news/person events and a small bonus when YouTube videos are present.</li>
-          <li><b>Creator fit (0–100)</b> = 35% momentum + 20% repeatability + 15% (1 − saturation) + 15% (1 − cost) + 15% monetization, then your preferences (interests +10, tools +5, appetite +6).</li>
-          <li><b>Opportunity</b> = (40% momentum + 35% creator fit + 25% monetization) × (0.3 + 0.7 × confidence). This is the Top 20 order.</li>
-        </ul>
-      </div>
+      {tab === 'about' && (
+        <div className="card">
+          <h3 style={{ marginBottom: 8 }}>How Viral Radar scores a trend</h3>
+          <ul className="explain">
+            <li><b>Evidence grade</b> — Strong: ≥3 verified creators, ≥3 directly measured videos, ≥3 collection runs. Developing: ≥3 verified creators and examples. Early: at least one video with some corroboration. Insufficient: anything less — never recommended.</li>
+            <li><b>Video performance</b> — views (or engagement) per hour since the video's own publish time, on videos measured at their platform. Not available for unverified shares.</li>
+            <li><b>Video momentum</b> — the same videos re-measured across runs: current views/hour vs. lifetime average. Needs ≥2 observations ≥1h apart.</li>
+            <li><b>Category adoption</b> — independent creators (channels/authors; a video shared by many accounts counts once) with examples inside the window, plus creators new in the last 48h.</li>
+            <li><b>Audience interest</b> — search spikes, hashtags, trending topics and the engagement of posts that share a video.</li>
+            <li><b>Confidence</b> — videos, direct measurements, verified creators, independent sources and observation history.</li>
+            <li><b>Momentum</b> = 30% adoption + 25% measured signal (momentum → performance → interest) + 20% recency + 15% audience interest + 10% measured growth. <b>Opportunity</b> adds creator fit and monetization suitability, discounted by confidence and grade.</li>
+            <li><b>Timestamps</b> — a video's publish date comes only from its platform; the time a post shared it is shown as “shared”. Time windows use these content times, not our collection time.</li>
+            <li><b>What never qualifies</b> — news/person events, generic evergreen categories without measured growth, and anything with insufficient evidence. Rankings are not padded.</li>
+          </ul>
+          <div className="small muted" style={{ marginTop: 10 }}>Full formulas and weights: docs/SCORING.md in the repository.</div>
+        </div>
+      )}
     </>
   );
 }

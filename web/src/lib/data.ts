@@ -1,5 +1,4 @@
-import type { Observation, Snapshot, Trend, TimeWindow, Preferences } from './types';
-import { TIME_WINDOWS } from './types';
+import type { Observation, Snapshot, Trend, Window, WindowScores, Preferences, CategoryActivity } from './types';
 import { profileFor } from '../../../pipeline/src/intel/taxonomy';
 
 export const DATA_URL = `${import.meta.env.BASE_URL}data/latest.json`;
@@ -19,8 +18,7 @@ export function fmtAgo(iso?: string, now = Date.now()): string {
   if (h < 48) return `${Math.round(h)}h ago`;
   return `${Math.round(h / 24)}d ago`;
 }
-
-export function fmtNum(n?: number): string {
+export function fmtNum(n?: number | null): string {
   if (n == null || isNaN(n)) return '—';
   if (Math.abs(n) >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
   if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -28,7 +26,6 @@ export function fmtNum(n?: number): string {
   if (Math.abs(n) >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
   return `${Math.round(n)}`;
 }
-
 export function fmtMoney(n: number, digits = 0): string {
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
@@ -36,156 +33,95 @@ export function fmtMoney(n: number, digits = 0): string {
   return `${sign}$${abs.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits })}`;
 }
 
-/** Primary evidence line for an observation. */
-export function metricLine(o: Observation): string {
-  const m = o.metrics;
-  const parts: string[] = [];
-  if (m.views != null) parts.push(`${fmtNum(m.views)} views`);
-  if (m.likes != null) parts.push(`${fmtNum(m.likes)} likes`);
-  if (m.reposts) parts.push(`${fmtNum(m.reposts)} reposts`);
-  if (m.comments) parts.push(`${fmtNum(m.comments)} comments`);
-  if (m.approxTraffic != null) parts.push(`${fmtNum(m.approxTraffic)}+ searches`);
-  if (m.uses != null) parts.push(`${fmtNum(m.uses)} posts/day`);
-  if (m.accounts != null) parts.push(`${fmtNum(m.accounts)} accounts`);
-  if (!parts.length && m.rank) parts.push(`#${m.rank} on list`);
-  return parts.join(' · ');
+/** A trend as seen through one time window: scores swapped, evidence filtered by content time. */
+export interface ViewTrend extends Trend { w: WindowScores; window: Window }
+
+export function contentTime(o: Observation): string | undefined {
+  return o.publishedAt || o.postPublishedAt || (o.kind !== 'video' ? o.observedAt : undefined);
 }
 
-export interface Filters {
-  window: TimeWindow;
-  platforms: string[]; // empty = all
-  category?: string;
+export function viewFor(t: Trend, window: Window, now: number): ViewTrend {
+  const hours = { '24h': 24, '48h': 48, '7d': 168 }[window];
+  const evidence = t.evidence.filter((e) => hoursAgo(contentTime(e) || e.firstSeenAt || e.observedAt, now) <= hours);
+  return { ...t, evidence, w: t.windows[window] || t.scores, window };
 }
 
-/** Apply time + platform filters. Trends keep evidence inside the window; empty trends are dropped. */
-export function filterTrends(trends: Trend[], f: Filters, now = Date.now()): Trend[] {
-  const hours = TIME_WINDOWS.find((w) => w.id === f.window)?.hours ?? 24 * 7;
-  return trends
-    .map((t) => {
-      const ev = t.evidence.filter(
-        (e) => hoursAgo(e.observedAt, now) <= hours && (f.platforms.length === 0 || f.platforms.includes(e.source)),
-      );
-      if (!ev.length) return undefined;
-      if (f.category && t.category !== f.category) return undefined;
-      if (ev.length === t.evidence.length) return t;
-      // narrower window: recount from the evidence that is actually inside it (scores stay as computed by the pipeline over 7 days)
-      const platforms = Array.from(new Set(ev.map((e) => e.source)));
-      return {
-        ...t,
-        evidence: ev,
-        evidenceCount: Math.min(t.evidenceCount, ev.length),
-        videoCount: ev.filter((e) => e.kind === 'video').length,
-        sourceCount: platforms.length,
-        platforms,
-        evidenceKinds: Array.from(new Set(ev.map((e) => e.kind))),
-      } as Trend;
-    })
-    .filter((t): t is Trend => !!t);
-}
-
-/** Preference-adjusted creator score and opportunity rank. */
-export function personalize(t: Trend, p: Preferences): Trend {
-  let creator = t.scores.creator;
+/** Preference-adjusted creator opportunity and ranking score (applied once, client side). */
+export function personalize(v: ViewTrend, p: Preferences): ViewTrend {
+  let creator = v.w.creatorOpportunity;
   const notes: string[] = [];
-  if (p.interests.includes(t.category)) {
-    creator += 10;
-    notes.push(`+10 creator: ${t.category} is one of your interests.`);
-  }
-  const text = `${t.name} ${t.subcategory} ${t.keywords.join(' ')}`.toLowerCase();
-  const toolHits: string[] = [];
-  if (p.tools.includes('animation') && /anim|cartoon|character|stop.?motion|puppet/.test(text)) toolHits.push('animation');
-  if (p.tools.includes('ai-video') && /\bai\b|generated|deepfake/.test(text)) toolHits.push('AI video');
-  if (p.tools.includes('music') && /music|song|cover|remix|beat|sing|rap/.test(text)) toolHits.push('music');
-  if (p.tools.includes('audio') && /asmr|podcast|voice|sound/.test(text)) toolHits.push('audio');
-  if (toolHits.length) {
-    creator += 5;
-    notes.push(`+5 creator: fits your tools (${toolHits.join(', ')}).`);
-  }
-  if (p.appetite === 'early' && (t.lifecycle === 'emerging' || t.lifecycle === 'accelerating')) {
-    creator += 6;
-    notes.push('+6 creator: you prefer early trends.');
-  }
-  if (p.appetite === 'proven' && (t.lifecycle === 'breaking_out' || t.lifecycle === 'peaking')) {
-    creator += 6;
-    notes.push('+6 creator: you prefer proven trends.');
-  }
+  if (p.interests.includes(v.category)) { creator += 10; notes.push(`+10 creator fit: ${v.category} is one of your interests.`); }
+  const text = `${v.name} ${v.subcategory} ${v.keywords.join(' ')}`.toLowerCase();
+  const hits: string[] = [];
+  if (p.tools.includes('animation') && /anim|cartoon|character|stop.?motion|puppet/.test(text)) hits.push('animation');
+  if (p.tools.includes('ai-video') && /\bai\b|generated|sora|veo/.test(text)) hits.push('AI video');
+  if (p.tools.includes('music') && /music|song|cover|remix|beat|sing|rap/.test(text)) hits.push('music');
+  if (hits.length) { creator += 5; notes.push(`+5 creator fit: fits your tools (${hits.join(', ')}).`); }
+  if (p.appetite === 'early' && ['emerging', 'accelerating'].includes(v.w.lifecycle)) { creator += 6; notes.push('+6: you prefer early trends.'); }
+  if (p.appetite === 'proven' && ['breaking_out', 'peaking'].includes(v.w.lifecycle)) { creator += 6; notes.push('+6: you prefer proven trends.'); }
   creator = Math.max(0, Math.min(100, Math.round(creator)));
-  const opportunity = Math.round(
-    (0.4 * t.scores.momentum + 0.35 * creator + 0.25 * t.scores.monetization) * (0.3 + 0.7 * (t.scores.confidence / 100)),
-  );
-  return { ...t, scores: { ...t.scores, creator, opportunity, notes: [...t.scores.notes, ...notes] } };
+  const gradeFactor = { strong: 1, developing: 0.9, early: 0.72, insufficient: 0.4 }[v.w.grade];
+  const opportunity = Math.round((0.4 * v.w.momentum + 0.35 * creator + 0.25 * v.monetizationSuitability) * (0.3 + 0.7 * (v.w.confidence / 100)) * gradeFactor);
+  return { ...v, w: { ...v.w, creatorOpportunity: creator, opportunity, notes: [...v.w.notes, ...notes] } };
 }
 
-export function rankTrends(trends: Trend[], p: Preferences): Trend[] {
+export function isQualified(v: ViewTrend, p: Preferences): boolean {
+  if (v.w.grade === 'insufficient') return false;
+  if (v.isNewsEvent && p.hideNews) return false;
+  if (v.isNewsEvent) return false;
+  if (v.kind === 'topic' && v.w.videos < 2) return false;
+  if (v.isGeneric) return p.showGeneric || (v.w.growth.basis === 'measured' && (v.w.growth.ratio ?? 0) >= 1.5);
+  return true;
+}
+
+export function rankView(trends: Trend[], window: Window, p: Preferences, now: number): ViewTrend[] {
   return trends
-    .map((t) => personalize(t, p))
-    .filter((t) => !(p.hideNews && t.isNewsEvent))
-    .sort((a, b) => b.scores.opportunity - a.scores.opportunity || b.scores.momentum - a.scores.momentum);
+    .map((t) => personalize(viewFor(t, window, now), p))
+    .filter((v) => v.w.items > 0)
+    .sort((a, b) => Number(isQualified(b, p)) - Number(isQualified(a, p)) || b.w.opportunity - a.w.opportunity || b.w.momentum - a.w.momentum);
 }
 
-/** Top-N supported by evidence: non-news first, prefers multi-evidence, keeps category diversity. */
-export function topOpportunities(ranked: Trend[], n = 20): Trend[] {
-  const strong = ranked.filter((t) => t.lifecycle !== 'insufficient_data');
-  const weak = ranked.filter((t) => t.lifecycle === 'insufficient_data');
-  return [...strong, ...weak].slice(0, n);
-}
-
-export function diversify(ranked: Trend[], n: number, perCategory = 2): Trend[] {
-  const out: Trend[] = [];
+export function diversify<T extends { category: string }>(list: T[], n: number, perCategory = 2): T[] {
+  const out: T[] = [];
   const count = new Map<string, number>();
-  for (const t of ranked) {
+  for (const t of list) {
     const c = count.get(t.category) || 0;
     if (c >= perCategory) continue;
     count.set(t.category, c + 1);
     out.push(t);
     if (out.length >= n) break;
   }
-  if (out.length < n) for (const t of ranked) if (!out.includes(t) && out.length < n) out.push(t);
+  if (out.length < n) for (const t of list) if (!out.includes(t) && out.length < n) out.push(t);
   return out;
 }
 
-export interface CategoryRollup {
-  category: string;
-  trends: number;
-  evidence: number;
-  videos: number;
-  momentum: number; // mean of top-3
-  monetization: number;
-  creator: number;
-  topTrend?: Trend;
-  stages: Record<string, number>;
+export function bestThumb(t: Trend): { src?: string; portrait?: boolean } {
+  const v = t.evidence.find((e) => e.kind === 'video' && e.thumbnail);
+  if (v?.thumbnail) return { src: v.thumbnail, portrait: /video\.bsky\.app/.test(v.thumbnail) };
+  const any = t.evidence.find((e) => e.thumbnail);
+  return { src: any?.thumbnail };
 }
 
-export function rollupCategories(trends: Trend[]): CategoryRollup[] {
-  const m = new Map<string, Trend[]>();
-  for (const t of trends) {
-    if (!m.has(t.category)) m.set(t.category, []);
-    m.get(t.category)!.push(t);
+export function coverHue(name: string): [string, string] {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return [`hsl(${h} 40% 30%)`, `hsl(${(h + 40) % 360} 35% 16%)`];
+}
+
+export function growthLabel(w: WindowScores): { label: string; dir: 'up' | 'flat' | 'down' | 'unknown' } {
+  if (w.velocity?.videosMeasured) {
+    const r = w.videoMomentum ?? 50;
+    if (r >= 60) return { label: `Videos accelerating (${w.velocity.viewsPerHour != null ? `${fmtNum(w.velocity.viewsPerHour)} views/h` : `${w.velocity.likesPerHour} likes/h`})`, dir: 'up' };
+    if (r <= 40) return { label: 'Video velocity slowing', dir: 'down' };
+    return { label: 'Video velocity steady', dir: 'flat' };
   }
-  return Array.from(m.entries())
-    .map(([category, ts]) => {
-      const top = [...ts].sort((a, b) => b.scores.momentum - a.scores.momentum).slice(0, 3);
-      const mean = (f: (t: Trend) => number) => Math.round(top.reduce((s, t) => s + f(t), 0) / top.length);
-      const stages: Record<string, number> = {};
-      ts.forEach((t) => (stages[t.lifecycle] = (stages[t.lifecycle] || 0) + 1));
-      return {
-        category,
-        trends: ts.length,
-        evidence: ts.reduce((s, t) => s + t.evidenceCount, 0),
-        videos: ts.reduce((s, t) => s + t.videoCount, 0),
-        momentum: mean((t) => t.scores.momentum),
-        monetization: Math.round(profileScore(category)),
-        creator: mean((t) => t.scores.creator),
-        topTrend: top[0],
-        stages,
-      };
-    })
-    .sort((a, b) => b.momentum - a.momentum);
-}
-
-export function profileScore(category: string): number {
-  const p = profileFor(category);
-  return 100 * (0.3 * p.advertiser + 0.2 * p.sponsorship + 0.15 * p.affiliate + 0.15 * p.longevity + 0.1 * p.demand + 0.1 * (1 - p.cost));
+  if (w.growth.basis === 'measured' && w.growth.ratio != null) {
+    const pct = Math.round((w.growth.ratio - 1) * 100);
+    if (w.growth.ratio >= 1.15) return { label: `${w.growth.metric}: +${pct}% over ${Math.round(w.growth.windowHours!)}h`, dir: 'up' };
+    if (w.growth.ratio <= 0.85) return { label: `${w.growth.metric}: ${pct}% over ${Math.round(w.growth.windowHours!)}h`, dir: 'down' };
+    return { label: `${w.growth.metric}: flat over ${Math.round(w.growth.windowHours!)}h`, dir: 'flat' };
+  }
+  return { label: 'Growth not yet measured', dir: 'unknown' };
 }
 
 export function difficultyFor(category: string, prefs: Preferences): { label: 'Low' | 'Medium' | 'High'; why: string } {
@@ -195,31 +131,42 @@ export function difficultyFor(category: string, prefs: Preferences): { label: 'L
   if (prefs.tools.includes('animation') && /anim/.test(text)) cost -= 0.25;
   if (prefs.tools.includes('ai-video')) cost -= 0.05;
   if (prefs.tools.includes('music') && /music/.test(text)) cost -= 0.15;
-  if (cost <= 0.3) return { label: 'Low', why: 'Short, repeatable formats; mostly editing time.' };
-  if (cost <= 0.55) return { label: 'Medium', why: 'Needs a concept, some production and a day or two of work.' };
-  return { label: 'High', why: 'Animation / multi-day production; lean on your existing pipeline and templates.' };
+  if (cost <= 0.3) return { label: 'Low', why: 'short, repeatable; mostly editing time' };
+  if (cost <= 0.55) return { label: 'Medium', why: 'a concept, some production, a day or two' };
+  return { label: 'High', why: 'animation or multi-day production' };
 }
 
-/** Which platforms the evidence actually came from, plus a recommended publishing platform. */
 export function recommendPlatform(t: Trend, prefs: Preferences): { platform: string; why: string } {
-  const hasYouTube = t.evidence.some((e) => e.source === 'youtube' || /youtu\.?be/.test(e.url));
-  const hasShortsSignal = t.evidence.some((e) => /shorts\//.test(e.url));
+  const hasYouTube = t.evidence.some((e) => e.video?.platform === 'youtube');
+  const hasShorts = t.evidence.some((e) => /shorts\//.test(e.url) || (e.video?.durationSec != null && e.video.durationSec <= 60));
   const p = profileFor(t.category);
-  if (hasShortsSignal) return { platform: 'YouTube Shorts', why: 'Evidence includes Shorts links; the format is proven short-form.' };
-  if (hasYouTube && p.longevity >= 0.6) return { platform: 'YouTube (long-form + Shorts cutdown)', why: 'YouTube evidence and an evergreen category; long-form RPM is far higher than Shorts.' };
-  if (t.category === 'Music' || t.category === 'Comedy' || t.category === 'Animals & Pets') return { platform: 'YouTube Shorts + TikTok', why: 'Short, sound-led formats travel across Shorts and TikTok; post to both.' };
-  if (t.category === 'Animation & Art') return { platform: 'YouTube Shorts (then Bluesky/TikTok)', why: 'Animation clips do well as Shorts; Bluesky has an active animation community right now.' };
-  if (t.category === 'Tech & AI' || t.category === 'Business & Finance' || t.category === 'Science & Education') return { platform: 'YouTube (long-form)', why: 'High-RPM categories; long-form watch time pays best.' };
-  if (prefs.platforms.includes('youtube_shorts')) return { platform: 'YouTube Shorts', why: 'Your default short-form platform.' };
-  return { platform: 'YouTube Shorts + TikTok', why: 'Default short-form distribution.' };
+  if (hasShorts) return { platform: 'YouTube Shorts', why: 'the examples are short-form; the format is proven there' };
+  if (hasYouTube && p.longevity >= 0.6) return { platform: 'YouTube (long-form + Shorts cut)', why: 'YouTube examples and an evergreen category; long-form RPM is far higher' };
+  if (['Music', 'Comedy', 'Animals & Pets'].includes(t.category)) return { platform: 'YouTube Shorts + TikTok', why: 'sound-led short formats travel across both' };
+  if (t.category === 'Animation & Art') return { platform: 'YouTube Shorts (then Bluesky/TikTok)', why: 'animation clips do well as Shorts; Bluesky has an active animation community' };
+  if (['Tech & AI', 'Business & Finance', 'Science & Education'].includes(t.category)) return { platform: 'YouTube (long-form)', why: 'high-RPM categories; watch time pays' };
+  if (prefs.platforms.includes('youtube_shorts')) return { platform: 'YouTube Shorts', why: 'your default short-form platform' };
+  return { platform: 'YouTube Shorts + TikTok', why: 'default short-form distribution' };
 }
 
-export function growthLabel(t: Trend): { label: string; dir: 'up' | 'flat' | 'down' | 'unknown' } {
-  const g = t.scores.growth;
-  if (t.scores.momentumBasis !== 'observed' || g == null) return { label: 'Growth not yet measured (first observation)', dir: 'unknown' };
-  const pct = Math.round((g - 1) * 100);
-  const win = t.scores.growthWindowHours ? ` over ${Math.round(t.scores.growthWindowHours)}h` : '';
-  if (g >= 1.15) return { label: `Growing: +${pct}%${win}`, dir: 'up' };
-  if (g <= 0.85) return { label: `Declining: ${pct}%${win}`, dir: 'down' };
-  return { label: `Flat: ${pct >= 0 ? '+' : ''}${pct}%${win}`, dir: 'flat' };
+export function categoryLabelDelta(c: CategoryActivity): { label: string; dir: 'up' | 'down' | 'flat' | 'na' } {
+  if (c.change24h == null) return { label: 'not enough volume to compare', dir: 'na' };
+  const pct = Math.round((c.change24h - 1) * 100);
+  if (c.change24h >= 1.15) return { label: `+${pct}% vs prior 24h`, dir: 'up' };
+  if (c.change24h <= 0.85) return { label: `${pct}% vs prior 24h`, dir: 'down' };
+  return { label: 'flat vs prior 24h', dir: 'flat' };
+}
+
+export function exampleLine(e: Observation): string {
+  const m = e.metrics;
+  const parts: string[] = [];
+  if (m.views != null) parts.push(`${fmtNum(m.views)} views`);
+  if (m.likes != null) parts.push(`${fmtNum(m.likes)} likes`);
+  if (m.reposts) parts.push(`${fmtNum(m.reposts)} reposts`);
+  if (m.comments) parts.push(`${fmtNum(m.comments)} comments`);
+  if (m.approxTraffic != null) parts.push(`${fmtNum(m.approxTraffic)}+ searches`);
+  if (m.uses != null) parts.push(`${fmtNum(m.uses)} posts/day`);
+  if (!parts.length && e.postMetrics) parts.push(`shared · ${fmtNum(e.postMetrics.likes)} likes on the post${(e.postMetrics.accounts || 1) > 1 ? ` · ${e.postMetrics.accounts} sharers` : ''}`);
+  if (!parts.length && m.rank) parts.push(`#${m.rank} on list`);
+  return parts.join(' · ');
 }

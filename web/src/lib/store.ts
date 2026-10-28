@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_PREFS, type Preferences, type WatchItem } from './types';
 
-const PREF_KEY = 'vr.prefs.v1';
+const PREF_KEY = 'vr.prefs.v2';
 const WATCH_KEY = 'vr.watchlist.v1';
 
 function read<T>(key: string, fallback: T): T {
