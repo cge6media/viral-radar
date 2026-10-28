@@ -13,11 +13,13 @@
  *   B. Tracking refresh — videos.list for every video id seen in the last 7 days (YouTube records AND YouTube links
  *      found on Bluesky): 1 unit per 50 ids. This turns social shares into verified video records (real views,
  *      publish date, channel, duration) and produces repeated observations → view velocity.
- *   C. Discovery — search.list for format queries + the run's entertainment topics, only every
- *      VR_YT_DISCOVERY_HOURS (default 6h) and within VR_YT_SEARCH_BUDGET calls/day (default 90 of the 100 allowed).
+ *   C. Discovery — a rolling schedule of search.list probes, VR_YT_SEARCHES_PER_RUN (default 2) per run inside
+ *      VR_YT_SEARCH_BUDGET calls/day (default 90 of the 100 allowed): query-less top-by-views probes by window,
+ *      category and region (how public Shorts charts are built), plus a few keyword/topic probes.
+ *   E. Channel statistics (50 per unit) and upload baselines for outlier candidates (2 units each).
  *
- * A quota ledger (data/cache/youtube-quota.json) tracks units and search calls per UTC day and stops the collector
- * before the daily limits. Without a key the source is reported as "disabled" and nothing is fabricated.
+ * A quota ledger (data/cache/youtube-quota.json) tracks units and search calls per Pacific day and stops the
+ * collector before the daily limits. Without a key the source is reported as "disabled" and nothing is fabricated.
  *
  * D. oEmbed (no key) verifies title + channel of linked videos when the API is unavailable (no stats, no dates).
  */
@@ -34,37 +36,41 @@ export const YOUTUBE_SECONDARY_REGIONS = (process.env.VR_YT_SECONDARY_REGIONS ||
 export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 3);
 /** entertainment categories for chart=mostPopular (documented category ids) */
 export const YT_CHART_CATEGORIES = (process.env.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24').split(',').map((s) => s.trim()).filter(Boolean);
-export const DISCOVERY_HOURS = Number(process.env.VR_YT_DISCOVERY_HOURS || 6);
 export const SEARCH_BUDGET = Number(process.env.VR_YT_SEARCH_BUDGET || 90);
 export const UNIT_BUDGET = Number(process.env.VR_YT_UNIT_BUDGET || 9000);
 export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 1500);
 /**
  * Query-less "top by views" probes — the single most important discovery source. search.list accepts no `q`, so
  * `order=viewCount&publishedAfter=…&videoDuration=short&regionCode=…` returns the most-viewed videos published in a
- * window, exactly how public Shorts charts are built. One search call each (own 100/day bucket), 50 ids per page.
+ * window, exactly how public Shorts charts are built. One search call per page (own 100/day bucket), 50 ids each.
  * Exploration that does not depend on any vocabulary: a format we have never heard of still shows up here.
  */
-export interface TopProbe { hours: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string; pages?: number }
-/** every full round (page 2 of a probe costs one more search call but reaches the mid-size 3–10M-view videos) */
-export const TOP_PROBES: TopProbe[] = [
-  { hours: 24, duration: 'short', region: 'US' }, { hours: 72, duration: 'short', region: 'US', pages: 2 }, { hours: 24 * 7, duration: 'short', region: 'US', pages: 2 }, { hours: 24 * 21, duration: 'short', region: 'US' },
-  { hours: 72, region: 'US' },
-  { hours: 72, duration: 'short', region: 'US', category: '15' }, { hours: 72, duration: 'short', region: 'US', category: '23' }, { hours: 72, duration: 'short', region: 'US', category: '20' },
-];
-/** regional Shorts probes, four per round in rotation (every region every 18h) — international formats surface here */
-export const REGION_PROBES: TopProbe[] = [
-  { hours: 72, duration: 'short', region: 'GB' }, { hours: 72, duration: 'short', region: 'IN' }, { hours: 72, duration: 'short', region: 'MX', lang: 'es' }, { hours: 72, duration: 'short', region: 'BR' },
-  { hours: 72, duration: 'short', region: 'ID' }, { hours: 72, duration: 'short', region: 'PH' }, { hours: 72, duration: 'short', region: 'JP' }, { hours: 72, duration: 'short', region: 'KR' },
-  { hours: 72, duration: 'short', region: 'ES', lang: 'es' }, { hours: 72, duration: 'short', region: 'DE' }, { hours: 72, duration: 'short', region: 'FR' }, { hours: 72, duration: 'short', region: 'VN' },
-];
-export const REGION_PROBES_PER_ROUND = Number(process.env.VR_YT_REGION_PROBES || 4);
-/** between full rounds, the two freshest probes run every MINI_HOURS so brand-new breakouts are not 6h late */
-export const MINI_HOURS = Number(process.env.VR_YT_MINI_HOURS || 3);
-/** broad "what is big right now" probes (order=viewCount within the last 72h) — run every discovery round */
-export const BROAD_QUERIES: string[] = process.env.VR_YT_BROAD_QUERIES
-  ? process.env.VR_YT_BROAD_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
-  : ['#shorts', 'videos virales'];
-/** format probes — rotated across rounds so the whole list is covered every day */
+export interface Probe { hours: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string; pages?: number; q?: string }
+export const SEARCHES_PER_RUN = Number(process.env.VR_YT_SEARCHES_PER_RUN || 2);
+const US = 'US';
+/** the 49-slot cycle (~12h at 2 searches per run): fresh US Shorts most often, then windows, categories, regions, keywords */
+export function buildSchedule(opts: { topicTerms?: string[]; trendTerms?: string[] } = {}): Probe[] {
+  const fresh: Probe = { hours: 24, duration: 'short', region: US };
+  const regions: Probe[] = ['GB', 'IN', 'MX', 'BR', 'ID', 'PH', 'JP', 'KR', 'ES', 'DE', 'FR', 'VN'].map((r) => ({ hours: 72, duration: 'short', region: r, lang: r === 'MX' || r === 'ES' ? 'es' : undefined }));
+  const cats: Probe[] = ['15', '23', '20', '24', '22', '26', '1', '10', '27', '28'].map((c) => ({ hours: 72, duration: 'short', region: US, category: c }));
+  const topics = (opts.topicTerms || []).slice(0, 2).map((q) => ({ hours: 72, q } as Probe));
+  const trends = (opts.trendTerms || []).slice(0, 2).map((q) => ({ hours: 72, q } as Probe));
+  const formats = DISCOVERY_QUERIES.slice(0, 4).map((q) => ({ hours: 72, q } as Probe));
+  const keywords: Probe[] = [{ hours: 72, q: '#shorts', duration: 'short' }, { hours: 72, q: 'videos virales', duration: 'short', lang: 'es' }, ...topics, ...trends, ...formats];
+  const windows: Probe[] = [
+    { hours: 72, duration: 'short', region: US, pages: 2 }, { hours: 24 * 7, duration: 'short', region: US, pages: 2 }, { hours: 24 * 7, duration: 'short', region: US, pages: 3 },
+    { hours: 24 * 21, duration: 'short', region: US, pages: 2 }, { hours: 72, region: US }, { hours: 24 * 7, region: US }, { hours: 24 * 7, duration: 'medium', region: US },
+  ];
+  // interleave so the fresh probe recurs every ~4 slots (~2h) and every family appears each cycle
+  const pool = [...windows, ...cats, ...regions, ...keywords];
+  const out: Probe[] = [];
+  for (let i = 0; i < pool.length; i++) {
+    if (i % 4 === 0) out.push(fresh);
+    out.push(pool[i]);
+  }
+  return out;
+}
+/** format probes — a slice rotates into the schedule */
 export const DISCOVERY_QUERIES: string[] = process.env.VR_YT_QUERIES
   ? process.env.VR_YT_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
   : ['animated skit', 'animal interview', 'talking cat', 'ai animation short', 'puppet comedy', 'rapping cat', 'cartoon short film', 'comedy skit', 'street interview', 'stop motion', 'asmr', 'oddly satisfying', 'cooking recipe short', 'indie animation', 'dubbed animals', 'original character animation', 'parody song', 'storytime animation', 'ai generated video', 'skit', 'prank', 'meme', 'cover song', 'gaming clip', 'speedrun', 'satisfying', 'explained'];
@@ -86,7 +92,7 @@ export interface YtVideo {
   contentDetails?: { duration?: string };
 }
 
-export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; lastMiniAt?: string; rounds?: number; chartRound?: number; calls: { t: string; method: string; units: number; note?: string }[] }
+export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; slot?: number; rounds?: number; chartRound?: number; calls: { t: string; method: string; units: number; note?: string }[] }
 
 /** The quota day in Pacific time (YouTube resets at midnight PT), formatted YYYY-MM-DD. */
 export const quotaDay = (iso = nowIso()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
@@ -95,7 +101,7 @@ const today = () => quotaDay();
 export async function loadLedger(): Promise<QuotaLedger> {
   const l = await readJson<QuotaLedger>('cache/youtube-quota.json');
   if (l && l.day === today()) return l;
-  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, lastMiniAt: l?.lastMiniAt, rounds: l?.rounds, chartRound: l?.chartRound, calls: [] };
+  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, slot: l?.slot, rounds: l?.rounds, chartRound: l?.chartRound, calls: [] };
 }
 export async function saveLedger(l: QuotaLedger): Promise<void> {
   l.calls = l.calls.slice(-200);
@@ -189,83 +195,56 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     }
   }
 
-  // C. discovery (rationed)
+  // C. discovery — a rolling schedule: every run spends SEARCHES_PER_RUN search calls on the next slots of a
+  //    49-slot cycle (query-less top-by-views probes by window/region/category, plus a few keyword probes), so
+  //    discovery is continuous and even instead of bursty, and the freshest probe recurs every ~2 hours.
   let discovered = 0;
-  const hoursSinceDiscovery = ledger.lastDiscoveryAt ? (Date.now() - new Date(ledger.lastDiscoveryAt).getTime()) / 36e5 : Infinity;
-  const hoursSinceMini = ledger.lastMiniAt ? (Date.now() - new Date(ledger.lastMiniAt).getTime()) / 36e5 : Infinity;
-  const fullRound = hoursSinceDiscovery >= DISCOVERY_HOURS;
-  const miniRound = !fullRound && hoursSinceDiscovery >= MINI_HOURS && hoursSinceMini >= MINI_HOURS;
-  if ((fullRound || miniRound) && ledger.searchCalls < SEARCH_BUDGET) {
-    // exploitation: what people talk about now (Bluesky topics) and microtrends that already show momentum
-    const topicQueries = fullRound ? (opts.topicTerms || []).slice(0, 2) : [];
-    const trendQueries = fullRound ? (opts.trendTerms || []).filter((t) => !topicQueries.includes(t)).slice(0, 2) : [];
-    const perRound = Math.max(1, Math.floor(SEARCH_BUDGET / Math.max(1, Math.round(24 / DISCOVERY_HOURS))));
-    // exploration: broad probes every round, then a rotating window of format probes so the whole catalogue is covered daily
-    const round = ledger.rounds || 0;
-    const topCalls = TOP_PROBES.reduce((a, p) => a + (p.pages || 1), 0) + REGION_PROBES_PER_ROUND;
-    const formatSlots = Math.max(0, perRound - topCalls - BROAD_QUERIES.length - topicQueries.length - trendQueries.length);
-    const start = DISCOVERY_QUERIES.length ? (round * formatSlots) % DISCOVERY_QUERIES.length : 0;
-    const formatQueries = Array.from({ length: Math.min(formatSlots, DISCOVERY_QUERIES.length) }, (_, i) => DISCOVERY_QUERIES[(start + i) % DISCOVERY_QUERIES.length]);
-    const queries = fullRound ? Array.from(new Set([...BROAD_QUERIES, ...topicQueries, ...trendQueries, ...formatQueries])) : [];
-    const regionSlice = Array.from({ length: Math.min(REGION_PROBES_PER_ROUND, REGION_PROBES.length) }, (_, i) => REGION_PROBES[(round * REGION_PROBES_PER_ROUND + i) % REGION_PROBES.length]);
-    const topProbes = fullRound ? [...TOP_PROBES, ...regionSlice] : TOP_PROBES.slice(0, 2).map((p) => ({ ...p, pages: 1 }));
-    if (fullRound) ledger.rounds = round + 1;
-    const foundIds: string[] = [];
-    const shortsOnly = new Set(BROAD_QUERIES.filter((_, i) => i % 2 === 0)); // half the broad probes target Shorts (<4 min) explicitly
-    // query-less top-by-views probes first (they cannot be starved by keyword probes)
-    for (const tp of topProbes) {
-      const label = `top:${tp.region || 'all'}:${tp.hours}h${tp.duration ? ':' + tp.duration : ''}${tp.category ? ':cat' + tp.category : ''}`;
-      let pageToken: string | undefined;
-      for (let page = 1; page <= (tp.pages || 1); page++) {
-        if (ledger.searchCalls >= SEARCH_BUDGET) break;
-        try {
-          subrequests++;
-          spend('search.list', 1, `${label} p${page}`);
-          const after = encodeURIComponent(new Date(Date.now() - tp.hours * 36e5).toISOString());
-          const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}&maxResults=50&safeSearch=moderate${tp.duration ? `&videoDuration=${tp.duration}` : ''}${tp.region ? `&regionCode=${tp.region}` : ''}${tp.category ? `&videoCategoryId=${tp.category}` : ''}${tp.lang ? `&relevanceLanguage=${tp.lang}` : ''}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${apiKey}`;
-          const sr = await fetchJson<{ items: { id: { videoId: string } }[]; nextPageToken?: string }>(url, { retries: 0 });
-          for (const it of sr.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${label}`);
-          pageToken = sr.nextPageToken;
-          if (!pageToken) break;
-        } catch (e) {
-          errors.push(`${label} p${page}: ${redact((e as Error).message)}`);
-          break;
-        }
-      }
-    }
-    const publishedAfter = encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString());
-    for (const q of queries.slice(0, perRound)) {
+  const foundIds: string[] = [];
+  const schedule = buildSchedule(opts);
+  let slot = ledger.slot || 0;
+  let spentThisRun = 0;
+  while (spentThisRun < SEARCHES_PER_RUN && ledger.searchCalls < SEARCH_BUDGET && schedule.length) {
+    const probe = schedule[slot % schedule.length];
+    slot++;
+    if (!probe) continue;
+    const label = probe.q != null ? `yt:${probe.q}` : `top:${probe.region || 'all'}:${probe.hours}h${probe.duration ? ':' + probe.duration : ''}${probe.category ? ':cat' + probe.category : ''}`;
+    let pageToken: string | undefined;
+    for (let page = 1; page <= (probe.pages || 1); page++) {
       if (ledger.searchCalls >= SEARCH_BUDGET) break;
       try {
         subrequests++;
-        spend('search.list', 1, q);
-        const sUrl = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${publishedAfter}&q=${encodeURIComponent(q)}&maxResults=25&safeSearch=moderate${shortsOnly.has(q) ? '&videoDuration=short' : ''}&key=${apiKey}`;
-        const s = await fetchJson<{ items: { id: { videoId: string } }[] }>(sUrl, { retries: 0 });
-        for (const it of s.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${q}`);
+        spend('search.list', 1, `${label} p${page}`);
+        spentThisRun++;
+        const after = encodeURIComponent(new Date(Date.now() - probe.hours * 36e5).toISOString());
+        const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}&maxResults=50&safeSearch=moderate${probe.q != null ? `&q=${encodeURIComponent(probe.q)}` : ''}${probe.duration ? `&videoDuration=${probe.duration}` : ''}${probe.region ? `&regionCode=${probe.region}` : ''}${probe.category ? `&videoCategoryId=${probe.category}` : ''}${probe.lang ? `&relevanceLanguage=${probe.lang}` : ''}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${apiKey}`;
+        const sr = await fetchJson<{ items: { id: { videoId: string } }[]; nextPageToken?: string }>(url, { retries: 0 });
+        for (const it of sr.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${label}`);
+        pageToken = sr.nextPageToken;
+        if (!pageToken) break;
       } catch (e) {
-        errors.push(`search ${q}: ${redact((e as Error).message)}`);
+        errors.push(`${label} p${page}: ${redact((e as Error).message)}`);
+        break;
       }
     }
-    if (fullRound) ledger.lastDiscoveryAt = nowIso();
-    ledger.lastMiniAt = nowIso();
-    // details for discovered ids (batched)
-    const byId = new Map(foundIds.map((x) => x.split('|') as [string, string]));
-    const ids = Array.from(byId.keys());
-    for (let i = 0; i < ids.length; i += 50) {
-      if (!canSpend(1)) break;
-      const chunk = ids.slice(i, i + 50);
-      try {
-        subrequests++;
-        spend('videos.list', 1, `discovery details ${chunk.length}`);
-        const v = await fetchJson<{ items: YtVideo[] }>(`${API}/videos?part=snippet,statistics,contentDetails&id=${chunk.join(',')}&key=${apiKey}`, { retries: 0 });
-        for (const vid of v.items || []) {
-          const lbl = byId.get(vid.id) || 'search';
-          add(videoToObservation(vid, lbl.startsWith('top:') ? lbl : `yt:${lbl}`, undefined, observedAt));
-          discovered++;
-        }
-      } catch (e) {
-        errors.push(`discovery details: ${redact((e as Error).message)}`);
+  }
+  ledger.slot = slot % Math.max(1, schedule.length);
+  ledger.lastDiscoveryAt = nowIso();
+  // details for discovered ids (batched)
+  const byId = new Map(foundIds.map((x) => x.split('|') as [string, string]));
+  const ids = Array.from(byId.keys());
+  for (let i = 0; i < ids.length; i += 50) {
+    if (!canSpend(1)) break;
+    const chunk = ids.slice(i, i + 50);
+    try {
+      subrequests++;
+      spend('videos.list', 1, `discovery details ${chunk.length}`);
+      const v = await fetchJson<{ items: YtVideo[] }>(`${API}/videos?part=snippet,statistics,contentDetails&id=${chunk.join(',')}&key=${apiKey}`, { retries: 0 });
+      for (const vid of v.items || []) {
+        add(videoToObservation(vid, byId.get(vid.id) || 'yt:search', undefined, observedAt));
+        discovered++;
       }
+    } catch (e) {
+      errors.push(`discovery details: ${redact((e as Error).message)}`);
     }
   }
 
