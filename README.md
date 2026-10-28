@@ -37,6 +37,22 @@ lifetime average is labelled as such. Evidence classes — verified viral hit / 
 wave / unverified signal / not featured — are never mixed into one ranking. Nothing is padded. Details:
 `docs/SCORING.md`, `docs/DISCOVERY.md`, `docs/BENCHMARK.md`, `docs/AUDIT.md`.
 
+## Daily use (the morning routine)
+
+1. **Discover** — the freshness badge (fresh / delayed / stale) and the first five tiles say what the index holds; the
+   alert strip says what crossed a threshold since your last visit. Biggest videos (72h) and fastest-rising breakouts
+   are the "what is viral / what is accelerating" answer; tap any card to watch in place and read "why it is here".
+2. **Creator Desk** — "worth your time today" is ordered by action. Open one: evidence, type, timing, fit, money,
+   and three briefs; export the brief and start producing, or save it to the journal as *Selected*. "Your lane this
+   week" shows the current activity in your own formats even when nothing clears the desk gate.
+3. **Early Radar** (filter *Early breakout*, language *English/Spanish*) for videos that are still below the hit
+   floor but rising — the ones to study before everyone else does.
+4. **Journal** — when you publish, record platform, date, URL, views, hours, cost, revenue; the journal compares
+   the result with the assessment it was saved with. Export a backup now and then.
+5. **Scorecard** (weekly) — are the radar's early calls turning into hits, and would "biggest by views" have done
+   as well? Precision appears after ten evaluated predictions per horizon; nothing before that is a claim.
+6. **Health** (when something looks stale) — collection success, quota, discovery yield, benchmark, failure classes.
+
 ## Architecture
 
 ```

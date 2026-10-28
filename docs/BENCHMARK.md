@@ -144,3 +144,20 @@ clusters (format / meme / event / uncertain) and judges the label from the title
 pipeline actually had (no visual inspection is claimed).
 
 Results of the 4.0 runs are appended below as they are produced.
+
+## 4.0 runs (2026-10-28, references refreshed by the sites that day)
+
+| run | discovered | precision@10/@20 (3 lists) | negatives leaked | classification | playback |
+|---|---|---|---|---|---|
+| 4.0 cycle 1 — dev set, 11:31 UTC (35 min after the adaptive scheduler started; 3.0 cycle 2 on the previous day's lists was 49.0 %) | **53/98 (54.1 %)** — ChartsList US 38/48 · ShortsMonkey 15/50 | 100 % / 100 % | 0 of 142 + 15 + 105 + 196 + 208 | 96.0 % | 99/100 embeddable, 100/100 thumbnails |
+| 4.0 cycle 2 — unseen holdout (World / MX / GB), 12:20 UTC (3.0 cycle 3 was 65.9 %) | **58/82 (70.7 %)** — World 23/51 · MX 36/48 (≈) · GB 40/48 (≈) | 100 % / 100 % | 0 of 146 + 15 + 106 + 204 + 257 | — | — |
+
+Source coverage of the discovered holdout positives: query-less `top:` probes 49, Trending charts 8, keyword 1.
+The hot-channel uploads source (zero search cost) had added 207 new videos (34 already ≥500K views) to the index by
+12:08 UTC; it surfaces a hot creator's *next* video, so its effect on these lists (which measure videos already big)
+is indirect. What still misses: ShortsMonkey's mid-size (1–7M) international Shorts 2–3 days old (the 45 dev misses
+have a median of 3.9M views) and the worldwide kids'/animation giants 7–14 days old — the adaptive scheduler now
+spends on the probe families that return eligible videos and keeps 25 % for exploration, so the mix will shift with
+measured yield over the coming days; the ceiling remains the 100 searches/day.
+
+Both benchmarks read the store only; no reference id entered any collector.

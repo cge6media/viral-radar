@@ -24,8 +24,9 @@ after the first prediction (none predictable yet), yield ledger 3 searches → 4
 
 53/98 discovered (54.1 %), precision@10/@20 100 % on all three lists, 0 negative leaks (142 low-engagement Bluesky,
 15 duplicates, 105 streams, 196 unverified links, 208 sub-10K), classification agreement 96.0 %, 99/100 featured
-videos embeddable, 100/100 thumbnails. Full table in `data/benchmark/4.0-cycle1-dev.md`; later cycles in
-`docs/BENCHMARK.md`.
+videos embeddable, 100/100 thumbnails. **Unseen holdout (World/MX/GB), 12:20 UTC: 58/82 discovered (70.7 %)**,
+precision 100 %, 0 leaks of 728 controls. Full tables in `data/benchmark/4.0-cycle1-dev.md`,
+`4.0-cycle2-holdout.md` and `docs/BENCHMARK.md`.
 
 ## Browser QA (real Chromium on the GitHub runner, live site)
 
