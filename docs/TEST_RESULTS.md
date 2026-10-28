@@ -77,8 +77,13 @@ regression tests; details in `docs/AUDIT.md`. Offline re-run of the fixed pipeli
 
 ## Live deployment
 
-GitHub Actions "Collect trends" #4 (2.0 pipeline): `collect` ✓ (gate: true), `publish` ✓. The site at
-https://cge6media.github.io/viral-radar/ serves snapshot version 2 (verified by fetching `data/latest.json`).
+GitHub Actions "Collect trends" #4 (2.0 pipeline): `collect` ✓ (gate: true), `publish` ✓. After the second review
+round, run `202610280334_b91b24cdef8b` (03:34 UTC, corrected pipeline): 650 observations this run, 1,753 in history,
+246 clusters, **11 qualified**, relevance check **147/147 (100 %)**, **12/12** checks, gate passed, Pages published;
+https://cge6media.github.io/viral-radar/ serves that snapshot (verified by fetching `data/latest.json`) and the
+dashboard build of commit `7b25719`. Grades after the persistence rule: 29 developing, 50 early, 167 insufficient,
+0 strong (a *strong* grade needs ≥6h of history — first possible around 09:00 UTC). Per-window creator growth
+becomes measurable from the first run ≥2h after 03:34 UTC.
 
 ---
 
