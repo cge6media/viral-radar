@@ -2,16 +2,20 @@
 
 Everything below was built, run and verified in the cloud (Anthropic's sandbox + GitHub Actions runners + GitHub
 Pages); no personal machine, local model or local service was used. External spend: $0 (free YouTube Data API
-quota, public-repository Actions minutes, GitHub Pages). Numbers are from the live run `202610281313_036c3ccb99f8`
-(13:13 UTC) and the documents named in each section; nothing is claimed that is not in a file in this repository.
+quota, public-repository Actions minutes, GitHub Pages). Numbers are from the live runs `202610281313_036c3ccb99f8`
+(13:13 UTC, the audited 4.0.1 run) and `202610281407_763b35da2e7f` (14:07 UTC, the first 4.0.2 run, live on the
+site: `health.json` → `lastCollectionAt 14:07:55Z`) and the documents named in each section; nothing is claimed that
+is not in a file in this repository.
 
 ## 1. Product status
 
-Live at https://cge6media.github.io/viral-radar/ — 4.0.1 build, data of the 13:13 UTC run; health.json on the site
-confirms `lastCollectionAt 13:13:00Z`. Eight primary surfaces: Discover, Viral Now, Early Radar, Trends, Creator
+Live at https://cge6media.github.io/viral-radar/ — 4.0.2 build, data of the 14:07 UTC run (health.json on the site
+confirms it). Eight primary surfaces: Discover, Viral Now, Early Radar, Trends, Creator
 Desk (with playbooks, Scorecard, Alerts, Journal, Radar health under More), Money, Hall of Fame, Watchlist/Journal.
 Recovery checkpoints: `v1-stable`, `v2-stable`, `v3-stable` (3.0 as deployed) remain; 4.0 is on `main`
-(`12a11da`). 55/55 automated tests; 16/16 runtime quality checks on the live run; release gate passed.
+(`90d4891`). 55/55 automated tests; 15/16 runtime quality checks on the live runs (the one non-critical warning:
+203 featured videos' statistics were last observed more than 6 h ago — tracking is rationed to the free quota and
+the index is one day old; the check is informational, not a gate); release gate passed on every published run.
 
 ## 2. Discovery performance — before vs after
 
@@ -59,10 +63,15 @@ What it does: classifies every cluster as viral event / emerging meme / repeatab
 level structure; builds "Today's creator opportunities" with A–H blocks (what, evidence, why, how early, type,
 production, monetization, action), one action each (create today / participate / research / monitor / skip),
 three deterministic brief variations with Markdown export, a journal with statuses and real numbers, alerts, and
-the owner's lane with sub-formats. On the 13:13 run: 1 participate (Halloween, 3 days to the date, Seasonal &
-Holidays by evidence), 4 monitors with "what would change the verdict", 316 clusters considered, 310 excluded with
-counted reasons; the lane lists ten pools with qualified/mid-size counts and sub-formats such as "tf2" (6 creators
-in Animation shorts) and "indian theft" (4). Nothing padded in: when fewer qualify, fewer are shown.
+the owner's lane with sub-formats. On the audited 13:13 run: 1 participate (Halloween), 4 monitors with "what
+would change the verdict", 316 clusters considered, 310 excluded with counted reasons. On the first 4.0.2 run
+(14:07, live): 5 create-today items — "mbappe / haaland · Comedy skits" (the 3D football-star parody format: 6
+creators, 8 qualified hits, 3 of them younger than 72 h, English, 13–31 s), "tf2 / diaper · Animation shorts" (6
+creators, SFM gags; IP risk flagged), "AI-generated video" (9 creators, 10 qualified), "Black Cat" (10 creators —
+the AI animal-story shorts riding the black-cat day tag; the clustering's name, the evidence's format) and a
+duplicate of the football parody from the animation pool that the next run removes (cross-pool dedupe pushed at
+14:17) — plus Halloween (participate, 3 days to the date), Minecraft Mod (research) and one monitor; 316 clusters
+considered, every exclusion counted. Nothing padded in: when fewer qualify, fewer are shown.
 
 Measured quality (three independent audits, same rubric, three separate agents that did not build the system and
 did not read each other): `docs/RECOMMENDATION_AUDIT.md` (11:24 run) desk 2.45/5, labels 45 %; `_2.md` (12:08 run)
@@ -80,8 +89,12 @@ Measured, not assumed: GitHub started **57 %** of the 30-minute scheduled slots 
 **1 of 7** in the hour after the four staggered sibling workflows went live — GitHub's scheduler, not the pipeline,
 drops them. 4.0.1 therefore chains collections: every scheduled or chained run starts a keeper job that waits 25
 minutes and dispatches the next collection unless one started meanwhile; the freshness gate keeps collectors from
-overlapping. The chain's measured cadence appears in `data/health.json` (collections per expected slot, mean and
-max gap) and on the Radar health tab; the first chained dispatch is noted in §12. Freshness is a state (fresh <45
+overlapping and the concurrency group is at job level so a sleeping keeper never blocks a scheduled run. Measured
+so far: collections at 10:57, 11:24, 12:08, 12:27, 13:13, 13:40 and 14:07 UTC — 7 in the 6 expected slots since
+the first 4.0 run, mean gap 32 min, max 64 min (`data/health.json` on the site); the first keeper-chained
+collection ran at 14:07 after the scheduler had skipped the 13:48, 13:56 and 14:03 slots. GitHub's scheduler
+remains bursty (three slots fired within six minutes at 13:33–13:39 after an hour of silence); the chain, the gate
+and the job-level group absorb that. Freshness is a state (fresh <45
 min, delayed <2 h, stale), never "Live" on old data. Quota: 2,362/9,000 units, 29/90 searches at 13:13 UTC; the
 collector stops at the first quotaExceeded answer. Sources on the 13:13 run: YouTube, Bluesky, Google Trends,
 Mastodon ok; TikTok disabled (no anonymous statistics).
