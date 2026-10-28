@@ -36,6 +36,10 @@ jobs:
           VITE_BASE: /${{ github.event.repository.name }}/
           VITE_REPO: ${{ github.repository }}
         run: npm run build
+      - name: Configure Pages (creates the site on first run)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
