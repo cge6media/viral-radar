@@ -79,9 +79,9 @@ export default function Desk() {
       )}
 
       <Section title="What was left out, and why" sub={`${desk.considered} microtrends and formats were considered this run.`}>
-        <div className="row wrap" style={{ gap: 8 }}>
-          {Object.entries(desk.excluded).sort((a, b) => b[1] - a[1]).map(([k, v]) => <span key={k} className="pill"><b className="num" style={{ marginRight: 6 }}>{v}</b>{k}</span>)}
-        </div>
+        <ul className="reasons small">
+          {Object.entries(desk.excluded).sort((a, b) => b[1] - a[1]).map(([k, v]) => <li key={k}><b className="num">{v}</b><span>{k}</span></li>)}
+        </ul>
         <p className="small muted" style={{ marginTop: 10 }}>Single viral events are not creator opportunities; broad tags (#funny) describe a subject, not a format; title fragments and description boilerplate are clustering noise, not trends. The full classified list, including events and uncertain clusters, is on the Trends page.</p>
       </Section>
     </>

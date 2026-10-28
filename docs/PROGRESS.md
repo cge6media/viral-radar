@@ -1,6 +1,16 @@
 # Progress
 
-Last updated: 2026-10-28 08:00 UTC (3.0 upgrade session in Anthropic's cloud workspace).
+Last updated: 2026-10-28 (4.0 release session in Anthropic's cloud workspace; see the 4.0 table below).
+
+## 4.0 — reliable discovery, forward-looking scorecard, creator intelligence (2026-10-28)
+
+| stage | status |
+|---|---|
+| 1 Audit & baseline (`docs/AUDIT_4.0.md`): measured 53 % scheduled-run start rate (one run per hour), Early Radar conflating established hits/young breakouts/resurgences, trend recommendations surfacing tags/fragments/calendar days, 7 MB payload | ✅ |
+| 2 Core intelligence: adaptive discovery (yield ledger, reserve rule, bandit with 25 % exploration, depth pages, hot-channel uploads at zero search cost, Shorts verification); age-aware hit floor + established/early/delayed kinds + confidence bands + language; prediction scorecard (immutable predictions, radar vs views/velocity baselines, outcomes at 24h/48h/72h/7d, crossings, lead time, calibration bands); opportunity types (event/meme/format/uncertain) from title-level structure; Creator Desk engine; alerts; health | ✅ 51 tests |
+| 3 Creator workflow & reliability: Creator Desk page + playbooks (three duration-scaled variations with format-specific risk, Markdown export), Scorecard page, Alerts (new since last visit, filters, optional free webhook), Journal (statuses, real numbers, comparisons, backup/restore), Radar health tab (freshness states, collection success, yield per search, rejection reasons, failure taxonomy, latest benchmark), Viral Now language filter, Early Radar kinds, production return comparison, Hall of Fame creative lessons (37 entries documented), navigation regrouped (5 primary + More), four sibling schedules + freshness gate, cached builds, actions history export | ✅ |
+| 4 Adversarial evaluation: 4.0 dev benchmark (54.1 % recall, 100 % precision, 0 leaks, 96 % classification agreement, 99/100 embeddable); unseen holdout re-run; two independent recommendation audits (`docs/RECOMMENDATION_AUDIT.md`, `_2.md`) with rubric scores and microtrend label validation; independent code review (`docs/CODE_REVIEW_4.0.md`, 19 findings, all resolved); browser QA on the live site at 1440/768/390 with real clicks (`data/qa/`); prediction workflow tested on synthetic histories (no real outcomes could exist yet on release day) | ✅ |
+
 
 ## 3.0 upgrade (2026-10-28)
 

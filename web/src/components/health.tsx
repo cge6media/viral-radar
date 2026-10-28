@@ -89,7 +89,7 @@ export default function Health() {
       </Section>
 
       <Section title="Why videos are rejected" sub="The funnel's rejection reasons, aggregated by rule.">
-        {intel ? <div className="row wrap" style={{ gap: 8 }}>{Object.entries(intel.funnel.rejections).map(([k, v]) => <span key={k} className="pill"><b className="num" style={{ marginRight: 6 }}>{fmtNum(v)}</b>{k}</span>)}</div> : null}
+        {intel ? <ul className="reasons small">{Object.entries(intel.funnel.rejections).map(([k, v]) => <li key={k}><b className="num">{fmtNum(v)}</b><span>{k}</span></li>)}</ul> : null}
       </Section>
 
       <Section title="Failure taxonomy" sub="How a miss is classified when troubleshooting — each class has a different fix.">
