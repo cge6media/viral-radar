@@ -1,0 +1,15 @@
+{
+  "name": "viral-radar",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Viral Radar — AI viral video trend hunter & creator revenue intelligence platform",
+  "workspaces": ["pipeline", "web"],
+  "scripts": {
+    "collect": "npm run collect -w pipeline",
+    "collect:fixtures": "npm run collect:fixtures -w pipeline",
+    "test": "npm test -w pipeline",
+    "build": "npm run build -w web",
+    "dev": "npm run dev -w web"
+  },
+  "engines": { "node": ">=20" }
+}
