@@ -174,7 +174,7 @@ export async function main(): Promise<Snapshot> {
 }
 
 function summarizeErrors(errors: string[]): string {
-  const head = errors.slice(0, 3).map((e) => e.slice(0, 160));
+  const head = errors.slice(0, 2).map((e) => e.replace(/https?:\/\/\S+/g, "<url>").slice(0, 110));
   return `${errors.length} sub-request(s) failed: ${head.join(' | ')}${errors.length > 3 ? ' | …' : ''}`;
 }
 

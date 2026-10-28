@@ -108,7 +108,7 @@ export function EvidenceItem({ e, now }: { e: Observation; now: number }) {
           {e.title || e.url}
         </a>
         <div className="m">
-          <span className="badge kind">{isVideo ? (/youtu\.?be/.test(e.url) ? 'YouTube video' : /video\.bsky/.test(e.url) ? 'Bluesky video' : 'Video') : KIND_LABEL[e.kind] || e.kind}</span>
+          <span className="badge kind">{isVideo ? (/youtu\.?be/.test(e.url) ? 'YouTube video' : /video\.bsky/.test(e.url + ' ' + (e.thumbnail || '')) ? 'Bluesky video' : /tiktok/.test(e.url) ? 'TikTok video' : 'Video') : KIND_LABEL[e.kind] || e.kind}</span>
           <span>{PLATFORM_LABEL[e.source] || e.source}{e.region ? ` · ${e.region}` : ''}</span>
           {e.creator?.name && (
             <span>

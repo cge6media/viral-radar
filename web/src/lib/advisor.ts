@@ -89,6 +89,7 @@ export function advise(t: Trend, prefs: Preferences): Advice {
   if (t.isNewsEvent) cautions.push('This is a news/person event, not a repeatable format. Avoid building a channel around it.');
   if (t.category === 'News & Politics') cautions.push('Political content is routinely limited for ads and sponsorships.');
   if (t.evidence.some((e) => /deepfake|deep fake/i.test(e.title + ' ' + (e.text || '')))) cautions.push('Deepfake-adjacent: never impersonate real people; keep AI usage disclosed and clearly fictional.');
+  if (/monday|tuesday|wednesday|thursday|friday|saturday|sunday|caturday/i.test(t.name)) cautions.push('Recurring weekday prompt tag — it spikes every week, so growth versus the previous days is expected rather than a breakout. Treat it as a reliable weekly slot.');
   if (t.evidence.every((e) => e.kind !== 'video')) cautions.push('No actual video examples yet — the trend is visible in searches/posts, not proven as video performance.');
   if (t.scores.momentumBasis === 'provisional') cautions.push('Growth is provisional (first measurement). Check back after the next scheduled refresh before committing big production budgets.');
 
