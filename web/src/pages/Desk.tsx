@@ -96,7 +96,7 @@ function SubFormats({ lane, now }: { lane: NonNullable<DeskReport['lane']>[numbe
   return (
     <div className="small" style={{ marginTop: 8 }}>
       <b>Sub-formats visible in the titles:</b>{' '}
-      {lane.subFormats!.map((sf) => <button key={sf.label} className={`pill kind${open === sf.label ? ' on' : ''}`} style={{ marginRight: 6, cursor: 'pointer' }} onClick={() => setOpen(open === sf.label ? '' : sf.label)} title={`${sf.creators} independent creators share “${sf.label}” in ${sf.videos} verified videos${sf.topViews ? `; best ${fmtNum(sf.topViews)} views` : ''} — tap to see them`}>“{sf.label}” · {sf.creators} creators · {sf.videos} videos{sf.topViews ? ` · ${fmtNum(sf.topViews)}` : ''}</button>)}
+      {lane.subFormats!.map((sf) => <button key={sf.label} className={`pill kind subchip${open === sf.label ? ' on' : ''}`} style={{ marginRight: 6, marginBottom: 4, cursor: 'pointer' }} onClick={() => setOpen(open === sf.label ? '' : sf.label)} title={`${sf.creators} independent creators share “${sf.label}” in ${sf.videos} verified videos${sf.topViews ? `; best ${fmtNum(sf.topViews)} views` : ''} — tap to see them`}>“{sf.label}” · {sf.creators} creators · {sf.videos} videos{sf.topViews ? ` · ${fmtNum(sf.topViews)}` : ''}</button>)}
       <span className="tiny dim"> — a word several creators share, not a validated cluster; strong ones appear above as “research”. Tap one to see its examples.</span>
       {sel && sel.examples && sel.examples.length > 0 && <div style={{ marginTop: 8 }}><VideoRail cards={sel.examples.map(evidenceToCard)} now={now} /></div>}
     </div>
