@@ -1,0 +1,272 @@
+{
+ "generatedAt": "2026-10-28T02:21:02.284Z",
+ "runId": "202610280220_7f353411b42e",
+ "quality": {
+  "relevance": {
+   "sampled": 119,
+   "relevant": 117,
+   "rate": 0.983
+  },
+  "duplicates": 0,
+  "wrongDates": 0,
+  "brokenLinks": 0,
+  "emptyRecommendations": false,
+  "checks": [
+   {
+    "name": "format evidence passes relevance validation",
+    "ok": true,
+    "detail": "117/119 (98%)"
+   },
+   {
+    "name": "no duplicate videos within a trend",
+    "ok": true,
+    "detail": "0 duplicates"
+   },
+   {
+    "name": "publication dates are not share dates and not in the future",
+    "ok": true,
+    "detail": "0 suspect timestamps"
+   },
+   {
+    "name": "no social engagement attributed to an unverified video",
+    "ok": true,
+    "detail": "0 items"
+   },
+   {
+    "name": "evidence links are absolute http(s) URLs",
+    "ok": true,
+    "detail": "0 malformed"
+   },
+   {
+    "name": "growth ratios are finite and positive",
+    "ok": true,
+    "detail": "0 invalid"
+   },
+   {
+    "name": "lifecycle agrees with evidence grade; no acceleration without measurement",
+    "ok": true,
+    "detail": "0 inconsistent"
+   },
+   {
+    "name": "live sources refreshed within 3h",
+    "ok": true,
+    "detail": "all fresh"
+   },
+   {
+    "name": "at least one qualified opportunity",
+    "ok": true,
+    "detail": "9 qualified of 188"
+   },
+   {
+    "name": "no news/person events in recommendations",
+    "ok": true,
+    "detail": "0"
+   },
+   {
+    "name": "generic categories qualify only with measured growth",
+    "ok": true,
+    "detail": "0"
+   },
+   {
+    "name": "qualified trends carry evidence",
+    "ok": true,
+    "detail": "0 without evidence"
+   }
+  ]
+ },
+ "sourceQuality": [
+  {
+   "source": "google_trends",
+   "label": "Google Trends — trending searches",
+   "status": "live",
+   "lastSuccess": "2026-10-28T02:20:54.412Z",
+   "items": 40,
+   "uniqueVideos": 0,
+   "directVideos": 0,
+   "relevantItems": 0,
+   "metrics": [
+    "search traffic (lower bound)",
+    "news links"
+   ],
+   "medianAgeHours": 0.5,
+   "historyDays": 1,
+   "errorRate": 0,
+   "weight": 0.4,
+   "notes": [
+    "Search interest, not video performance. Mostly news/sports — used as corroboration."
+   ]
+  },
+  {
+   "source": "bluesky",
+   "label": "Bluesky — topics, feeds, video discovery",
+   "status": "live",
+   "lastSuccess": "2026-10-28T02:20:57.840Z",
+   "items": 553,
+   "uniqueVideos": 314,
+   "directVideos": 190,
+   "relevantItems": 274,
+   "metrics": [
+    "likes",
+    "reposts",
+    "replies",
+    "native video",
+    "external video links"
+   ],
+   "medianAgeHours": 5.2,
+   "historyDays": 1,
+   "errorRate": 0,
+   "weight": 0.7,
+   "notes": [
+    "Engagement counts only; external video links are indirect until YouTube verifies them."
+   ]
+  },
+  {
+   "source": "mastodon",
+   "label": "Mastodon — trending hashtags (7-day history)",
+   "status": "live",
+   "lastSuccess": "2026-10-28T02:20:54.618Z",
+   "items": 20,
+   "uniqueVideos": 0,
+   "directVideos": 0,
+   "relevantItems": 0,
+   "metrics": [
+    "daily uses",
+    "accounts",
+    "7-day series"
+   ],
+   "medianAgeHours": 0,
+   "historyDays": 1,
+   "errorRate": 0,
+   "weight": 0.35,
+   "notes": [
+    "Small network; its 7-day hashtag series gives measured daily growth."
+   ]
+  },
+  {
+   "source": "youtube",
+   "label": "YouTube Data API — charts, tracking, discovery",
+   "status": "disabled",
+   "items": 0,
+   "uniqueVideos": 0,
+   "directVideos": 0,
+   "relevantItems": 0,
+   "metrics": [
+    "views",
+    "likes",
+    "comments",
+    "publish date",
+    "duration",
+    "channel"
+   ],
+   "historyDays": 0,
+   "errorRate": 0,
+   "weight": 1,
+   "notes": [
+    "Add the free YOUTUBE_API_KEY secret to enable direct video statistics."
+   ]
+  },
+  {
+   "source": "tiktok",
+   "label": "TikTok Creative Center (opt-in, best-effort)",
+   "status": "disabled",
+   "items": 0,
+   "uniqueVideos": 0,
+   "directVideos": 0,
+   "relevantItems": 0,
+   "metrics": [
+    "post count",
+    "views",
+    "7-day trend"
+   ],
+   "historyDays": 0,
+   "errorRate": 0,
+   "weight": 0.6,
+   "notes": [
+    "Undocumented endpoint; opt-in only."
+   ]
+  }
+ ],
+ "qualified": [
+  {
+   "id": "t_spooky_month_stream_schedules",
+   "name": "Spooky month stream schedules",
+   "kind": "topic",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_vtuber",
+   "name": "#vtuber",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 11,
+   "direct": 6
+  },
+  {
+   "id": "m_musicchallenge",
+   "name": "#musicchallenge",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 28,
+   "videos": 30,
+   "direct": 0
+  },
+  {
+   "id": "m_digitalart",
+   "name": "#digitalart",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 3
+  },
+  {
+   "id": "t_mystery_skulls_animated_finale_releases",
+   "name": "Mystery Skulls Animated finale releases",
+   "kind": "topic",
+   "grade": "early",
+   "creators": 2,
+   "videos": 2,
+   "direct": 0
+  },
+  {
+   "id": "t_bleach_anime_series_finale",
+   "name": "Bleach anime series finale",
+   "kind": "topic",
+   "grade": "early",
+   "creators": 2,
+   "videos": 2,
+   "direct": 1
+  },
+  {
+   "id": "f_ai_video",
+   "name": "AI-generated video",
+   "kind": "format",
+   "grade": "early",
+   "creators": 2,
+   "videos": 2,
+   "direct": 1
+  },
+  {
+   "id": "m_musicsky",
+   "name": "#musicsky",
+   "kind": "microtrend",
+   "grade": "early",
+   "creators": 3,
+   "videos": 3,
+   "direct": 0
+  },
+  {
+   "id": "f_street_interview",
+   "name": "Street interviews & vox pops",
+   "kind": "format",
+   "grade": "early",
+   "creators": 2,
+   "videos": 2,
+   "direct": 1
+  }
+ ]
+}
