@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-10-28 (2.0 upgrade session in Anthropic's cloud workspace).
+Last updated: 2026-10-28 08:00 UTC (3.0 upgrade session in Anthropic's cloud workspace).
 
 ## 3.0 upgrade (2026-10-28)
 
@@ -10,12 +10,12 @@ Last updated: 2026-10-28 (2.0 upgrade session in Anthropic's cloud workspace).
 | 2 Discovery diagnosis: benchmark baseline 4/98 (4.1 %) discovered; root cause = no leaderboard-style discovery; case video IjQwPjLMbxI verified (2.19M views, 14 months old, ×440 creator outlier, slow resurgence) | ✅ |
 | 3 Viral Now + Early Radar (video records, velocity, states, scores, per-platform scale) | ✅ |
 | 4 Multiplatform: query-less YouTube probes (windows/regions/categories), Bluesky domain link discovery, TikTok oEmbed; Creative Center/IG/FB documented as unavailable | ✅ |
-| 5 Benchmark tool + cycles: cycle 1 4.1 % → 40.8 % → 49 % discovered; cycle 2 (rolling schedule, classification prior, paid-reach filter); cycle 3 holdout | see docs/BENCHMARK.md |
+| 5 Benchmark tool + cycles: cycle 1 4.1 % → 40.8 % → 49 % discovered (dev); cycle 2 rolling schedule, classification prior 36 % → 97 %, paid-reach filter; cycle 3 unseen holdout **65.9 %** (87 % of videos ≤7 days old), precision 100 %, 0 negative leaks | ✅ docs/BENCHMARK.md |
 | 6 Playback: in-page official embeds + fallback, real thumbnails, uniform cards; 100/100 featured videos embeddable | ✅ |
 | 7 Navigation: Discover / Viral Now / Early Radar / Trends / Money / Studio / Hall of Fame / Watchlist; diagnostics | ✅ |
 | 8 Hall of Fame: 38 entries, 35 API-verified | ✅ |
 | 9 Money Engine + Studio preserved | ✅ |
-| 10 Tests (41), deploy, verify | ✅ |
+| 10 Tests (42), 16/16 runtime checks, deploy, live verification (run 202610280751) | ✅ |
 
 ## 2.0 upgrade phases
 
