@@ -125,7 +125,7 @@ export function ScoreBars({ v }: { v: ViewTrend }) {
 
 export function EvidenceCard({ e, now }: { e: Observation; now: number }) {
   const isVideo = e.kind === 'video';
-  const plat = e.video?.platform ? { youtube: 'YouTube', bluesky: 'Bluesky', tiktok: 'TikTok', instagram: 'Instagram', other: 'Video' }[e.video.platform] : PLATFORM_LABEL[e.source];
+  const plat = e.video?.platform ? { youtube: 'YouTube', bluesky: 'Bluesky', tiktok: 'TikTok', instagram: 'Instagram', facebook: 'Facebook', other: 'Video' }[e.video.platform] : PLATFORM_LABEL[e.source];
   const line = exampleLine(e);
   const when = e.videoPublishedAt ? `published ${fmtAgo(e.videoPublishedAt, now)}` : e.postPublishedAt ? (isVideo && e.level === 'indirect' ? `shared ${fmtAgo(e.postPublishedAt, now)}` : `posted ${fmtAgo(e.postPublishedAt, now)}`) : e.publishedAt ? `seen ${fmtAgo(e.publishedAt, now)}` : `seen ${fmtAgo(e.observedAt, now)}`;
   return (
