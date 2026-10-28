@@ -19,7 +19,7 @@
 import type { DeskAction, DeskEvidence, DeskOpportunity, DeskReport, DeskTiming, LaneEntry, Observation, SubFormat, Trend, TrendFeatures, VideoRecord } from '../types.js';
 import { creatorKey, exampleKey, isBroadTopicTag } from './cluster.js';
 import { profileFor } from './taxonomy.js';
-import { DESCRIPTOR, GENERIC_NAME, LIVE_RE, SIG_STOP, SPORTS_NEWS_RE, isDescriptorTag, titleCarries, titleMatchesFormat } from './formats.js';
+import { DESCRIPTOR, GENERIC_NAME, HOOKS, LIVE_RE, SIG_STOP, SPORTS_NEWS_RE, isDescriptorTag, titleCarries, titleMatchesFormat } from './formats.js';
 import { isAnyStopword } from './language.js';
 import { STOPWORDS, clamp, hoursBetween, round, tokenize } from '../lib/util.js';
 
@@ -263,8 +263,12 @@ function cleanFeatures(f: TrendFeatures, clean: Ev[]): TrendFeatures {
   const langs: Record<string, number> = {};
   for (const x of clean) if (x.r.language) langs[x.r.language] = (langs[x.r.language] || 0) + 1;
   const measured = clean.filter((x) => x.r.velocityRatio != null && (x.r.velocity || []).reduce((a, v) => a + v.hours, 0) >= 2);
+  // hooks on the clean titles only (a rejected "Top Halloween Songs" list must not turn a costume moment into a music approach)
+  const hooks: Record<string, number> = {};
+  for (const x of clean) for (const [name, re] of HOOKS) if (re.test(x.r.title || x.e.title)) hooks[name] = (hooks[name] || 0) + 1;
   return {
     ...f,
+    hooks,
     creators: creators.size, videos: clean.length, directVideos: clean.length, newCreators48h: new48.size,
     repeatCreators: Array.from(byCreator.values()).filter((n) => n >= 2).length,
     dominance: total > 0 ? round(Math.max(...views) / total, 2) : f.dominance,

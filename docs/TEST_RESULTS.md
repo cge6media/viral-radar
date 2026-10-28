@@ -31,6 +31,12 @@ precision 100 %, 0 leaks of 728 controls. Full tables in `data/benchmark/4.0-cyc
 
 ## Browser QA (real Chromium on the GitHub runner, live site)
 
+**4.0.1 re-run (13:17 UTC, run `202610281313` live):** 0 pages with horizontal overflow at 1440/768/390 (36
+screenshots), Discover loads in 3.0 s / 2.3 s / 2.5 s, the desk → playbook → export flow passes at all three widths,
+14/15 player embeds load; media was delivered in 2/15 because YouTube's datacenter anti-bot wall answered 12 (see
+below). The desk screenshots show the 4.0.1 state (Seasonal & Holidays category from the evidence, "Mid-size" badges,
+"No playbook yet" for monitored items).
+
 `data/qa/report.json` + 36 screenshots. Three widths × eleven pages render with real thumbnails and no horizontal
 overflow after the fixes (segments wrap, scores wrap, intros clamp on phones); the Creator Desk → playbook → export
 flow works at 1440 / 768 / 390. Playback: the official embed loads in 14/15 cards; on the runner's datacenter IP
