@@ -61,6 +61,12 @@ Unverified shares count a *sharer*, which is why they cannot raise the evidence 
 
 Verified = measured on its platform (`direct`) or confirmed by the YouTube API / oEmbed (`verifiedAt`).
 
+**Shares-only cap.** A cluster whose examples are all social *shares* of videos (no example measured on its
+platform and no verified publish date) is capped at *Early*, even when oEmbed has confirmed the channels: people
+passing around existing videos is audience interest, not creator adoption, and without the platform's statistics
+and publish dates there is no way to tell a new wave from an old video doing the rounds. The note on the trend
+says so; the YouTube API key lifts the cap by supplying both.
+
 ## Qualification (what can be recommended)
 
 `grade ≠ insufficient` **and** not a news/person event **and** (not a generic evergreen format, or its growth is

@@ -167,7 +167,12 @@ test('score: shares alone are indirect — no performance claim, interest from t
   assert.equal(s.videoPerformance, null);
   assert.equal(s.directVideos, 0);
   assert.equal(s.grade, 'early', 'unverified shares corroborate but cannot prove a format');
-  assert.ok(s.notes.some((n) => /needs platform verification/.test(n)));
+  assert.ok(s.notes.some((n) => /needs platform verification|unverified/.test(n)));
+  // even oEmbed-verified channels cannot lift a shares-only cluster above early (no platform stats, no publish dates)
+  const verifiedShares = members.map((m) => ({ ...m, creator: { name: 'Chan ' + m.id, url: 'https://www.youtube.com/@x' + m.id }, verifiedAt: NOW }));
+  const s2 = scoreWindow({ cluster: { id: 'm_dorm2', kind: 'microtrend', name: 'Dorm Cooking', origin: 'phrase', keywords: ['dorm'], members: verifiedShares }, category: 'Food & Cooking', isNewsEvent: false, isGeneric: false, now: NOW, window: '7d', history: [], metricHistory: new Map() });
+  assert.equal(s2.grade, 'early');
+  assert.equal(s2.components.sharesOnly, 1);
   assert.ok(s.audienceInterest > 0);
 });
 

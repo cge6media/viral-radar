@@ -256,13 +256,20 @@ export function scoreWindow(input: ScoreInput): WindowScores {
   const verified = videos.filter((v) => v.level === 'direct' || v.verifiedAt);
   const verifiedCreatorCount = independentCreators(verified);
   components.verifiedCreators = verifiedCreatorCount;
-  const grade: EvidenceGrade =
+  // shares-only clusters (no video measured on its platform and no verified publish date) cannot prove a format:
+  // people passing around existing videos is audience interest, not creator adoption
+  const sharesOnly = videos.length > 0 && direct.length === 0 && !videos.some((v) => v.videoPublishedAt);
+  let grade: EvidenceGrade =
     verifiedCreatorCount >= 3 && direct.length >= 3 && runsObserved >= 3 ? 'strong'
       : verifiedCreatorCount >= 3 && verified.length >= 3 ? 'developing'
         : videos.length >= 1 && (creators >= 2 || audienceInterest >= 50) ? 'early'
           : members.length >= 2 && audienceInterest >= 60 && videos.length === 0 ? 'early'
             : 'insufficient';
-  if (grade === 'early' && creators >= 3 && verifiedCreatorCount < 3) notes.push(`${creators} sharers but only ${verifiedCreatorCount} verified creator${verifiedCreatorCount === 1 ? '' : 's'} — needs platform verification (YouTube API) to grade higher.`);
+  if (sharesOnly && (grade === 'strong' || grade === 'developing')) {
+    grade = 'early';
+    notes.push('All examples are social shares of videos whose own statistics and publish dates are unverified — capped at an early signal until the video platform confirms them (YouTube API key).');
+  } else if (grade === 'early' && creators >= 3 && verifiedCreatorCount < 3) notes.push(`${creators} sharers but only ${verifiedCreatorCount} verified creator${verifiedCreatorCount === 1 ? '' : 's'} — needs platform verification (YouTube API) to grade higher.`);
+  components.sharesOnly = sharesOnly ? 1 : 0;
   const gradeFactor = { strong: 1, developing: 0.9, early: 0.72, insufficient: 0.4 }[grade];
   const opportunity = round(clamp((0.4 * momentum + 0.35 * creatorOpportunity + 0.25 * monetization) * (0.3 + 0.7 * (confidence / 100)) * gradeFactor), 0);
 
