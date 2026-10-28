@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import type { Observation, SourceStatus, SourceQuality, Window } from '../lib/types';
+import type { Observation, SourceStatus, SourceQuality, Window, VideoCard } from '../lib/types';
+import { usePlayer } from './video';
 import { GRADE, KIND_LABEL, KIND_OF_TREND, PLATFORM_LABEL, STAGE, WINDOWS, WINDOW_LABEL } from '../lib/types';
 import { bestThumb, coverHue, exampleLine, fmtAgo, fmtNum, type ViewTrend } from '../lib/data';
 
@@ -127,16 +128,36 @@ export function ScoreBars({ v }: { v: ViewTrend }) {
   );
 }
 
+/** an evidence observation as a playable card (official embeds; otherwise the modal offers the direct link) */
+export function observationToCard(e: Observation): VideoCard {
+  return {
+    id: e.id, platform: e.video?.platform || (e.source === 'bluesky' ? 'bluesky' : 'other'), platformId: e.video?.id || e.key, url: e.url, title: e.title, thumbnail: e.thumbnail,
+    creator: e.creator?.name || (e.sharedBy ? `shared by ${e.sharedBy.name}` : undefined), creatorUrl: e.creator?.url, publishedAt: e.videoPublishedAt || (e.level === 'direct' ? e.publishedAt : undefined),
+    ageHours: e.videoPublishedAt ? (Date.now() - new Date(e.videoPublishedAt).getTime()) / 36e5 : undefined, durationSec: e.video?.durationSec, isShort: e.video?.durationSec != null ? e.video.durationSec <= 180 : /shorts\//.test(e.url) || undefined,
+    views: e.metrics.views, likes: e.metrics.likes, comments: e.metrics.comments, shares: e.postMetrics?.accounts,
+    state: e.level === 'direct' ? 'verified_hit' : 'unverified_signal', viralScore: 0, breakoutScore: 0, engagementScore: 0, outlierScore: 0,
+    category: '', formats: e.formats || [], reasons: [e.level === 'direct' ? 'Statistics measured on the video platform.' : 'A share — the video\'s own statistics are unverified.'], crossPlatform: 0, verified: e.level === 'direct',
+  };
+}
+
 export function EvidenceCard({ e, now }: { e: Observation; now: number }) {
   const isVideo = e.kind === 'video';
+  const player = usePlayer();
   const plat = e.video?.platform ? { youtube: 'YouTube', bluesky: 'Bluesky', tiktok: 'TikTok', instagram: 'Instagram', facebook: 'Facebook', other: 'Video' }[e.video.platform] : PLATFORM_LABEL[e.source];
   const line = exampleLine(e);
   const when = e.videoPublishedAt ? `published ${fmtAgo(e.videoPublishedAt, now)}` : e.postPublishedAt ? (isVideo && e.level === 'indirect' ? `shared ${fmtAgo(e.postPublishedAt, now)}` : `posted ${fmtAgo(e.postPublishedAt, now)}`) : e.publishedAt ? `seen ${fmtAgo(e.publishedAt, now)}` : `seen ${fmtAgo(e.observedAt, now)}`;
+  const overlay = <div className="tl"><span className="pill kind on-dark">{isVideo ? (e.level === 'direct' ? `${plat} · measured` : `${plat} · shared`) : KIND_LABEL[e.kind]}</span></div>;
   return (
     <div className="ecard">
-      <a href={e.url} target="_blank" rel="noopener noreferrer" aria-label={`Open: ${e.title}`}>
-        <Thumb src={e.thumbnail} name={e.title} portrait={!!e.thumbnail && /video\.bsky\.app/.test(e.thumbnail)} play={isVideo} overlay={<div className="tl"><span className="pill kind on-dark">{isVideo ? (e.level === 'direct' ? `${plat} · measured` : `${plat} · shared`) : KIND_LABEL[e.kind]}</span></div>} />
-      </a>
+      {isVideo ? (
+        <button className="media" onClick={() => player.open(observationToCard(e))} aria-label={`Play: ${e.title}`} style={{ padding: 0, border: 0, background: 'none', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+          <Thumb src={e.thumbnail} name={e.title} portrait={!!e.thumbnail && /video\.bsky\.app/.test(e.thumbnail)} play overlay={overlay} />
+        </button>
+      ) : (
+        <a href={e.url} target="_blank" rel="noopener noreferrer" aria-label={`Open: ${e.title}`}>
+          <Thumb src={e.thumbnail} name={e.title} overlay={overlay} />
+        </a>
+      )}
       <div style={{ minWidth: 0 }}>
         <a className="t clamp2" href={e.url} target="_blank" rel="noopener noreferrer">{e.title || e.url}</a>
         <div className="m clamp2">

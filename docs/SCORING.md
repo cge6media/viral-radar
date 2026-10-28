@@ -104,3 +104,56 @@ measured ≥ 1.5×) **and** (not a bare topic, or it has ≥2 related videos). R
 
 Score hues (amber `#c4860f`, aqua `#1fa586`, violet `#8c7cf0`) and lifecycle hues were validated for colour-vision
 deficiency and contrast on the dark surface; every stage and grade always carries its text label.
+
+
+---
+
+# Video-native intelligence (3.0)
+
+Computed in `pipeline/src/intel/videos.ts` for every unique video of the last 30 days (full index in
+`data/videos.json`; top lists in `latest.json → videos`). Video statistics and share engagement never mix.
+
+## Measurements
+
+| quantity | definition | when it exists |
+|---|---|---|
+| lifetime rate | views ÷ hours since the platform's publish time | verified publish date |
+| velocity | views gained ÷ elapsed hours between two real observations ≥1h apart (up to 6 intervals, latest first) | ≥2 observations ≥1h apart |
+| acceleration | latest interval rate ÷ previous interval rate | ≥3 observations |
+| gained[1h…7d] | views gained inside a trailing window, only when observations bracket it (±25 %) | enough history |
+| age percentile | lifetime rate vs tracked videos of comparable age (<6h, <24h, <72h, <7d, <30d; ≥8 per bucket) | cohort large enough |
+| baseline ratio | views ÷ median views of the channel's last 20 uploads | baseline fetched (20 channels/run) |
+| subscriber ratio | views ÷ subscribers | channel statistics fetched |
+| like rate | likes ÷ views (hidden like counts → no claim) | likes reported |
+
+## Evidence classes (per video)
+
+| class | YouTube rule | Bluesky rule (own scale, never mixed) |
+|---|---|---|
+| **Verified viral hit** | ≥5M views within 30 days, or ≥1M views with ≥50K views/h (measured or lifetime) | ≥5,000 likes within 30 days |
+| **Early breakout** | measured ≥10K/h with ≥50K views; or ≥3K/h accelerating ≥1.5× with ≥20K views; or ≤48h old averaging ≥10K/h with ≥100K views **and** above the creator's normal range (≥2× median upload or ≥0.5× subscribers); or creator outlier ≥20× median with ≥100K views ≤14d; or delayed: >30d old but measured ≥5K/h at ≥5× lifetime with ≥100K views | measured ≥100 likes/h with ≥500 likes; or ≤48h old averaging ≥50 likes/h with ≥500 likes |
+| **Unverified signal** | shared by ≥3 accounts or ≥500 post likes, no platform statistics (TikTok/Instagram/Facebook links) | — |
+| **Not featured** | below the 10K-view floor; below thresholds for its age; cooling (measured ≤0.3× lifetime over ≥6h); live stream / premiere / recording >3h; duplicate of a larger identical-title upload; paid-reach pattern (≥500K views, <0.05 % likes, ~no comments); >30d without measured resurgence | below 100 likes; below thresholds |
+
+Every record carries plain-language `reasons` (the same facts the UI shows under "Why this video is here") and the
+rule that rejected it (`rejectedBy`), which the discovery funnel aggregates.
+
+## Scores (separate on purpose)
+
+- **viral** (established popularity for its age) = 45 % log(views 100K…50M) + 25 % log(lifetime rate 1K…300K/h) +
+  15 % velocity factor (0.5 when unmeasured) + 15 % like-rate factor (6 % = full).
+- **breakout** (momentum) = 40 % log(growth rate 1K…200K/h; measured velocity, or the lifetime average only for
+  videos ≤48h old) + 25 % acceleration/velocity ratio + 20 % outlier term + 15 % youth (≤7d); ×0.8 when the rate is
+  provisional; 0 below 20K views.
+- **engagement** = 80 % log(like rate 0.5 %…10 %) + 20 % log(comments/view); 0 below 10K views.
+- **outlier** = log(baseline ratio 1…200×); 0 without a baseline.
+- **confidence** = observations, measured velocity, baseline, cross-platform evidence, verified age.
+- Ranked lists cap each creator at 2 entries. Viral Now = verified hits inside the publish window by viral score;
+  Early Radar = breakouts by breakout score. Bluesky has its own two lists.
+
+## Category waves (cluster level)
+
+promising wave = ≥3 independent creators, ≥2 new in 48h, no measured decline (generic pools need ≥1.5× measured);
+established = ≥6 creators, flat; crowded = ≥30 creators with weak video performance; declining = cooling or
+measured <0.8×. Growth baselines only come from earlier runs with the **same active-source signature**, so turning a
+source on never reads as growth.
