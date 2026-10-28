@@ -103,7 +103,7 @@ export function isUnsafeLabel(val: string): boolean {
   return UNSAFE_LABELS.has(val);
 }
 export function hasUnsafeMarkers(text: string): boolean {
-  return /🔞|\bnsfw\b|\bporn\b|\bhentai\b|\bonlyfans\b/i.test(text);
+  return /🔞|\bnsfw\b|\bporn\b|\bhentai\b|\bonlyfans\b|\bgentledom\b|\bfemdom\b|\bfindom\b|\blewd\b/i.test(text);
 }
 
 export function logNorm(value: number, lo: number, hi: number): number {

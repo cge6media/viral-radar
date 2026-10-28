@@ -1,125 +1,94 @@
-# Scoring
+# Scoring (Viral Radar 2.0)
 
-All scores are 0–100 and are computed in `pipeline/src/intel/score.ts`; the dashboard shows every component on a
-trend's detail page. Nothing is invented: when a quantity cannot be measured it is neutral and labelled provisional.
+Everything is computed in `pipeline/src/intel/score.ts`, **per time window** (24h, 48h, 7d), from evidence whose
+*content time* falls inside the window. Content time = the video's publish time (from its platform), a native
+post's time, or a signal's observation time. The time a post *shared* an external video is never its publish time.
+Nothing is invented: a component is `null` when its measurement does not exist, and growth is marked
+*provisional* until two observations ≥2h apart exist.
 
-## 1. Attention level (signal, 0–1)
+## Evidence model
 
-Each observation is normalised on a log scale within its own evidence kind so unrelated metrics become comparable:
-
-| kind | formula |
+| field | meaning |
 |---|---|
-| search spike | `logNorm(approxTraffic, 100, 1,000,000)` |
-| hashtag | `max(logNorm(uses/day, 10, 5,000), logNorm(views, 1e5, 1e9))` |
-| social topic | `0.35 + 0.45 × (1 − (rank−1)/25)` |
-| video with views | `logNorm(views, 10,000, 50,000,000)` |
-| video without views | `logNorm(likes + 2×reposts, 20, 5,000)` |
-| post | `0.6 × logNorm(likes + 2×reposts, 20, 5,000)` |
+| `level: direct` | the item was measured on the platform that hosts the video (YouTube Data API record; native Bluesky video with its own engagement) |
+| `level: indirect` | a share of an external video (its stats are unknown until verified), a search spike, a hashtag, a post |
+| `metrics` | the item's own statistics (empty for an unverified share) |
+| `postMetrics` | engagement of the social post that carried an external video |
+| `videoPublishedAt / postPublishedAt / firstSeenAt / observedAt / verifiedAt` | kept apart on purpose |
 
-Cluster signal = strongest item + 0.25 × `logNorm(items, 1, 40)` + 0.15 × second-strongest, capped at 1.
+Independent creators are counted by channel/author; the same video shared by many accounts is one example.
+Unverified shares count a *sharer*, which is why they cannot raise the evidence grade above *early*.
 
-## 2. Momentum (0–100)
+## Components (0–100; `null` = not measurable)
 
-`100 × (0.25 recency + 0.30 growth + 0.10 acceleration + 0.20 breadth + 0.15 level)`
+- **Video performance** — for directly measured videos: views per hour since the video's own publish time,
+  `logNorm(rate, 50, 100,000)`; without views, engagement (likes + 2·reposts + comments) per hour,
+  `logNorm(rate, 0.5, 300)`. Cluster value = 70 % of the best video + 30 % of the median. Age-normalised, so a
+  30-minute-old video is not compared to a 30-day-old one on raw counts.
+- **Video momentum** — the same videos re-measured across runs: (views gained per hour over the last ≥1h interval)
+  ÷ (lifetime average views per hour). Median ratio → `0.5 + log2(ratio)/4` (1× = 50). Needs ≥2 observations.
+- **Category adoption** — `0.75 · logNorm(independent creators, 1, 12) + 0.25 · min(new creators in 48h / 4, 1)`.
+- **Audience interest** — strongest indirect signal (search spike `logNorm(traffic, 100, 1e6)`; hashtag uses
+  `logNorm(uses, 10, 5000)`; topic rank; post engagement; share engagement) + 15 % of the second + a small
+  breadth term.
+- **Confidence** — 25 % `logNorm(videos, 1, 15)` + 25 % `min(direct videos / 4, 1)` + 20 % creators (scaled by the
+  verified-creator share) + 15 % independent sources (1 → 0.3, 2 → 0.7, 3+ → 1) + 15 % observation history.
+- **Recency** — 50 % half-life 24h on the latest content time + 50 % half-life 48h on the median content time.
+- **Cluster growth** — measured from score history ≥2h old: independent creators now ÷ then (or the adoption
+  signal), `0.5 + log2(ratio)/4`; a Mastodon 7-day series is used on first sight and blended at 40 % afterwards
+  (last complete day vs. earlier days; today only when ≥8h elapsed and stronger pro-rated). Otherwise 0.5 and
+  *provisional*.
 
-- **recency** — `0.6 × 0.5^(hours since last seen / 24) + 0.4 × 0.5^(hours since latest publish / 48)`
-- **growth** — ratio of the cluster signal now vs. the previous scoring run (≥2h apart), computed as
-  `(signal + 0.05) / (previous + 0.05)` (the 0.05 floor damps noise on tiny signals; the note on the trend page says
-  "noise-damped"), mapped with `0.5 + log2(ratio)/4` (0.25× → 0, 1× → 0.5, 4× → 1). If the source supplies its own
-  daily series (Mastodon 7-day history) that growth is used on the first run and blended in at 40% afterwards; the
-  ratio shown in the UI is then the effective blended ratio `2^((growth − 0.5) × 4)`. The source series compares the
-  last *complete* day (or today pro-rated once ≥8h have elapsed, if that is stronger) with the mean of the earlier
-  complete days, zeros included. **No history → 0.5 and `momentumBasis = provisional`.**
-- **acceleration** — change in growth between the last two intervals (0.5 = steady); needs ≥3 runs.
-- **breadth** — `0.5 × sources(1→0.3, 2→0.7, 3+→1) + 0.5 × logNorm(items, 1, 30)`
-- **level** — the cluster signal.
+## Composites
 
-Recency + growth + acceleration carry 65% of the weight so emerging trends can outrank established popularity.
+- **Momentum** = 30 % adoption + 25 % measured signal (video momentum → video performance → audience interest,
+  first available) + 20 % recency + 15 % audience interest + 10 % growth.
+- **Monetization suitability** (category profile, editorial) = 30 % advertiser + 20 % sponsorship + 15 % affiliate +
+  15 % longevity + 10 % demand + 10 % (1 − cost); ×0.55 for news/person events. Profiles are in `taxonomy.ts`.
+- **Creator opportunity** = 35 % momentum + 20 % repeatability + 15 % (1 − saturation) + 15 % (1 − cost) + 15 %
+  monetization suitability; ×0.45 news, ×0.8 generic. The dashboard adds +10 (interest), +5 (tools), +6 (appetite).
+- **Opportunity** = (40 % momentum + 35 % creator + 25 % monetization) × (0.3 + 0.7 · confidence) × grade factor
+  (strong 1.0, developing 0.9, early 0.72, insufficient 0.4).
 
-## 3. Evidence confidence (0–100)
+## Evidence grades
 
-`100 × (0.30 logNorm(support, 1, 25) + 0.25 sources + 0.25 min(videosWithStats/5, 1) + 0.10 logNorm(creators+1, 1, 15) + 0.10 logNorm(runs + historyPoints, 1, 48))`
-
-`support` = items + up to 6 extra units from hashtag "accounts" (15 accounts ≈ 1 item). A single hashtag or a lone
-search spike cannot exceed roughly 30 — that is intended: one signal is "Insufficient data" until corroborated.
-
-## 4. Monetization opportunity (0–100)
-
-From the category's editorial profile (0–1 each; `pipeline/src/intel/taxonomy.ts`):
-
-`100 × (0.30 advertiser + 0.20 sponsorship + 0.15 affiliate + 0.15 longevity + 0.10 demand + 0.10 (1 − cost))`
-+5 when YouTube videos are present; ×0.55 for news/person events.
-
-| Category | adv | spons | affil | repeat | longev | cost | demand |
-|---|---|---|---|---|---|---|---|
-| Entertainment | .70 | .60 | .40 | .80 | .40 | .30 | .90 |
-| Comedy | .75 | .60 | .30 | .90 | .60 | .30 | .90 |
-| Animation & Art | .80 | .60 | .50 | .70 | .80 | .70 | .70 |
-| Music | .70 | .50 | .40 | .80 | .70 | .50 | .90 |
-| Animals & Pets | .90 | .60 | .70 | .90 | .80 | .20 | .95 |
-| Gaming | .80 | .80 | .70 | .90 | .60 | .30 | .90 |
-| Film & TV | .80 | .50 | .50 | .80 | .50 | .30 | .85 |
-| Tech & AI | .90 | .90 | .90 | .80 | .50 | .40 | .80 |
-| Sports | .85 | .70 | .50 | .80 | .30 | .30 | .90 |
-| News & Politics | .30 | .20 | .10 | .70 | .10 | .20 | .90 |
-| Seasonal & Holidays | .90 | .70 | .80 | .60 | .40 | .30 | .85 |
-| Lifestyle | .90 | .90 | .95 | .90 | .60 | .40 | .85 |
-| Food & Cooking | .90 | .80 | .80 | .90 | .80 | .40 | .85 |
-| Science & Education | .90 | .70 | .50 | .80 | .90 | .50 | .70 |
-| Business & Finance | .95 | .90 | .90 | .80 | .60 | .30 | .70 |
-| Photography & Visual | .80 | .70 | .80 | .90 | .70 | .30 | .50 |
-| Other | .60 | .40 | .30 | .50 | .40 | .40 | .50 |
-
-These are assumptions informed by public creator-economy reporting (advertiser-friendly guidelines, typical
-sponsorship demand per niche, affiliate fit). They are deliberately editable and documented, not measured payouts.
-
-## 5. Creator opportunity (0–100)
-
-Base (pipeline): `100 × (0.35 momentum/100 + 0.20 repeatable + 0.15 (1 − saturation) + 0.15 (1 − cost) + 0.15 monetization/100)`, ×0.45 for news/person events.
-`saturation = (signal − 0.75) × 4` when signal ≥ 0.75 and growth ≤ 0.55 (high and flat), else 0.
-
-Personalised (dashboard, from Settings): +10 if the category is one of your interests, +5 if the trend fits your tools
-(animation, AI video, music, audio), +6 for lifecycle stages matching your risk appetite.
-
-## 6. Opportunity rank (Top 20 order)
-
-`(0.40 momentum + 0.35 creator + 0.25 monetization) × (0.3 + 0.7 × confidence/100)`
-
-## 7. Lifecycle stage
-
-Evaluated top to bottom; `g` is the growth component (0.5 = flat; 0.42 ≈ 0.8×, 0.53 ≈ 1.09×, 0.6 ≈ 1.32×).
-
-| stage | rule |
+| grade | rule |
 |---|---|
-| Insufficient data | confidence < 20 or fewer than 2 items |
-| Cooling | last seen > 36h ago; or (measured) g < 0.42 (≈ falling below 0.8×); or flat and weak (signal < 0.45) after 48h; or (provisional) older than 72h with signal < 0.45 |
-| Breaking out | momentum ≥ 70 and ≥ 2 sources (measured: and g ≥ 0.53, i.e. not falling) |
-| Accelerating | measured only: g ≥ 0.6 (≈ ≥1.32×) with acceleration ≥ 0.45 (not decelerating) |
-| Peaking | measured: signal ≥ 0.65 with g ≤ 0.6 (high and flat), or flat with moderate signal (≥ 0.45) after 48h; provisional: older than 72h with signal ≥ 0.45 |
-| Emerging | measured: first seen ≤ 48h ago; provisional: first seen ≤ 72h ago |
+| Strong | ≥3 verified creators **and** ≥3 directly measured videos **and** ≥3 collection runs |
+| Developing | ≥3 verified creators and ≥3 verified examples |
+| Early | ≥1 video with ≥2 creators or audience interest ≥ 50; or ≥2 signals with interest ≥ 60 and no video |
+| Insufficient | anything else — never recommended |
 
-A first measurement can never be "Accelerating": acceleration needs a second data point.
+Verified = measured on its platform (`direct`) or confirmed by the YouTube API / oEmbed (`verifiedAt`).
 
-## 8. Clustering (how trends and microtrends are formed)
+## Qualification (what can be recommended)
 
-1. Seeds from topic-like evidence (search terms, trending topics, hashtags); identical normalised keys merge across regions/sources.
-2. Seeds merge when title tokens overlap (Jaccard ≥ 0.5 or full containment).
-3. Posts/videos attach to the seed whose core tokens they cover (≥ 60%), IDF-weighted; topic-feed posts attach to their topic.
-4. Remaining posts: a hashtag or title bigram shared by **≥ 3 distinct creators** becomes a new microtrend (e.g. `#emojisounds`).
-5. Remaining posts from a creator-format query (e.g. "cat video") form a format-level cluster.
+`grade ≠ insufficient` **and** not a news/person event **and** (not a generic evergreen format, or its growth is
+measured ≥ 1.5×) **and** (not a bare topic, or it has ≥2 related videos). Rankings are never padded.
 
-Parent category and subcategory come from weighted keyword matching over the cluster's titles, descriptions and tags
-(`taxonomy.ts`); the microtrend is the cluster itself. Search-only spikes that name no content category, and anything
-matching news patterns (vs./live/score, election, crash, rankings…), are flagged as news/person events.
+## Lifecycle
 
-## 9. Scoring history
+| stage | rule (evaluated top-down) |
+|---|---|
+| Insufficient data | grade insufficient |
+| Cooling | latest content > 72h old; or velocity ≤ 0.6× with no new creators; or measured growth < ~0.8× |
+| Breaking out | momentum ≥ 70, ≥2 sources, and (accelerating or ≥2 new creators) |
+| Accelerating | measured: velocity ≥ 1.3× or creator growth ≥ ~1.32× — never without a measurement |
+| Peaking | evergreen format pools (steady); or performance ≥ 60 / ≥ 6 creators with flat growth |
+| Emerging | first seen ≤ 48h, or ≥2 new creators within 96h |
 
-Every run appends one record per trend to `data/history/scores/YYYY-MM-DD.ndjson` (momentum, confidence,
-monetization, creator, signal, lifecycle, evidence count). The next run reads it back to compute growth and
-acceleration, and the dashboard draws each trend's momentum sparkline from it. Retention: 35 days (`VR_RETENTION_DAYS`).
+## Clustering
 
-## Colours (dashboard)
+1. **Topics** seeded by Google Trends terms, Bluesky trending topics and Mastodon hashtags (merged on token
+   overlap); posts/videos attach when they cover ≥ 60 % of the seed's tokens or come from the topic's feed.
+2. **Microtrends** (video-first): hashtags and 2–3-word phrases from video-level text (handles, URLs and
+   platform boilerplate stripped; a token in > 40 % of a ≥ 20-video corpus is ignored) shared by ≥ 3 independent
+   creators; longer phrases win; overlapping clusters (Jaccard ≥ 0.6) merge; matching topic signals are attached
+   as corroboration.
+3. **Format pools**: relevance-validated videos per predefined format (`relevance.ts`), reported as category
+   activity and "proven formats".
 
-Score hues (amber momentum `#c4860f`, aqua money `#1fa586`, violet creator `#8c7cf0`) and lifecycle hues were validated
-for colour-vision deficiency and contrast on the dark surface `#151d2a` (worst CVD ΔE 11.4 all-pairs for the score set;
-lifecycle set in the 6–8 warn band, so every stage always carries its text label and glyph).
+## Colours
+
+Score hues (amber `#c4860f`, aqua `#1fa586`, violet `#8c7cf0`) and lifecycle hues were validated for colour-vision
+deficiency and contrast on the dark surface; every stage and grade always carries its text label.

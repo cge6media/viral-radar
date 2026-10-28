@@ -1,6 +1,19 @@
 # Progress
 
-Last updated: 2026-10-28 (build session in Anthropic's cloud workspace).
+Last updated: 2026-10-28 (2.0 upgrade session in Anthropic's cloud workspace).
+
+## 2.0 upgrade phases
+
+| phase | status |
+|---|---|
+| 1 Audit & preserve (tag/branch `v1-stable`, confirmed defects with measurements → docs/AUDIT.md) | ✅ |
+| 2 Data accuracy (separate timestamps/metrics, relevance validator, query bias removed, per-window scoring) | ✅ |
+| 3 Video intelligence (production YouTube collector + quota ledger, verification of linked videos, oEmbed fallback) | ✅ code; **YouTube key pending** |
+| 4 Ranking 2.0 (video-first microtrends, evidence grades, separated components, lifecycle) | ✅ |
+| 5 Visual redesign (Discover, trend page, compass, studio, mobile tab bar; 1440/768/390 verified) | ✅ |
+| 6 Money Engine v2 + Content Studio | ✅ |
+| 7 Independent testing (29 tests, 12 runtime checks, hand relevance audit 97%) | ✅ |
+| 8 Deploy & verify (release gate, live 2.0 run published) | ✅ |
 
 ## Checkpoints
 
@@ -23,10 +36,11 @@ Last updated: 2026-10-28 (build session in Anthropic's cloud workspace).
 
 ## Remaining work
 
-1. Watch the next live runs: growth should switch from provisional to measured after ~2h of history; check the lifecycle distribution and tune thresholds if everything lands in one stage.
-3. Add `YOUTUBE_API_KEY` secret to turn on real YouTube view counts (optional, free).
-4. After a few runs: tune growth thresholds with real run-to-run data; consider 15-minute cron if runs stay short.
-5. Nice-to-have: category-level daily digests, export of watchlist, more Mastodon instances, Bluesky video view counts if the API exposes them.
+1. **Add the `YOUTUBE_API_KEY` secret** (free) — the single biggest data upgrade still waiting on a credential; everything else is in place.
+2. Watch the first days of measured history: video velocity, creator growth and lifecycle distribution; tune thresholds in `score.ts` if too many clusters sit in one stage.
+3. Re-run the hand relevance audit after a week of YouTube-verified data; extend `relevance.ts` with new formats as they appear.
+4. Optional embedding stage (semantic similarity) for microtrend grouping once YouTube provides richer titles/descriptions.
+5. Subscription product path: see docs/SAAS_ARCHITECTURE.md.
 
 ## Known limitations
 

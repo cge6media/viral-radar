@@ -202,3 +202,24 @@ test('lifecycle: never accelerating without a measurement; stale → cooling; in
   assert.equal(decideLifecycle({ ...base, ageHours: 10 }), 'emerging');
   assert.equal(decideLifecycle({ ...base, momentum: 75, sources: 2, newCreators: 3 }), 'breaking_out');
 });
+
+test('relevance: second-round regression cases from the live audit', () => {
+  const link = (t: string, text = '') => share('z' + normalizeKey(t).replace(/\s/g, '').slice(0, 8), t, 'someone', 5, 3, { text });
+  const f = (o: Observation) => validateObservation(o).formats;
+  assert.ok(!f(nativeClip('MAMA BEAR. A new short film from the mind of Curry Barker. Premieres October 29 on YouTube.')).includes('cooking'), 'a director named Curry is not a curry');
+  assert.ok(f(nativeClip('MAMA BEAR. A new short film from the mind of Curry Barker.')).includes('short_film'));
+  assert.ok(f(nativeClip('Thai green curry from scratch, 20 minutes')).includes('cooking'));
+  assert.ok(!f(nativeClip('Wind turbines get the birds, solar panels fry the squirrels')).includes('cooking'));
+  assert.ok(!f(nativeClip('A bit in awe of level design orchestrating this kind of immensely satisfying payoff')).includes('satisfying'));
+  assert.ok(!f(nativeClip('A bit in awe of level design orchestrating this kind of immensely satisfying payoff')).includes('comedy_skit'));
+  assert.ok(f(nativeClip('Oddly satisfying wood planing, no talking #satisfying')).includes('satisfying'));
+  assert.ok(!f(nativeClip('Indie animation about making animation [Loki IRL ep 2 Coming Soon]')).includes('music_video'), '"ep 2" is not an EP');
+  assert.ok(f(link('Nightfall - Debut EP (Official Video)')).includes('music_video'));
+  assert.ok(!f(nativeClip('no one ever explained why he dressed Like That')).includes('explainer'));
+  assert.ok(f(nativeClip('Polyamory Explained: More Than Just Sex #Polyamory')).includes('explainer'));
+  assert.ok(!f(nativeClip('NDP Opposition leader Claudia Chender spitting facts about AI data centers')).includes('explainer'));
+  assert.ok(!f(nativeClip('Full speedpaint available on my YT! clip inside')).includes('gaming_clip'));
+  assert.ok(f(nativeClip('Aqua and Ai perform a duet together! #tomodachilife')).includes('gaming_clip'));
+  assert.ok(!f(link('Terry Gilliam - Storytime (1968)')).includes('storytime'));
+  assert.ok(f(nativeClip('SCARY STORYTIME: the night my car died in the woods')).includes('storytime'));
+});

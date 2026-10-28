@@ -1,91 +1,80 @@
-# Test results
+# Test results — Viral Radar 2.0
 
-Environment: Anthropic cloud workspace (Ubuntu 24.04, Node 22.23, hostname `vm`, sandboxed; no access to any
-personal machine, GPU or local service). Date: 2026-10-28 (UTC).
+Environment: Anthropic cloud workspace (Ubuntu 24.04, Node 22.23, sandboxed; no access to any personal machine,
+GPU or local service). Live verification through GitHub Actions runners and the public GitHub Pages site.
+Date: 2026-10-28 (UTC). The 1.0 results are preserved at the end.
 
-## Automated tests — `npm test` — 23/23 pass
+## Automated tests — `npm test` — 29/29 pass
 
 | file | what it verifies |
 |---|---|
-| `pipeline/test/collectors.test.ts` | Google Trends RSS parser on the real US/GB feeds (titles, traffic "2000+" → 2000, pubDate → ISO, 3 news links, rank, region, shared key across regions); Bluesky trending topic → observation + feed URI; native video post (likes 3,077 / reposts 374, thumbnail) and external YouTube link keyed by video id (`yt:vEtbfzMLVWU`) with hashtags; adult-labelled / 🔞 posts dropped; Mastodon tag with sorted 7-day history (109 uses, 81 accounts); YouTube Data API item → Shorts URL + numeric stats; ISO-8601 duration parsing |
-| `pipeline/test/intel.test.ts` | util normalisation / YouTube-id / hashtag extraction / tokeniser; taxonomy classification (Animals & Pets, Sports for "Fox World Series", Gaming › Horror Games, Music, Other) and news-event flagging; clustering (topic-feed posts attach to their topic, US+GB search spikes merge into one trend, format clusters, hashtag microtrend from ≥3 creators, no duplicate tag cluster); scoring (provisional on first sight with **no growth value**, observed growth with history, momentum rises when growing, cooling when falling, news penalties, monotonic bounded signal, lifecycle rules) |
-| `pipeline/test/store.test.ts` | append-only NDJSON history with hour+metrics dedup, reload across runs, score history, source cache fallback |
-| `pipeline/test/money.test.ts` | calculator maths: 1M Shorts views × 90% eligible × $0.06 = $54; expenses; net; ROI; break-even by views (11.1M/month ≈ 1.11M per video) and by output (each Short nets −$44.60 after its own cost → "more videos never break even"); long-form $4 RPM → $3,400 and 1 video covers fixed costs; not-eligible → $0 program revenue while sponsorship/affiliate count; no-cost case; negative inputs clamped; presets per platform; revenue monotonic from 100K to 100M views; Instagram has no per-view revenue |
+| `test/collectors.test.ts` | Google Trends parser on real feeds; Bluesky v2 semantics on real captures: native video = direct, published by the post; external YouTube link = indirect, **no publish date**, empty video metrics, post engagement in `postMetrics`, sharer ≠ creator, thumbnail; text-only search results are not evidence; duplicate shares merge with sharer count; adult markers dropped; Mastodon 7-day history; YouTube Data API item → direct record with `videoPublishedAt`, duration, platform category |
+| `test/intel.test.ts` | Stage-1 classification and news detection (incl. sports fixtures and named figures); **relevance regression suite** — "cooking up an album", *Limmie & Family Cookin'*, "keeps cooking them", *Cat Stevens* / *Stray Cats* are not cat videos, political "satisfying" is not satisfying content, a text post is never format evidence, animal-comedy construction; second round from the live audit (Curry Barker, solar panels "fry", level design, `ep 2`, "no one ever explained", speedpaint ≠ gaming, archival "(1968)"); clustering (phrase microtrend across ≥3 creators, shares of one video count once, topic feeds, validated format pools); scoring (separated components, grades, provisional vs measured growth 1→3 creators = 1.5×, velocity 10K views/h, age-normalised rates, shares-only clusters capped at *early*); Mastodon partial-day handling; lifecycle rules (no acceleration without measurement, stale → cooling, format pools never emerging) |
+| `test/store.test.ts` | compact ticks, latest-state loader with `firstSeenAt`, score history, cache |
+| `test/money.test.ts` | calculator arithmetic incl. break-even by views vs by output, no-cost case, negative-input clamping, presets, monotonic scaling, Instagram has no per-view revenue |
 
-## Independent review (separate agent, same session)
+## Data-quality checks — run every collection (`pipeline/src/quality.ts`)
 
-A reviewer that had not seen the code audited `money.ts`, `Money.tsx`, `score.ts`, `data.ts` against SCORING.md and
-reported 10 findings; all were fixed and covered by tests: break-even "videos" ignored per-video cost (now a separate
-by-output model), zero-cost wording, negative inputs, Mastodon partial-day bucket producing false "declining" growth,
-undocumented ratio smoothing, blended ratio not surfaced, lifecycle fallthroughs mislabelling stale/weak trends,
-doc/threshold drift, unclamped rank level and source mapping, narrow time windows keeping 7-day counts.
+First live 2.0 run `202610280220_7f353411b42e`: **12/12 pass** — format evidence passes the validator 117/119 (98%),
+0 duplicates, 0 share-dates-as-publish-dates, 0 misattributed engagement, 0 malformed links, 0 invalid growth
+ratios, 0 lifecycle/grade inconsistencies, all live sources fresh, 9 qualified of 188, 0 news events qualified,
+0 generic categories qualified without measured growth, every qualified trend carries evidence.
+Six of these checks are **critical** and block publishing (`pipeline/src/gate.ts`); a blocked run keeps the
+previous release live.
 
-## Pipeline end-to-end (offline, real captured responses)
+## Relevance test (target ≥ 90%)
 
-`npm run collect:fixtures` → 94 observations (17 Google Trends, 60 Bluesky, 17 Mastodon), 60 trends, including
-`#musicchallenge` (11 YouTube links shared by 11 creators — the Bluesky #EmojiSounds daily music prompt),
-`Animation (format)` (12 native Bluesky videos from 12 creators), `Spooky month stream schedules` (topic + 6 feed posts).
-Source statuses, run id, generatedAt, retention and evidence links written to `data/latest.json`.
+`docs/RELEVANCE_AUDIT.md`: 95 trend–evidence pairs from the first live run, labelled by hand.
+Before tightening: 77/95 relevant (**81%**). After the rule changes made from the audit: **75/77 = 97%** of the
+pairs the validator still accepts are relevant; 2 ambiguous items kept; 3 relevant items dropped (conservative).
 
-## Historical persistence & growth
+## Ranking test (top 20)
 
-Ran the pipeline twice (second run after shifting the first run's history 3h into the past): 94 observations loaded
-from history, all 60 trends switched from `provisional` to `observed` growth with a 3h window and 2-point momentum
-series; `data/history/observations/2026-10-28.ndjson` = 188 lines, `scores` = 120 lines. Exact duplicates within the
-same hour were not re-appended.
+1.0 top 20: 14 predefined format pools, 5 audience topics, 1 hashtag cluster → under 2.0 rules 14 become *proven
+formats* (category activity), 3 topics are news/sports events (excluded), 2 keep real native-video evidence.
+2.0 first live run: 9 qualified — 1 topic with 3 native videos (*strong*), 3 hashtag microtrends (*developing*),
+2 topics and 2 formats at *early*, 1 share-only microtrend at *early* with the note "needs platform verification".
+Nothing is padded to reach 20.
 
-## Web build & UI
+## Freshness test
 
-- `tsc --noEmit` clean; `vite build` → 251 kB JS (80 kB gzip), 14 kB CSS.
-- Rendered with headless Chromium at 1366×900 and 390×844 (iPhone): all seven sections + trend detail; **no
-  horizontal overflow on any page** after fixes (`.app > * { min-width: 0 }`, wrapped error strings, nav scroll).
-- Hash routing works for every section and for `#/trend/<id>` deep links.
-- Browser console: no JavaScript errors (only blocked external image/font loads inside the sandbox).
+Quality check "publication dates are not share dates and not in the future" = 0 violations on live data;
+unit test asserts an external share has `publishedAt` undefined and `postPublishedAt` = the post time; the UI
+labels "published" vs "shared" separately; windows use content time (unit test: a 30h-old video is outside 24h
+and inside 48h).
 
-## Live source verification (from the build session, 2026-10-28 00:15–00:25 UTC)
+## Financial test
 
-| source | result |
-|---|---|
-| Google Trends RSS (US, GB) | 200, 10 items each, parsed |
-| Bluesky trending topics | 25 topics with feed links |
-| Bluesky topic feed (Spooky month stream schedules) | 15 posts with engagement + embeds |
-| Bluesky searchPosts (animation / cat video / ai video) | 25 posts each, 16 / 22 / 3 videos |
-| Mastodon trends/tags | 20 tags with 7-day history |
-| YouTube oEmbed | 200, title/author/thumbnail |
-| YouTube Data API | not tested (no key) — documented schema only |
-| TikTok Creative Center | page is a JS shell; JSON endpoint undocumented → opt-in, unverified |
-| Reddit | blocked from this environment → not used |
+Independent arithmetic in `test/money.test.ts` (e.g. 1M Shorts views × 90% × $0.06 = $54; long-form $4 RPM → $3,400;
+break-even 11.1M views ≈ 1.11M per video; each Short nets −$44.60 after a $50 cost → "more videos never break
+even"); investment calculator rows are monotonic in views and omit Instagram (no per-view program).
 
-## First live cloud run (GitHub Actions, 2026-10-28 01:05 UTC, run `202610280105_c0dfe3bdbe4f`)
+## UI test
 
-Repository `cge6media/viral-radar`, workflow "Collect trends" #1, job `collect` → **success**, data committed by
-`viral-radar-bot` (`data: collection 2026-10-28T01:05Z`).
+Headless Chromium at **1440 / 768 / 390 px**: Discover, Compass, Money, Studio, Watchlist, Settings (prefs + data) and
+a trend page. No horizontal overflow at any width after fixes (`.tiles`/`.kv` min-width, hero media fill); no
+JavaScript errors. Font loads from Google Fonts in production (blocked in the sandbox, system fallback shown).
 
-| source | mode | items |
-|---|---|---|
-| Google Trends (US, GB, CA, AU) | live | 40 |
-| Bluesky (25 topics, topic feeds, 20 format searches) | live | 861 |
-| Mastodon (mastodon.social) | live | 20 |
-| YouTube Data API | disabled (no key yet) | 0 |
-| TikTok Creative Center | disabled (opt-in) | 0 |
+## Real-world workflow test (two minutes)
 
-920 observations this run → 140 trends, 47 with video evidence, 218 real videos linked. Findings fed back into the
-pipeline the same session: stale "top" posts older than 14 days are now skipped, image-only posts dropped, bigrams that
-restate a format query merge into the format cluster, news detection looks only at the topic text, provisional
-lifecycle never claims "accelerating", history is stored as compact ticks (≥3h or ≥15% metric change).
+Discover → hero card states the trend, grade, direction, creators and a concrete format → "Explore opportunity" →
+trend page shows relevant examples with thumbnails that open the originals, growth facts, cautions, three concepts
+with budget/difficulty → "Save to production queue" → Studio/Watchlist. Verified on the 390 px screenshots.
 
-`publish` job: failed at "Configure Pages" because GitHub Pages cannot be created on a private repository from the
-workflow token (owner chose to make the repository public; publish re-run pending that change).
+## Regression test
 
-## Public deployment
+All 1.0 capabilities remain: five sources, watchlist statuses + actual tracking, earnings calculator and example
+scenarios, platform comparison, preferences, compass, scheduled collection, Pages publishing, continuity docs.
+v1 history records load through `migrate()`.
 
-Repository made public by the owner; "Deploy dashboard" #5 succeeded (GitHub Pages, environment `github-pages`).
-`https://cge6media.github.io/viral-radar/` serves the dashboard and `…/data/latest.json` returns the live snapshot
-(generatedAt 2026-10-28T01:05:29Z, sources google_trends/bluesky/mastodon = live). Verified by fetching both URLs
-from the build session.
+## Live deployment
 
-## Not yet verified
+GitHub Actions "Collect trends" #4 (2.0 pipeline): `collect` ✓ (gate: true), `publish` ✓. The site at
+https://cge6media.github.io/viral-radar/ serves snapshot version 2 (verified by fetching `data/latest.json`).
 
-- YouTube Data API collection with a real key.
+---
 
-See RESUME.md for the exact steps.
+## 1.0 results (kept for history)
+
+23/23 tests; two successful live runs (920 and 903 observations); independent review with 10 findings fixed;
+desktop + iPhone rendering; Pages deployment verified.

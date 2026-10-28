@@ -9,7 +9,7 @@ computer. A new cloud session should:
 git clone https://github.com/<owner>/viral-radar
 cd viral-radar
 npm install
-npm test                    # expect 20/20
+npm test                    # expect 29/29
 npm run collect:fixtures    # offline smoke run → data/latest.json
 npm run build               # web/dist
 ```
@@ -33,7 +33,9 @@ git push -u origin main
 
 | path | purpose |
 |---|---|
-| `pipeline/src/run.ts` | pipeline entry: collect → persist → cluster → classify → score → `data/latest.json` |
+| `pipeline/src/run.ts` | pipeline entry: collect → verify (YouTube) → relevance → persist → cluster → score per window → quality → `data/latest.json` |
+| `pipeline/src/intel/relevance.ts` | format catalogue + stage-2 relevance validator (video-level text, sense disambiguation, category veto) |
+| `pipeline/src/quality.ts`, `pipeline/src/gate.ts` | runtime quality checks and the release gate |
 | `pipeline/src/collectors/*.ts` | one file per source; each exports `collectX()` and pure parse functions |
 | `pipeline/src/intel/taxonomy.ts` | categories, keywords, monetization profiles, news-event heuristics |
 | `pipeline/src/intel/cluster.ts` | seeds, merging, attachment, dynamic microtrends |
@@ -42,8 +44,8 @@ git push -u origin main
 | `pipeline/fixtures/` | real captured responses + `build-fixtures.mjs` (regenerates them) |
 | `web/src/lib/data.ts` | filters, personalisation, ranking, rollups |
 | `web/src/lib/money.ts` | platform programs + calculator |
-| `web/src/lib/advisor.ts` | Ride-this-trend advice + concept templates |
-| `web/src/pages/*` | the seven sections + trend detail |
+| `web/src/lib/studio.ts` | Content Studio advice + concept generation |
+| `web/src/pages/*` | Discover, Compass, Money, Studio, Watchlist, Settings, TrendDetail |
 | `data/` | the database (committed by the collector) |
 | `.github/workflows/` | `collect.yml` (cron + publish), `deploy.yml` (on code push) |
 
