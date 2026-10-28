@@ -6,6 +6,8 @@
 Built, tested and operated entirely in the cloud: a scheduled collector runs on GitHub Actions, the data lives in
 this repository, and the dashboard is a static site on GitHub Pages. No personal machine is involved at any point.
 
+**Live dashboard:** https://cge6media.github.io/viral-radar/
+
 ## What it does
 
 | Section | What you get |
@@ -57,7 +59,7 @@ read & write* for this repo, stored only in your browser). Without a token the b
 npm install
 npm run collect:fixtures   # offline run against captured real responses → data/latest.json
 npm run collect            # live run (needs internet; YOUTUBE_API_KEY optional)
-npm test                   # 20 tests: parsers on real fixtures, dedup/history, clustering, scoring, calculator
+npm test                   # 23 tests: parsers on real fixtures, dedup/history, clustering, scoring, calculator
 npm run build              # web/dist (static)
 npm run dev                # local dev server for the dashboard
 ```

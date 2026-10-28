@@ -67,7 +67,18 @@ export function filterTrends(trends: Trend[], f: Filters, now = Date.now()): Tre
       );
       if (!ev.length) return undefined;
       if (f.category && t.category !== f.category) return undefined;
-      return { ...t, evidence: ev } as Trend;
+      if (ev.length === t.evidence.length) return t;
+      // narrower window: recount from the evidence that is actually inside it (scores stay as computed by the pipeline over 7 days)
+      const platforms = Array.from(new Set(ev.map((e) => e.source)));
+      return {
+        ...t,
+        evidence: ev,
+        evidenceCount: Math.min(t.evidenceCount, ev.length),
+        videoCount: ev.filter((e) => e.kind === 'video').length,
+        sourceCount: platforms.length,
+        platforms,
+        evidenceKinds: Array.from(new Set(ev.map((e) => e.kind))),
+      } as Trend;
     })
     .filter((t): t is Trend => !!t);
 }

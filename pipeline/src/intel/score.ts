@@ -14,7 +14,7 @@
  */
 import type { Lifecycle, Observation, Platform, ScoreBreakdown } from '../types.js';
 import type { Cluster } from './cluster.js';
-import { clamp, hoursBetween, logNorm, round } from '../lib/util.js';
+import { clamp, hoursBetween, logNorm, nowIso, round } from '../lib/util.js';
 import { profileFor } from './taxonomy.js';
 import type { ScoreRecord } from '../lib/store.js';
 
@@ -36,7 +36,7 @@ export function observationLevel(o: Observation): number {
     case 'hashtag':
       return Math.max(logNorm(m.uses || 0, 10, 5_000), logNorm(m.views || 0, 100_000, 1_000_000_000));
     case 'social_topic':
-      return m.rank ? 0.35 + 0.45 * (1 - (m.rank - 1) / 25) : 0.4;
+      return m.rank ? clamp(0.35 + 0.45 * (1 - (m.rank - 1) / 25), 0.2, 0.8) : 0.4;
     case 'video':
       if (m.views != null) return logNorm(m.views, 10_000, 50_000_000);
       return logNorm((m.likes || 0) + 2 * (m.reposts || 0), 20, 5_000);
@@ -62,18 +62,34 @@ function growthToScore(ratio: number): number {
   return clamp(0.5 + Math.log2(ratio) / 4, 0, 1);
 }
 
-/** Source-supplied history (e.g. Mastodon 7-day uses): latest day vs mean of previous non-zero days. */
-function sourceHistoryGrowth(members: Observation[]): { ratio: number; windowHours: number } | undefined {
-  const withHist = members.filter((m) => m.history && m.history.length >= 2);
+/**
+ * Source-supplied history (e.g. Mastodon 7-day daily buckets): compares the most recent *complete* day — or today
+ * pro-rated by the hours already elapsed, once at least 8h of it have passed and it is the stronger signal — against
+ * the mean of the earlier complete days (zeros included: a day with no posts is real data).
+ */
+export function sourceHistoryGrowth(members: Observation[], now = nowIso()): { ratio: number; windowHours: number } | undefined {
+  const withHist = members.filter((m) => m.history && m.history.length >= 3);
   if (!withHist.length) return undefined;
+  const nowMs = new Date(now).getTime();
   let best: { ratio: number; windowHours: number } | undefined;
   for (const m of withHist) {
     const h = [...m.history!].sort((a, b) => a.t.localeCompare(b.t));
-    const latest = h[h.length - 1].value;
-    const prev = h.slice(0, -1).map((p) => p.value);
-    const prevMean = prev.reduce((a, b) => a + b, 0) / prev.length;
+    const last = h[h.length - 1];
+    const lastStart = new Date(last.t).getTime();
+    const bucketMs = h.length >= 2 ? Math.max(36e5, new Date(h[1].t).getTime() - new Date(h[0].t).getTime()) : 864e5;
+    const elapsed = nowMs - lastStart;
+    const lastIsPartial = elapsed >= 0 && elapsed < bucketMs;
+    let complete = lastIsPartial ? h.slice(0, -1) : h;
+    if (complete.length < 2) continue;
+    let latest = complete[complete.length - 1].value;
+    const earlier = complete.slice(0, -1).map((p) => p.value);
+    if (lastIsPartial && elapsed >= 8 * 36e5) {
+      const prorated = last.value * (bucketMs / elapsed);
+      if (prorated > latest) latest = prorated; // a strong partial day counts, a quiet one does not penalise
+    }
+    const prevMean = earlier.reduce((a, b) => a + b, 0) / earlier.length;
     const ratio = (latest + 1) / (prevMean + 1);
-    const windowHours = hoursBetween(h[0].t, h[h.length - 1].t) || 24;
+    const windowHours = hoursBetween(complete[0].t, complete[complete.length - 1].t) || 24;
     if (!best || ratio > best.ratio) best = { ratio, windowHours };
   }
   return best;
@@ -108,24 +124,26 @@ export function scoreCluster(input: ScoreInput): { scores: ScoreBreakdown; lifec
   const past = history.filter((h) => hoursBetween(h.t, now) >= 2).sort((a, b) => a.t.localeCompare(b.t));
   if (past.length >= 1) {
     const prev = past[past.length - 1];
+    // +0.05 floor on both sides damps noise when signals are tiny (0.01 → 0.03 is not a 3× trend)
     growthRatio = (signal + 0.05) / (prev.signal + 0.05);
     growthWindowHours = round(hoursBetween(prev.t, now), 1);
     growth = growthToScore(growthRatio);
     momentumBasis = 'observed';
-    notes.push(`Observed growth: signal ${round(prev.signal, 2)} → ${round(signal, 2)} over ${growthWindowHours}h (${round(growthRatio, 2)}x).`);
+    notes.push(`Observed growth: signal ${round(prev.signal, 2)} → ${round(signal, 2)} over ${growthWindowHours}h (${round(growthRatio, 2)}x, noise-damped).`);
     if (past.length >= 2) {
       const prev2 = past[past.length - 2];
       const r1 = (prev.signal + 0.05) / (prev2.signal + 0.05);
       accel = clamp(0.5 + (Math.log2(growthRatio) - Math.log2(r1)) / 4, 0, 1);
     }
     // blend in source-supplied history (e.g. a 7-day hashtag series) — a longer window than run-to-run
-    const sh = sourceHistoryGrowth(members);
+    const sh = sourceHistoryGrowth(members, now);
     if (sh) {
       growth = clamp(0.6 * growth + 0.4 * growthToScore(sh.ratio), 0, 1);
-      notes.push(`Source history: ${round(sh.ratio, 2)}x vs prior-day average over ${round(sh.windowHours, 0)}h (blended 40%).`);
+      growthRatio = round(2 ** ((growth - 0.5) * 4), 3); // the effective (blended) ratio the UI reports
+      notes.push(`Source history: ${round(sh.ratio, 2)}x vs prior-day average over ${round(sh.windowHours, 0)}h (blended 40% → effective ${growthRatio}x).`);
     }
   } else {
-    const sh = sourceHistoryGrowth(members);
+    const sh = sourceHistoryGrowth(members, now);
     if (sh) {
       growthRatio = sh.ratio;
       growthWindowHours = round(sh.windowHours, 1);
@@ -140,7 +158,7 @@ export function scoreCluster(input: ScoreInput): { scores: ScoreBreakdown; lifec
   components.acceleration = round(accel, 3);
 
   // --- breadth: independent sources and number of supporting items ---
-  const breadth = clamp(0.5 * (sources.size === 1 ? 0.3 : sources.size === 2 ? 0.7 : 1) + 0.5 * logNorm(members.length, 1, 30), 0, 1);
+  const breadth = clamp(0.5 * (sources.size <= 1 ? 0.3 : sources.size === 2 ? 0.7 : 1) + 0.5 * logNorm(members.length, 1, 30), 0, 1);
   components.breadth = round(breadth, 3);
   components.level = round(signal, 3);
 
@@ -157,7 +175,7 @@ export function scoreCluster(input: ScoreInput): { scores: ScoreBreakdown; lifec
   const confidence = clamp(
     100 *
       (0.30 * logNorm(support, 1, 25) +
-        0.25 * (sources.size === 1 ? 0.35 : sources.size === 2 ? 0.75 : 1) +
+        0.25 * (sources.size <= 1 ? 0.35 : sources.size === 2 ? 0.75 : 1) +
         0.25 * clamp(videoWithStats / 5, 0, 1) +
         0.10 * logNorm(creators.size + 1, 1, 15) +
         0.10 * logNorm(runsObserved + historyPoints, 1, 48)),
@@ -223,16 +241,15 @@ export function decideLifecycle(x: {
   if (x.confidence < 20 || x.evidence < 2) return 'insufficient_data';
   if (x.hSeen > 36) return 'cooling';
   if (x.basis === 'observed') {
-    if (x.growth < 0.42) return 'cooling';
-    if (x.momentum >= 70 && x.sources >= 2 && x.growth >= 0.53) return 'breaking_out';
-    if (x.growth >= 0.6 && x.accel >= 0.45) return 'accelerating';
-    if (x.signal >= 0.65 && x.growth >= 0.42 && x.growth <= 0.6) return 'peaking';
+    if (x.growth < 0.42) return 'cooling';                                    // < ~0.8× (falling)
+    if (x.momentum >= 70 && x.sources >= 2 && x.growth >= 0.53) return 'breaking_out'; // ≥ ~1.09× and loud on ≥2 sources
+    if (x.growth >= 0.6 && x.accel >= 0.45) return 'accelerating';            // ≥ ~1.32× and not decelerating
+    if (x.signal >= 0.65 && x.growth <= 0.6) return 'peaking';               // high and flat
     if (x.ageHours <= 48) return 'emerging';
-    return 'peaking';
+    return x.signal >= 0.45 ? 'peaking' : 'cooling';                          // flat: moderate → peaking, weak → cooling
   }
   // provisional (first measurement): never claim acceleration without a second data point
   if (x.momentum >= 70 && x.sources >= 2) return 'breaking_out';
   if (x.ageHours <= 72) return 'emerging';
-  if (x.signal >= 0.65) return 'peaking';
-  return 'emerging';
+  return x.signal >= 0.65 ? 'peaking' : 'cooling';
 }

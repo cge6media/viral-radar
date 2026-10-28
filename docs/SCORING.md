@@ -23,10 +23,13 @@ Cluster signal = strongest item + 0.25 × `logNorm(items, 1, 40)` + 0.15 × seco
 `100 × (0.25 recency + 0.30 growth + 0.10 acceleration + 0.20 breadth + 0.15 level)`
 
 - **recency** — `0.6 × 0.5^(hours since last seen / 24) + 0.4 × 0.5^(hours since latest publish / 48)`
-- **growth** — ratio of the cluster signal now vs. the previous scoring run (≥2h apart), mapped with
-  `0.5 + log2(ratio)/4` (0.25× → 0, 1× → 0.5, 4× → 1). If the source supplies its own series (Mastodon 7-day history)
-  that growth is used on the first run and blended in at 40% afterwards. **No history → 0.5 and `momentumBasis =
-  provisional`.**
+- **growth** — ratio of the cluster signal now vs. the previous scoring run (≥2h apart), computed as
+  `(signal + 0.05) / (previous + 0.05)` (the 0.05 floor damps noise on tiny signals; the note on the trend page says
+  "noise-damped"), mapped with `0.5 + log2(ratio)/4` (0.25× → 0, 1× → 0.5, 4× → 1). If the source supplies its own
+  daily series (Mastodon 7-day history) that growth is used on the first run and blended in at 40% afterwards; the
+  ratio shown in the UI is then the effective blended ratio `2^((growth − 0.5) × 4)`. The source series compares the
+  last *complete* day (or today pro-rated once ≥8h have elapsed, if that is stronger) with the mean of the earlier
+  complete days, zeros included. **No history → 0.5 and `momentumBasis = provisional`.**
 - **acceleration** — change in growth between the last two intervals (0.5 = steady); needs ≥3 runs.
 - **breadth** — `0.5 × sources(1→0.3, 2→0.7, 3+→1) + 0.5 × logNorm(items, 1, 30)`
 - **level** — the cluster signal.
@@ -84,14 +87,18 @@ Personalised (dashboard, from Settings): +10 if the category is one of your inte
 
 ## 7. Lifecycle stage
 
+Evaluated top to bottom; `g` is the growth component (0.5 = flat; 0.42 ≈ 0.8×, 0.53 ≈ 1.09×, 0.6 ≈ 1.32×).
+
 | stage | rule |
 |---|---|
 | Insufficient data | confidence < 20 or fewer than 2 items |
-| Cooling | last seen > 36h ago, or measured growth ratio < ~0.9× |
-| Breaking out | momentum ≥ 70 and ≥ 2 sources (and growth not falling) |
-| Accelerating | measured growth ≥ ~1.3× with steady/positive acceleration |
-| Peaking | high level (≥ 0.65) with flat growth |
-| Emerging | first seen ≤ 48h ago (provisional: momentum ≥ 40) |
+| Cooling | last seen > 36h ago; or (measured) g < 0.42 (≈ falling below 0.8×); or flat and weak (signal < 0.45) after 48h; or (provisional) older than 72h with signal < 0.65 |
+| Breaking out | momentum ≥ 70 and ≥ 2 sources (measured: and g ≥ 0.53, i.e. not falling) |
+| Accelerating | measured only: g ≥ 0.6 (≈ ≥1.32×) with acceleration ≥ 0.45 (not decelerating) |
+| Peaking | measured: signal ≥ 0.65 with g ≤ 0.6 (high and flat), or flat with moderate signal (≥ 0.45) after 48h; provisional: older than 72h with signal ≥ 0.65 |
+| Emerging | measured: first seen ≤ 48h ago; provisional: first seen ≤ 72h ago |
+
+A first measurement can never be "Accelerating": acceleration needs a second data point.
 
 ## 8. Clustering (how trends and microtrends are formed)
 

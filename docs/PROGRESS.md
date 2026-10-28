@@ -12,8 +12,8 @@ Last updated: 2026-10-28 (build session in Anthropic's cloud workspace).
 | 4 | Usable dashboard — Top 20, five daily recommendations, Trend Compass, time + platform filters, category pages, SVG charts, evidence links, trend detail | ✅ done |
 | 5 | Money Engine — platform program research (Oct 2026), comparison table with sources, calculator (low/base/high, break-even, ROI, 100K–100M scenarios), category ratings | ✅ done |
 | 6 | Production advisor — "Ride this trend" (what/why/characteristics/timing/3 original concepts/platforms/monetization/difficulty), Content Roadmap, Watchlist with statuses + actual tracking, preferences | ✅ done |
-| 7 | Cloud deployment — pushed to `cge6media/viral-radar`; scheduled collector ran live and committed real data (920 observations); Pages publish pending the repository becoming public | ⚙️ collector live; **Pages publish pending visibility change** |
-| 8 | Testing & refinement — 20 automated tests, two-run persistence/growth check, desktop + mobile rendering, docs | ✅ done |
+| 7 | Cloud deployment — `cge6media/viral-radar` (public); scheduled collector runs live every 30 min and commits real data; dashboard published to GitHub Pages at https://cge6media.github.io/viral-radar/ | ✅ live |
+| 8 | Testing & refinement — 23 automated tests, two-run persistence/growth check, desktop + mobile rendering, independent code review (10 findings fixed), docs | ✅ done |
 
 ## Working now
 
@@ -23,8 +23,7 @@ Last updated: 2026-10-28 (build session in Anthropic's cloud workspace).
 
 ## Remaining work
 
-1. Owner makes `cge6media/viral-radar` public (Settings → General → Change visibility) and confirms Pages source = GitHub Actions; then re-run "Collect trends" and verify `https://cge6media.github.io/viral-radar/`.
-2. Watch the second and third live runs: growth should switch from provisional to measured; check lifecycle distribution.
+1. Watch the next live runs: growth should switch from provisional to measured after ~2h of history; check the lifecycle distribution and tune thresholds if everything lands in one stage.
 3. Add `YOUTUBE_API_KEY` secret to turn on real YouTube view counts (optional, free).
 4. After a few runs: tune growth thresholds with real run-to-run data; consider 15-minute cron if runs stay short.
 5. Nice-to-have: category-level daily digests, export of watchlist, more Mastodon instances, Bluesky video view counts if the API exposes them.

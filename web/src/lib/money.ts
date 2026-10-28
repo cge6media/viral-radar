@@ -126,12 +126,27 @@ export interface CalcOutput {
   eligibleViews: number;
   expenses: number;
   scenarios: Scenario[];
-  breakEvenViews: number | null;      // monthly raw views needed at base RPM for revenue == expenses
-  breakEvenVideos: number | null;     // videos/month needed at current views/video
+  /** at the current videos/month: total monthly views needed for base revenue == expenses (null = unreachable) */
+  breakEvenViews: number | null;
+  /** …expressed per video at the current videos/month */
+  breakEvenViewsPerVideo: number | null;
+  /** what one video nets at the current views/video (base RPM): program + sponsor share − production cost */
+  netPerVideo: number;
+  /** at the current views/video: videos per month needed to cover fixed costs (null = each video loses money) */
+  breakEvenVideos: number | null;
   notes: string[];
 }
 
-export function calculate(i: CalcInput): CalcOutput {
+export function calculate(raw: CalcInput): CalcOutput {
+  // guard against negative / NaN inputs from free-form fields
+  const n = (v: number, lo = 0) => (Number.isFinite(v) ? Math.max(lo, v) : lo);
+  const i: CalcInput = {
+    ...raw,
+    videosPerMonth: n(raw.videosPerMonth), viewsPerVideo: n(raw.viewsPerVideo), eligibleShare: Math.min(1, n(raw.eligibleShare)),
+    rpm: n(raw.rpm), rpmLowMult: n(raw.rpmLowMult), rpmHighMult: n(raw.rpmHighMult), costPerVideo: n(raw.costPerVideo),
+    fixedMonthly: n(raw.fixedMonthly), sponsorPerVideo: n(raw.sponsorPerVideo), sponsorVideosShare: Math.min(1, n(raw.sponsorVideosShare)),
+    affiliatePerThousandViews: n(raw.affiliatePerThousandViews),
+  };
   const monthlyViews = i.videosPerMonth * i.viewsPerVideo;
   const eligibleViews = monthlyViews * i.eligibleShare;
   const expenses = i.videosPerMonth * i.costPerVideo + i.fixedMonthly;
@@ -148,19 +163,26 @@ export function calculate(i: CalcInput): CalcOutput {
     return { name, rpm, adRevenue, sponsor, affiliate, revenue, net, roi: expenses > 0 ? net / expenses : 0 };
   };
   const scenarios = [mk('Low', i.rpmLowMult), mk('Base', 1), mk('High', i.rpmHighMult)];
-  // break-even at base: revenue(views) = expenses  →  views × perView = expenses
+
+  // view-based revenue per raw view (base RPM)
   const perView = (i.eligibleShare * programRpm) / 1000 + i.affiliatePerThousandViews / 1000;
-  const fixedRevenue = sponsor; // independent of views
+  // (a) holding videos/month fixed: how many total views would it take?
   let breakEvenViews: number | null = null;
-  let breakEvenVideos: number | null = null;
-  if (perView > 0) {
-    breakEvenViews = Math.max(0, (expenses - fixedRevenue) / perView);
-    breakEvenVideos = i.viewsPerVideo > 0 ? breakEvenViews / i.viewsPerVideo : null;
-  } else if (fixedRevenue >= expenses) {
+  let breakEvenViewsPerVideo: number | null = null;
+  if (expenses <= 0) {
     breakEvenViews = 0;
-    breakEvenVideos = 0;
+    breakEvenViewsPerVideo = 0;
+  } else if (perView > 0) {
+    breakEvenViews = Math.max(0, (expenses - sponsor) / perView);
+    breakEvenViewsPerVideo = i.videosPerMonth > 0 ? breakEvenViews / i.videosPerMonth : null;
+  } else if (sponsor >= expenses) {
+    breakEvenViews = 0;
+    breakEvenViewsPerVideo = 0;
   }
-  return { monthlyViews, eligibleViews, expenses, scenarios, breakEvenViews, breakEvenVideos, notes };
+  // (b) holding views/video fixed: each video nets program + sponsor − its own cost; fixed costs need N videos
+  const netPerVideo = i.viewsPerVideo * perView + i.sponsorVideosShare * i.sponsorPerVideo - i.costPerVideo;
+  const breakEvenVideos = i.fixedMonthly <= 0 && netPerVideo >= 0 ? 0 : netPerVideo > 0 ? i.fixedMonthly / netPerVideo : null;
+  return { monthlyViews, eligibleViews, expenses, scenarios, breakEvenViews, breakEvenViewsPerVideo, netPerVideo, breakEvenVideos, notes };
 }
 
 export const EXAMPLE_SCENARIOS = [100_000, 500_000, 1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000];

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classify, looksLikeNewsEvent, profileFor } from '../src/intel/taxonomy.js';
 import { buildClusters } from '../src/intel/cluster.js';
-import { scoreCluster, decideLifecycle, clusterSignal } from '../src/intel/score.js';
+import { scoreCluster, decideLifecycle, clusterSignal, sourceHistoryGrowth } from '../src/intel/score.js';
 import type { Observation } from '../src/types.js';
 import { normalizeKey, parseApproxTraffic, youtubeId, isVideoUrl, extractHashtags, tokenize } from '../src/lib/util.js';
 
@@ -119,4 +119,25 @@ test('score: signal normalisation is monotonic and bounded', () => {
   assert.ok(lo < hi && hi <= 1 && lo >= 0);
   assert.equal(decideLifecycle({ momentum: 10, confidence: 5, signal: 0.1, growth: 0.5, accel: 0.5, basis: 'provisional', ageHours: 1, hSeen: 0, evidence: 1, sources: 1 }), 'insufficient_data');
   assert.equal(decideLifecycle({ momentum: 60, confidence: 50, signal: 0.5, growth: 0.5, accel: 0.5, basis: 'observed', ageHours: 10, hSeen: 40, evidence: 5, sources: 2 }), 'cooling');
+});
+
+test('score: source history ignores the partial current day unless it is already stronger pro-rated', () => {
+  const day = (d: number) => new Date(Date.UTC(2026, 9, 21 + d)).toISOString();
+  const hist = [5, 8, 20, 60, 150, 400].map((v, i) => ({ t: day(i), value: v }));
+  const nowEarly = new Date(Date.UTC(2026, 9, 27, 0, 30)).toISOString(); // 00:30 on day 6 → today's bucket is 30 min old
+  const withQuietToday = obs({ title: 'x', kind: 'hashtag', source: 'mastodon', history: [...hist, { t: day(6), value: 6 }] });
+  const g = sourceHistoryGrowth([withQuietToday], nowEarly)!;
+  // compares the last COMPLETE day (400) with the mean of the five before it (48.6), not the 30-minute-old bucket
+  assert.ok(g.ratio > 7 && g.ratio < 9, `ratio ${g.ratio}`);
+  const nowLate = new Date(Date.UTC(2026, 9, 27, 18, 0)).toISOString(); // 18:00 → today pro-rates ×1.33
+  const withStrongToday = obs({ title: 'x', kind: 'hashtag', source: 'mastodon', history: [...hist, { t: day(6), value: 900 }] });
+  const g2 = sourceHistoryGrowth([withStrongToday], nowLate)!;
+  assert.ok(g2.ratio > g.ratio, 'a strong partial day raises the ratio');
+});
+
+test('lifecycle: stale, weak, flat trends are cooling rather than emerging/peaking', () => {
+  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.3, growth: 0.5, accel: 0.5, basis: 'provisional', ageHours: 200, hSeen: 1, evidence: 5, sources: 1 }), 'cooling');
+  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.2, growth: 0.5, accel: 0.5, basis: 'observed', ageHours: 100, hSeen: 1, evidence: 5, sources: 1 }), 'cooling');
+  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.5, growth: 0.5, accel: 0.5, basis: 'observed', ageHours: 100, hSeen: 1, evidence: 5, sources: 1 }), 'peaking');
+  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.3, growth: 0.5, accel: 0.5, basis: 'provisional', ageHours: 10, hSeen: 1, evidence: 5, sources: 1 }), 'emerging');
 });

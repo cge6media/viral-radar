@@ -27,7 +27,7 @@ export default function Money() {
   const set = <K extends keyof CalcInput>(k: K, v: CalcInput[K]) => setInp((s) => ({ ...s, [k]: v }));
   const switchPlatform = (id: string) => setInp((s) => ({ ...s, platformId: id, ...defaultsFor(id) }));
   const num = (k: keyof CalcInput, opts: { step?: number; min?: number; max?: number } = {}) => (
-    <input type="number" value={inp[k] as number} step={opts.step ?? 1} min={opts.min ?? 0} max={opts.max} onChange={(e) => set(k, Number(e.target.value) as never)} />
+    <input type="number" value={inp[k] as number} step={opts.step ?? 1} min={opts.min ?? 0} max={opts.max} onChange={(e) => set(k, Math.max(opts.min ?? 0, Number(e.target.value) || 0) as never)} />
   );
 
   const examples = useMemo(
@@ -120,10 +120,16 @@ export default function Money() {
                 </table>
               </div>
               <div className="hr" />
-              <div className="small">
-                <b>Break-even (base RPM):</b>{' '}
-                {out.breakEvenViews == null ? 'not reachable from program revenue alone with these inputs' : out.breakEvenViews === 0 ? 'already covered by fixed sponsorship income' : `${fmtNum(out.breakEvenViews)} views/month${out.breakEvenVideos != null ? ` ≈ ${Math.ceil(out.breakEvenVideos)} videos at ${fmtNum(inp.viewsPerVideo)} views each` : ''}`}
-                {out.notes.map((n) => <div key={n} className="muted" style={{ marginTop: 4 }}>{n}</div>)}
+              <div className="small stack" style={{ gap: 4 }}>
+                <div>
+                  <b>Break-even by views (base RPM, {inp.videosPerMonth} videos/month):</b>{' '}
+                  {out.expenses <= 0 ? 'no costs to cover' : out.breakEvenViews == null ? 'not reachable — no view-based revenue with these inputs' : out.breakEvenViews === 0 ? 'already covered by sponsorship income' : `${fmtNum(out.breakEvenViews)} views/month${out.breakEvenViewsPerVideo != null ? ` (≈ ${fmtNum(out.breakEvenViewsPerVideo)} per video)` : ''}`}
+                </div>
+                <div>
+                  <b>Break-even by output (at {fmtNum(inp.viewsPerVideo)} views/video):</b>{' '}
+                  {out.expenses <= 0 ? 'no costs to cover' : out.netPerVideo <= 0 ? `each video loses ${fmtMoney(-out.netPerVideo, 2)} after its own production cost, so more videos never break even — raise views, RPM or sponsorship, or cut cost per video` : out.breakEvenVideos === 0 ? `each video nets ${fmtMoney(out.netPerVideo, 2)} and there are no fixed costs` : `each video nets ${fmtMoney(out.netPerVideo, 2)}; ${Math.ceil(out.breakEvenVideos!)} videos/month cover the ${fmtMoney(inp.fixedMonthly)} fixed costs`}
+                </div>
+                {out.notes.map((n) => <div key={n} className="muted">{n}</div>)}
               </div>
             </div>
             <div className="card">

@@ -3,14 +3,22 @@
 Environment: Anthropic cloud workspace (Ubuntu 24.04, Node 22.23, hostname `vm`, sandboxed; no access to any
 personal machine, GPU or local service). Date: 2026-10-28 (UTC).
 
-## Automated tests — `npm test` — 20/20 pass
+## Automated tests — `npm test` — 23/23 pass
 
 | file | what it verifies |
 |---|---|
 | `pipeline/test/collectors.test.ts` | Google Trends RSS parser on the real US/GB feeds (titles, traffic "2000+" → 2000, pubDate → ISO, 3 news links, rank, region, shared key across regions); Bluesky trending topic → observation + feed URI; native video post (likes 3,077 / reposts 374, thumbnail) and external YouTube link keyed by video id (`yt:vEtbfzMLVWU`) with hashtags; adult-labelled / 🔞 posts dropped; Mastodon tag with sorted 7-day history (109 uses, 81 accounts); YouTube Data API item → Shorts URL + numeric stats; ISO-8601 duration parsing |
 | `pipeline/test/intel.test.ts` | util normalisation / YouTube-id / hashtag extraction / tokeniser; taxonomy classification (Animals & Pets, Sports for "Fox World Series", Gaming › Horror Games, Music, Other) and news-event flagging; clustering (topic-feed posts attach to their topic, US+GB search spikes merge into one trend, format clusters, hashtag microtrend from ≥3 creators, no duplicate tag cluster); scoring (provisional on first sight with **no growth value**, observed growth with history, momentum rises when growing, cooling when falling, news penalties, monotonic bounded signal, lifecycle rules) |
 | `pipeline/test/store.test.ts` | append-only NDJSON history with hour+metrics dedup, reload across runs, score history, source cache fallback |
-| `pipeline/test/money.test.ts` | calculator maths: 1M Shorts views × 90% eligible × $0.06 = $54; expenses; net; ROI; break-even 11.1M views ≈ 111 videos; long-form $4 RPM → $3,400; not-eligible → $0 program revenue while sponsorship/affiliate count; presets per platform; revenue monotonic from 100K to 100M views; Instagram has no per-view revenue |
+| `pipeline/test/money.test.ts` | calculator maths: 1M Shorts views × 90% eligible × $0.06 = $54; expenses; net; ROI; break-even by views (11.1M/month ≈ 1.11M per video) and by output (each Short nets −$44.60 after its own cost → "more videos never break even"); long-form $4 RPM → $3,400 and 1 video covers fixed costs; not-eligible → $0 program revenue while sponsorship/affiliate count; no-cost case; negative inputs clamped; presets per platform; revenue monotonic from 100K to 100M views; Instagram has no per-view revenue |
+
+## Independent review (separate agent, same session)
+
+A reviewer that had not seen the code audited `money.ts`, `Money.tsx`, `score.ts`, `data.ts` against SCORING.md and
+reported 10 findings; all were fixed and covered by tests: break-even "videos" ignored per-video cost (now a separate
+by-output model), zero-cost wording, negative inputs, Mastodon partial-day bucket producing false "declining" growth,
+undocumented ratio smoothing, blended ratio not surfaced, lifecycle fallthroughs mislabelling stale/weak trends,
+doc/threshold drift, unclamped rank level and source mapping, narrow time windows keeping 7-day counts.
 
 ## Pipeline end-to-end (offline, real captured responses)
 
@@ -69,9 +77,15 @@ lifecycle never claims "accelerating", history is stored as compact ticks (≥3h
 `publish` job: failed at "Configure Pages" because GitHub Pages cannot be created on a private repository from the
 workflow token (owner chose to make the repository public; publish re-run pending that change).
 
+## Public deployment
+
+Repository made public by the owner; "Deploy dashboard" #5 succeeded (GitHub Pages, environment `github-pages`).
+`https://cge6media.github.io/viral-radar/` serves the dashboard and `…/data/latest.json` returns the live snapshot
+(generatedAt 2026-10-28T01:05:29Z, sources google_trends/bluesky/mastodon = live). Verified by fetching both URLs
+from the build session.
+
 ## Not yet verified
 
-- The public GitHub Pages URL (pending repository visibility change).
 - YouTube Data API collection with a real key.
 
 See RESUME.md for the exact steps.
