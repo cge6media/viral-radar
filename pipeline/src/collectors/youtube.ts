@@ -31,7 +31,7 @@ const API = 'https://www.googleapis.com/youtube/v3';
 export const YOUTUBE_REGIONS = (process.env.VR_YT_REGIONS || 'US,GB').split(',').map((s) => s.trim()).filter(Boolean);
 /** secondary regions: two per run in rotation (international coverage at ~1/6 of the cost of charting them all every run) */
 export const YOUTUBE_SECONDARY_REGIONS = (process.env.VR_YT_SECONDARY_REGIONS || 'CA,AU,IN,MX,BR,ES,DE,FR,JP,KR,PH,ID').split(',').map((s) => s.trim()).filter(Boolean);
-export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 2);
+export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 3);
 /** entertainment categories for chart=mostPopular (documented category ids) */
 export const YT_CHART_CATEGORIES = (process.env.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24').split(',').map((s) => s.trim()).filter(Boolean);
 export const DISCOVERY_HOURS = Number(process.env.VR_YT_DISCOVERY_HOURS || 6);
@@ -44,13 +44,20 @@ export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 1500);
  * window, exactly how public Shorts charts are built. One search call each (own 100/day bucket), 50 ids per page.
  * Exploration that does not depend on any vocabulary: a format we have never heard of still shows up here.
  */
-export interface TopProbe { hours: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string }
+export interface TopProbe { hours: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string; pages?: number }
+/** every full round (page 2 of a probe costs one more search call but reaches the mid-size 3–10M-view videos) */
 export const TOP_PROBES: TopProbe[] = [
-  { hours: 24, duration: 'short', region: 'US' }, { hours: 72, duration: 'short', region: 'US' }, { hours: 24 * 7, duration: 'short', region: 'US' }, { hours: 24 * 14, duration: 'short', region: 'US' },
+  { hours: 24, duration: 'short', region: 'US' }, { hours: 72, duration: 'short', region: 'US', pages: 2 }, { hours: 24 * 7, duration: 'short', region: 'US', pages: 2 }, { hours: 24 * 21, duration: 'short', region: 'US' },
   { hours: 72, region: 'US' },
-  { hours: 72, duration: 'short', region: 'GB' }, { hours: 72, duration: 'short', region: 'IN' }, { hours: 72, duration: 'short', region: 'MX', lang: 'es' }, { hours: 72, duration: 'short', region: 'BR' },
   { hours: 72, duration: 'short', region: 'US', category: '15' }, { hours: 72, duration: 'short', region: 'US', category: '23' }, { hours: 72, duration: 'short', region: 'US', category: '20' },
 ];
+/** regional Shorts probes, four per round in rotation (every region every 18h) — international formats surface here */
+export const REGION_PROBES: TopProbe[] = [
+  { hours: 72, duration: 'short', region: 'GB' }, { hours: 72, duration: 'short', region: 'IN' }, { hours: 72, duration: 'short', region: 'MX', lang: 'es' }, { hours: 72, duration: 'short', region: 'BR' },
+  { hours: 72, duration: 'short', region: 'ID' }, { hours: 72, duration: 'short', region: 'PH' }, { hours: 72, duration: 'short', region: 'JP' }, { hours: 72, duration: 'short', region: 'KR' },
+  { hours: 72, duration: 'short', region: 'ES', lang: 'es' }, { hours: 72, duration: 'short', region: 'DE' }, { hours: 72, duration: 'short', region: 'FR' }, { hours: 72, duration: 'short', region: 'VN' },
+];
+export const REGION_PROBES_PER_ROUND = Number(process.env.VR_YT_REGION_PROBES || 4);
 /** between full rounds, the two freshest probes run every MINI_HOURS so brand-new breakouts are not 6h late */
 export const MINI_HOURS = Number(process.env.VR_YT_MINI_HOURS || 3);
 /** broad "what is big right now" probes (order=viewCount within the last 72h) — run every discovery round */
@@ -195,27 +202,35 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     const perRound = Math.max(1, Math.floor(SEARCH_BUDGET / Math.max(1, Math.round(24 / DISCOVERY_HOURS))));
     // exploration: broad probes every round, then a rotating window of format probes so the whole catalogue is covered daily
     const round = ledger.rounds || 0;
-    const formatSlots = Math.max(0, perRound - TOP_PROBES.length - BROAD_QUERIES.length - topicQueries.length - trendQueries.length);
+    const topCalls = TOP_PROBES.reduce((a, p) => a + (p.pages || 1), 0) + REGION_PROBES_PER_ROUND;
+    const formatSlots = Math.max(0, perRound - topCalls - BROAD_QUERIES.length - topicQueries.length - trendQueries.length);
     const start = DISCOVERY_QUERIES.length ? (round * formatSlots) % DISCOVERY_QUERIES.length : 0;
     const formatQueries = Array.from({ length: Math.min(formatSlots, DISCOVERY_QUERIES.length) }, (_, i) => DISCOVERY_QUERIES[(start + i) % DISCOVERY_QUERIES.length]);
     const queries = fullRound ? Array.from(new Set([...BROAD_QUERIES, ...topicQueries, ...trendQueries, ...formatQueries])) : [];
-    const topProbes = fullRound ? TOP_PROBES : TOP_PROBES.slice(0, 2);
+    const regionSlice = Array.from({ length: Math.min(REGION_PROBES_PER_ROUND, REGION_PROBES.length) }, (_, i) => REGION_PROBES[(round * REGION_PROBES_PER_ROUND + i) % REGION_PROBES.length]);
+    const topProbes = fullRound ? [...TOP_PROBES, ...regionSlice] : TOP_PROBES.slice(0, 2).map((p) => ({ ...p, pages: 1 }));
     if (fullRound) ledger.rounds = round + 1;
     const foundIds: string[] = [];
     const shortsOnly = new Set(BROAD_QUERIES.filter((_, i) => i % 2 === 0)); // half the broad probes target Shorts (<4 min) explicitly
     // query-less top-by-views probes first (they cannot be starved by keyword probes)
     for (const tp of topProbes) {
-      if (ledger.searchCalls >= SEARCH_BUDGET) break;
       const label = `top:${tp.region || 'all'}:${tp.hours}h${tp.duration ? ':' + tp.duration : ''}${tp.category ? ':cat' + tp.category : ''}`;
-      try {
-        subrequests++;
-        spend('search.list', 1, label);
-        const after = encodeURIComponent(new Date(Date.now() - tp.hours * 36e5).toISOString());
-        const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}&maxResults=50&safeSearch=moderate${tp.duration ? `&videoDuration=${tp.duration}` : ''}${tp.region ? `&regionCode=${tp.region}` : ''}${tp.category ? `&videoCategoryId=${tp.category}` : ''}${tp.lang ? `&relevanceLanguage=${tp.lang}` : ''}&key=${apiKey}`;
-        const sr = await fetchJson<{ items: { id: { videoId: string } }[] }>(url, { retries: 0 });
-        for (const it of sr.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${label}`);
-      } catch (e) {
-        errors.push(`${label}: ${redact((e as Error).message)}`);
+      let pageToken: string | undefined;
+      for (let page = 1; page <= (tp.pages || 1); page++) {
+        if (ledger.searchCalls >= SEARCH_BUDGET) break;
+        try {
+          subrequests++;
+          spend('search.list', 1, `${label} p${page}`);
+          const after = encodeURIComponent(new Date(Date.now() - tp.hours * 36e5).toISOString());
+          const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}&maxResults=50&safeSearch=moderate${tp.duration ? `&videoDuration=${tp.duration}` : ''}${tp.region ? `&regionCode=${tp.region}` : ''}${tp.category ? `&videoCategoryId=${tp.category}` : ''}${tp.lang ? `&relevanceLanguage=${tp.lang}` : ''}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${apiKey}`;
+          const sr = await fetchJson<{ items: { id: { videoId: string } }[]; nextPageToken?: string }>(url, { retries: 0 });
+          for (const it of sr.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${label}`);
+          pageToken = sr.nextPageToken;
+          if (!pageToken) break;
+        } catch (e) {
+          errors.push(`${label} p${page}: ${redact((e as Error).message)}`);
+          break;
+        }
       }
     }
     const publishedAfter = encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString());
