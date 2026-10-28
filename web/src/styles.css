@@ -76,9 +76,9 @@ p { margin: 0; }
 .app { min-height: 100dvh; display: grid; grid-template-rows: auto auto 1fr; }
 .app > * { min-width: 0; }
 .topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
   display: flex; align-items: center; gap: 12px;
-  padding: 10px var(--gutter);
+  padding: 10px max(var(--gutter), env(safe-area-inset-right, 0px)) 10px max(var(--gutter), env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
@@ -92,9 +92,9 @@ p { margin: 0; }
 .pulse.bad { background: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 25%, transparent); }
 
 .nav {
-  position: sticky; top: 49px; z-index: 19;
+  position: sticky; top: calc(49px + env(safe-area-inset-top, 0px)); z-index: 19;
   display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
-  padding: 8px var(--gutter);
+  padding: 8px max(var(--gutter), env(safe-area-inset-right, 0px)) 8px max(var(--gutter), env(safe-area-inset-left, 0px));
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
@@ -106,18 +106,18 @@ p { margin: 0; }
 .nav a:hover { text-decoration: none; background: var(--surface-2); color: var(--ink); }
 .nav a.active { background: var(--surface-3); color: var(--ink); }
 
-.main { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 18px var(--gutter) 64px; min-width: 0; }
+.main { width: 100%; max-width: var(--maxw); margin: 0 auto; padding-block: 18px 64px; padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px)); min-width: 0; }
 
 @media (min-width: 960px) {
   .app { grid-template-columns: 220px 1fr; grid-template-rows: auto 1fr; }
   .topbar { grid-column: 1 / -1; }
   .nav {
-    position: sticky; top: 49px; align-self: start; height: calc(100dvh - 49px);
+    position: sticky; top: calc(49px + env(safe-area-inset-top, 0px)); align-self: start; height: calc(100dvh - 49px);
     flex-direction: column; gap: 2px; padding: 14px 12px; overflow: visible;
     border-bottom: 0; border-right: 1px solid var(--line);
   }
   .nav a { border-radius: var(--radius-s); padding: 9px 12px; }
-  .main { padding: 26px 32px 72px; }
+  .main { padding-block: 26px 72px; padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
 }
 
 /* ---------- Primitives ---------- */
