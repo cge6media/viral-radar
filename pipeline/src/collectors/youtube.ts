@@ -38,10 +38,25 @@ export const DISCOVERY_HOURS = Number(process.env.VR_YT_DISCOVERY_HOURS || 6);
 export const SEARCH_BUDGET = Number(process.env.VR_YT_SEARCH_BUDGET || 90);
 export const UNIT_BUDGET = Number(process.env.VR_YT_UNIT_BUDGET || 9000);
 export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 1500);
+/**
+ * Query-less "top by views" probes — the single most important discovery source. search.list accepts no `q`, so
+ * `order=viewCount&publishedAfter=…&videoDuration=short&regionCode=…` returns the most-viewed videos published in a
+ * window, exactly how public Shorts charts are built. One search call each (own 100/day bucket), 50 ids per page.
+ * Exploration that does not depend on any vocabulary: a format we have never heard of still shows up here.
+ */
+export interface TopProbe { hours: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string }
+export const TOP_PROBES: TopProbe[] = [
+  { hours: 24, duration: 'short', region: 'US' }, { hours: 72, duration: 'short', region: 'US' }, { hours: 24 * 7, duration: 'short', region: 'US' }, { hours: 24 * 14, duration: 'short', region: 'US' },
+  { hours: 72, region: 'US' },
+  { hours: 72, duration: 'short', region: 'GB' }, { hours: 72, duration: 'short', region: 'IN' }, { hours: 72, duration: 'short', region: 'MX', lang: 'es' }, { hours: 72, duration: 'short', region: 'BR' },
+  { hours: 72, duration: 'short', region: 'US', category: '15' }, { hours: 72, duration: 'short', region: 'US', category: '23' }, { hours: 72, duration: 'short', region: 'US', category: '20' },
+];
+/** between full rounds, the two freshest probes run every MINI_HOURS so brand-new breakouts are not 6h late */
+export const MINI_HOURS = Number(process.env.VR_YT_MINI_HOURS || 3);
 /** broad "what is big right now" probes (order=viewCount within the last 72h) — run every discovery round */
 export const BROAD_QUERIES: string[] = process.env.VR_YT_BROAD_QUERIES
   ? process.env.VR_YT_BROAD_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
-  : ['#shorts', 'viral', 'funny', 'trending', 'videos virales', 'reaction', 'animation', 'cat'];
+  : ['#shorts', 'videos virales'];
 /** format probes — rotated across rounds so the whole list is covered every day */
 export const DISCOVERY_QUERIES: string[] = process.env.VR_YT_QUERIES
   ? process.env.VR_YT_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
@@ -64,7 +79,7 @@ export interface YtVideo {
   contentDetails?: { duration?: string };
 }
 
-export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; rounds?: number; chartRound?: number; calls: { t: string; method: string; units: number; note?: string }[] }
+export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; lastMiniAt?: string; rounds?: number; chartRound?: number; calls: { t: string; method: string; units: number; note?: string }[] }
 
 /** The quota day in Pacific time (YouTube resets at midnight PT), formatted YYYY-MM-DD. */
 export const quotaDay = (iso = nowIso()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
@@ -73,7 +88,7 @@ const today = () => quotaDay();
 export async function loadLedger(): Promise<QuotaLedger> {
   const l = await readJson<QuotaLedger>('cache/youtube-quota.json');
   if (l && l.day === today()) return l;
-  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, rounds: l?.rounds, chartRound: l?.chartRound, calls: [] };
+  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, lastMiniAt: l?.lastMiniAt, rounds: l?.rounds, chartRound: l?.chartRound, calls: [] };
 }
 export async function saveLedger(l: QuotaLedger): Promise<void> {
   l.calls = l.calls.slice(-200);
@@ -170,21 +185,40 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
   // C. discovery (rationed)
   let discovered = 0;
   const hoursSinceDiscovery = ledger.lastDiscoveryAt ? (Date.now() - new Date(ledger.lastDiscoveryAt).getTime()) / 36e5 : Infinity;
-  if (hoursSinceDiscovery >= DISCOVERY_HOURS && ledger.searchCalls < SEARCH_BUDGET) {
+  const hoursSinceMini = ledger.lastMiniAt ? (Date.now() - new Date(ledger.lastMiniAt).getTime()) / 36e5 : Infinity;
+  const fullRound = hoursSinceDiscovery >= DISCOVERY_HOURS;
+  const miniRound = !fullRound && hoursSinceDiscovery >= MINI_HOURS && hoursSinceMini >= MINI_HOURS;
+  if ((fullRound || miniRound) && ledger.searchCalls < SEARCH_BUDGET) {
     // exploitation: what people talk about now (Bluesky topics) and microtrends that already show momentum
-    const topicQueries = (opts.topicTerms || []).slice(0, 3);
-    const trendQueries = (opts.trendTerms || []).filter((t) => !topicQueries.includes(t)).slice(0, 3);
+    const topicQueries = fullRound ? (opts.topicTerms || []).slice(0, 2) : [];
+    const trendQueries = fullRound ? (opts.trendTerms || []).filter((t) => !topicQueries.includes(t)).slice(0, 2) : [];
     const perRound = Math.max(1, Math.floor(SEARCH_BUDGET / Math.max(1, Math.round(24 / DISCOVERY_HOURS))));
     // exploration: broad probes every round, then a rotating window of format probes so the whole catalogue is covered daily
     const round = ledger.rounds || 0;
-    const formatSlots = Math.max(0, perRound - BROAD_QUERIES.length - topicQueries.length - trendQueries.length);
+    const formatSlots = Math.max(0, perRound - TOP_PROBES.length - BROAD_QUERIES.length - topicQueries.length - trendQueries.length);
     const start = DISCOVERY_QUERIES.length ? (round * formatSlots) % DISCOVERY_QUERIES.length : 0;
     const formatQueries = Array.from({ length: Math.min(formatSlots, DISCOVERY_QUERIES.length) }, (_, i) => DISCOVERY_QUERIES[(start + i) % DISCOVERY_QUERIES.length]);
-    const queries = Array.from(new Set([...BROAD_QUERIES, ...topicQueries, ...trendQueries, ...formatQueries]));
-    ledger.rounds = round + 1;
-    const shortsOnly = new Set(BROAD_QUERIES.filter((_, i) => i % 2 === 0)); // half the broad probes target Shorts (<4 min) explicitly
-    const publishedAfter = encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString());
+    const queries = fullRound ? Array.from(new Set([...BROAD_QUERIES, ...topicQueries, ...trendQueries, ...formatQueries])) : [];
+    const topProbes = fullRound ? TOP_PROBES : TOP_PROBES.slice(0, 2);
+    if (fullRound) ledger.rounds = round + 1;
     const foundIds: string[] = [];
+    const shortsOnly = new Set(BROAD_QUERIES.filter((_, i) => i % 2 === 0)); // half the broad probes target Shorts (<4 min) explicitly
+    // query-less top-by-views probes first (they cannot be starved by keyword probes)
+    for (const tp of topProbes) {
+      if (ledger.searchCalls >= SEARCH_BUDGET) break;
+      const label = `top:${tp.region || 'all'}:${tp.hours}h${tp.duration ? ':' + tp.duration : ''}${tp.category ? ':cat' + tp.category : ''}`;
+      try {
+        subrequests++;
+        spend('search.list', 1, label);
+        const after = encodeURIComponent(new Date(Date.now() - tp.hours * 36e5).toISOString());
+        const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}&maxResults=50&safeSearch=moderate${tp.duration ? `&videoDuration=${tp.duration}` : ''}${tp.region ? `&regionCode=${tp.region}` : ''}${tp.category ? `&videoCategoryId=${tp.category}` : ''}${tp.lang ? `&relevanceLanguage=${tp.lang}` : ''}&key=${apiKey}`;
+        const sr = await fetchJson<{ items: { id: { videoId: string } }[] }>(url, { retries: 0 });
+        for (const it of sr.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${label}`);
+      } catch (e) {
+        errors.push(`${label}: ${redact((e as Error).message)}`);
+      }
+    }
+    const publishedAfter = encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString());
     for (const q of queries.slice(0, perRound)) {
       if (ledger.searchCalls >= SEARCH_BUDGET) break;
       try {
@@ -197,7 +231,8 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
         errors.push(`search ${q}: ${redact((e as Error).message)}`);
       }
     }
-    ledger.lastDiscoveryAt = nowIso();
+    if (fullRound) ledger.lastDiscoveryAt = nowIso();
+    ledger.lastMiniAt = nowIso();
     // details for discovered ids (batched)
     const byId = new Map(foundIds.map((x) => x.split('|') as [string, string]));
     const ids = Array.from(byId.keys());
@@ -209,7 +244,8 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
         spend('videos.list', 1, `discovery details ${chunk.length}`);
         const v = await fetchJson<{ items: YtVideo[] }>(`${API}/videos?part=snippet,statistics,contentDetails&id=${chunk.join(',')}&key=${apiKey}`, { retries: 0 });
         for (const vid of v.items || []) {
-          add(videoToObservation(vid, `yt:${byId.get(vid.id) || 'search'}`, undefined, observedAt));
+          const lbl = byId.get(vid.id) || 'search';
+          add(videoToObservation(vid, lbl.startsWith('top:') ? lbl : `yt:${lbl}`, undefined, observedAt));
           discovered++;
         }
       } catch (e) {
