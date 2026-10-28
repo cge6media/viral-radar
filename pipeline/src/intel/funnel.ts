@@ -47,7 +47,7 @@ export function buildFunnel(records: VideoRecord[], inFeedIds: Set<string>): Dis
   for (const r of records) {
     if (r.state === 'verified_hit' || r.state === 'early_breakout') continue;
     // aggregate by rule, not by the specific numbers in the sentence
-    const key = (r.rejectedBy || (r.state === 'unverified_signal' ? 'unverified signal (no platform statistics)' : 'other')).replace(/\s*\([^)]*\)/g, '').trim();
+    const key = (r.rejectedBy || (r.state === 'unverified_signal' ? 'unverified signal (no platform statistics)' : 'other')).replace(/\s*\([^)]*\)/g, '').replace(/\d[\d.,]*[KMB]?(?=\/h)/g, 'N').trim();
     rejections[key] = (rejections[key] || 0) + 1;
   }
   return {

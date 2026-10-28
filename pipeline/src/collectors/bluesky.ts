@@ -235,3 +235,35 @@ export async function collectBluesky(opts: { formatQueries?: string[]; topicFeed
   }
   return { items: mergeShares(items), errors, subrequests };
 }
+
+
+/**
+ * Re-measure specific posts (featured native videos) so their engagement never goes stale between feed sightings.
+ * app.bsky.feed.getPosts takes up to 25 AT-URIs; the author DID comes from the video thumbnail URL.
+ */
+export async function refreshBlueskyPosts(obs: Observation[], observedAt = nowIso()): Promise<{ items: Observation[]; errors: string[]; subrequests: number }> {
+  const items: Observation[] = [];
+  const errors: string[] = [];
+  let subrequests = 0;
+  const uris: { uri: string; o: Observation }[] = [];
+  for (const o of obs) {
+    if (o.source !== 'bluesky' || o.video?.platform !== 'bluesky') continue;
+    const did = o.thumbnail?.match(/video\.bsky\.app\/watch\/([^/]+)\//)?.[1];
+    if (!did) continue;
+    uris.push({ uri: `at://${decodeURIComponent(did)}/app.bsky.feed.post/${o.video.id}`, o });
+  }
+  for (let i = 0; i < uris.length; i += 25) {
+    const chunk = uris.slice(i, i + 25);
+    try {
+      subrequests++;
+      const res = await fetchJson<{ posts: BskyPost[] }>(`${API}/app.bsky.feed.getPosts?${chunk.map((c) => `uris=${encodeURIComponent(c.uri)}`).join('&')}`);
+      for (const p of res.posts || []) {
+        const fresh = postToObservation(p, chunk.find((c) => p.uri === c.uri)?.o.query || 'refresh', observedAt);
+        if (fresh && fresh.kind === 'video') items.push(fresh);
+      }
+    } catch (e) {
+      errors.push(`getPosts: ${(e as Error).message}`);
+    }
+  }
+  return { items, errors, subrequests };
+}

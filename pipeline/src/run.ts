@@ -7,7 +7,7 @@
  *   npm run collect:fixtures   offline run against captured real responses in pipeline/fixtures
  */
 import { collectGoogleTrends } from './collectors/googleTrends.js';
-import { collectBluesky } from './collectors/bluesky.js';
+import { collectBluesky, refreshBlueskyPosts } from './collectors/bluesky.js';
 import { collectMastodon } from './collectors/mastodon.js';
 import { collectYouTube, enrichYouTubeLinks, fetchChannelData, loadChannelCache, quotaDay, SEARCH_BUDGET, UNIT_BUDGET } from './collectors/youtube.js';
 import { collectTikTok, enrichTikTokLinks } from './collectors/tiktok.js';
@@ -117,6 +117,16 @@ export async function main(): Promise<Snapshot> {
   });
   if (ytDiagnostics.length) await appendDiagnostics(ytDiagnostics);
 
+  // featured Bluesky videos are re-measured every run (their statistics otherwise only refresh when a feed shows them again)
+  if (!fixtureMode() && previous?.videos) {
+    const featuredBsky = new Set([...previous.videos.bluesky.viralNow, ...previous.videos.bluesky.earlyRadar].map((c) => c.id));
+    const targets = existing.filter((o) => featuredBsky.has(o.id));
+    if (targets.length) {
+      const r = await refreshBlueskyPosts(targets, runStart);
+      if (r.items.length) bs.items.push(...r.items);
+      console.log(`  refreshed ${r.items.length}/${targets.length} featured Bluesky videos${r.errors.length ? ` (${r.errors[0]})` : ''}`);
+    }
+  }
   const sources = [gt, bs, ma, yt, tt].map((r) => r.status);
   const sourceSignature = sources.filter((s) => s.ok && s.mode !== 'disabled').map((s) => s.source).sort().join(',');
   let fresh = [gt, bs, ma, yt, tt].flatMap((r) => r.items).filter((o) => !hasUnsafeMarkers(`${o.title} ${o.text || ''}`));
