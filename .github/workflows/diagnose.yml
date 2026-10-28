@@ -18,6 +18,10 @@ on:
         description: 'Probe TikTok endpoints from the runner (true/false)'
         required: false
         default: 'false'
+      batch:
+        description: 'Batch-verify ids: "<name> id1 id2 ..." (1 quota unit per 50 ids)'
+        required: false
+        default: ''
 
 concurrency:
   group: collect
@@ -43,6 +47,12 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         working-directory: pipeline
         run: npx tsx src/tools/inspect.ts ${{ inputs.videos }}
+      - name: Batch verify
+        if: ${{ inputs.batch != '' }}
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        working-directory: pipeline
+        run: npx tsx src/tools/inspect.ts --batch ${{ inputs.batch }}
       - name: Probe TikTok
         if: ${{ inputs.probe_tiktok == 'true' }}
         working-directory: pipeline

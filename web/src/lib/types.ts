@@ -1,6 +1,7 @@
 // Shared data model: single source of truth lives in the pipeline package.
-export type { Trend, Observation, Snapshot, SourceStatus, SourceQuality, Lifecycle, Platform, EvidenceKind, EvidenceGrade, WindowScores, Window, CategoryActivity, QualitySummary, TrendKind } from '../../../pipeline/src/types';
-export { WINDOWS, WINDOW_HOURS } from '../../../pipeline/src/types';
+export type { Trend, Observation, Snapshot, SourceStatus, SourceQuality, Lifecycle, Platform, EvidenceKind, EvidenceGrade, WindowScores, Window, CategoryActivity, QualitySummary, TrendKind, VideoCard, VideoRecord, VideoIntel, VideoWindow, VideoState, DiscoveryFunnel, PlatformCoverage, CategoryWaveState } from '../../../pipeline/src/types';
+export { WINDOWS, WINDOW_HOURS, VIDEO_WINDOWS, VIDEO_WINDOW_HOURS } from '../../../pipeline/src/types';
+export const VIDEO_WINDOW_LABEL: Record<string, string> = { '24h': 'Last 24 hours', '48h': 'Last 48 hours', '72h': 'Last 72 hours', '7d': 'Last 7 days', '30d': 'Last 30 days' };
 
 export const WINDOW_LABEL: Record<string, string> = { '24h': 'Last 24 hours', '48h': 'Last 48 hours', '7d': 'Last 7 days' };
 

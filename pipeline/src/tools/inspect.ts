@@ -83,13 +83,37 @@ export async function inspectVideo(idOrUrl: string, apiKey: string): Promise<Vid
   return out;
 }
 
+/** Batch verification (1 unit per 50 ids): which ids exist, with title/channel/date/stats. Used for the Hall of Fame and benchmarks. */
+export async function batchVerify(ids: string[], apiKey: string): Promise<Record<string, { found: boolean; title?: string; channel?: string; channelId?: string; publishedAt?: string; views?: number; likes?: number; comments?: number; durationSec?: number; embeddable?: boolean }>> {
+  const out: Record<string, { found: boolean; title?: string; channel?: string; channelId?: string; publishedAt?: string; views?: number; likes?: number; comments?: number; durationSec?: number; embeddable?: boolean }> = {};
+  const clean = Array.from(new Set(ids.map((x) => youtubeId(x) || x.trim()).filter((x) => /^[A-Za-z0-9_-]{6,}$/.test(x))));
+  for (const id of clean) out[id] = { found: false };
+  for (let i = 0; i < clean.length; i += 50) {
+    const chunk = clean.slice(i, i + 50);
+    const v = await fetchJson<{ items: (YtVideo & { status?: { embeddable?: boolean } })[] }>(`${API}/videos?part=snippet,statistics,contentDetails,status&id=${chunk.join(',')}&key=${apiKey}`, { retries: 0 });
+    for (const it of v.items || []) {
+      out[it.id] = { found: true, title: it.snippet.title, channel: it.snippet.channelTitle, channelId: it.snippet.channelId, publishedAt: it.snippet.publishedAt, views: num(it.statistics?.viewCount), likes: num(it.statistics?.likeCount), comments: num(it.statistics?.commentCount), durationSec: isoDurationSeconds(it.contentDetails?.duration || 'PT0S'), embeddable: it.status?.embeddable };
+    }
+  }
+  return out;
+}
+
 async function main() {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     console.error('YOUTUBE_API_KEY is not set — run this inside the GitHub Actions diagnostic workflow.');
     process.exit(2);
   }
-  const args = process.argv.slice(2).flatMap((a) => a.split(/[\s,]+/)).filter(Boolean);
+  const argv = process.argv.slice(2);
+  if (argv[0] === '--batch') {
+    const name = argv[1];
+    const ids = argv.slice(2).flatMap((a) => a.split(/[\s,]+/)).filter(Boolean);
+    const res = await batchVerify(ids, apiKey);
+    await writeJson(`diagnostics/batch-${name}.json`, { fetchedAt: nowIso(), results: res });
+    for (const [id, r] of Object.entries(res)) console.log(`${id}: ${r.found ? `${r.views?.toLocaleString()} views · ${r.publishedAt?.slice(0, 10)} · ${r.channel} · ${r.title}` : 'NOT FOUND'}`);
+    return;
+  }
+  const args = argv.flatMap((a) => a.split(/[\s,]+/)).filter(Boolean);
   if (!args.length) {
     console.error('usage: tsx src/tools/inspect.ts <videoIdOrUrl> [...]');
     process.exit(2);

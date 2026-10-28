@@ -1,146 +1,116 @@
 import { useMemo } from 'react';
 import { useApp } from '../App';
 import { usePrefs, useWatchlist } from '../lib/store';
-import { bestThumb, categoryLabelDelta, diversify, fmtAgo, growthLabel, isQualified, recommendPlatform, type ViewTrend } from '../lib/data';
+import { bestThumb, categoryLabelDelta, fmtAgo, growthLabel, isQualified, recommendPlatform, type ViewTrend } from '../lib/data';
 import { advise } from '../lib/studio';
 import { monetizationSuitability } from '../lib/money';
-import { GRADE, STAGE, STAGE_ORDER, WINDOW_LABEL } from '../lib/types';
-import { GradePill, Section, StagePill, Thumb, TrendCard, TrendRow, WindowSwitch, GrowthPill, KindPill } from '../components/ui';
-import { HBarChart } from '../components/charts';
+import { GRADE } from '../lib/types';
+import { GradePill, Section, StagePill, Thumb, GrowthPill, KindPill, StatTile } from '../components/ui';
+import { VideoRail } from '../components/video';
+import { PLATFORM_NAME } from '../lib/videos';
+import { WaveCard } from './Trends';
 
 export default function Discover() {
   const app = useApp();
   const [prefs] = usePrefs();
   const [watch, wl] = useWatchlist();
   const { ranked, now, snapshot } = app;
+  const intel = snapshot.videos;
 
   const qualified = useMemo(() => ranked.filter((v) => isQualified(v, prefs)), [ranked, prefs]);
   const hero = qualified[0];
-  const emerging = useMemo(() => diversify(qualified.slice(1), 9, 3), [qualified]);
-  const provenFormats = useMemo(() => ranked.filter((v) => v.kind === 'format' && v.w.grade !== 'insufficient' && !isQualified(v, prefs)).slice(0, 6), [ranked, prefs]);
-  const topics = useMemo(() => ranked.filter((v) => v.kind === 'topic' && !v.isNewsEvent && v.w.grade !== 'insufficient' && !isQualified(v, prefs)).slice(0, 5), [ranked, prefs]);
-  const stageCounts = useMemo(() => {
-    const c: Record<string, number> = {};
-    ranked.filter((v) => !v.isNewsEvent).forEach((v) => (c[v.w.lifecycle] = (c[v.w.lifecycle] || 0) + 1));
-    return c;
-  }, [ranked]);
   const moneyPicks = useMemo(() => {
     const seen = new Set<string>();
-    return qualified.filter((v) => (seen.has(v.category) ? false : (seen.add(v.category), true))).sort((a, b) => b.monetizationSuitability - a.monetizationSuitability).slice(0, 3);
-  }, [qualified]);
-  const activeSources = snapshot.sources.filter((s) => s.ok).length;
+    return qualified.filter((v) => v.id !== hero?.id && (seen.has(v.category) ? false : (seen.add(v.category), true))).sort((a, b) => b.monetizationSuitability - a.monetizationSuitability).slice(0, 3);
+  }, [qualified, hero]);
+  const viral = intel?.viralNow['72h'].slice(0, 10) || [];
+  const rising = intel?.earlyRadar.slice(0, 10) || [];
+  const waves = intel?.waves.filter((w) => w.state === 'promising_wave').slice(0, 6) || [];
+  const crossWaves = intel?.waves.filter((w) => w.platforms.length >= 2).slice(0, 4) || [];
+  const direct = intel?.coverage.filter((c) => c.status === 'direct').map((c) => PLATFORM_NAME[c.platform]) || [];
   const ageH = (now - new Date(snapshot.generatedAt).getTime()) / 36e5;
 
   return (
     <>
-      <header className="stack" style={{ gap: 14 }}>
-        <div className="row between wrap" style={{ alignItems: 'flex-start' }}>
+      <header className="stack" style={{ gap: 12 }}>
+        <div className="row between wrap" style={{ alignItems: 'flex-end' }}>
           <div>
-            <h1>Discover what's gaining attention before you decide what to create.</h1>
-            <div className="statstrip" style={{ marginTop: 10 }}>
-              <span>Updated <b>{fmtAgo(snapshot.generatedAt, now)}</b></span>
-              <span>Freshness <b>{ageH <= 1 ? 'live' : ageH <= 3 ? 'recent' : 'stale'}</b></span>
-              <span>Qualified opportunities <b>{qualified.length}</b></span>
-              <span>New in 24h <b>{qualified.filter((v) => (now - new Date(v.firstDetected).getTime()) / 36e5 <= 24).length}</b></span>
-              <span>Active sources <b>{activeSources}/{snapshot.sources.filter((s) => s.mode !== 'disabled').length}</b></span>
-            </div>
+            <div className="kicker">Current viral landscape · updated {fmtAgo(snapshot.generatedAt, now)}{ageH > 2 ? ' · stale' : ''}</div>
+            <h1>What people are actually watching right now — and what to make next.</h1>
           </div>
-          <WindowSwitch value={app.window} onChange={app.setWindow} />
         </div>
+        {intel ? (
+          <div className="tiles five">
+            <StatTile v={intel.viralNow['72h'].length} k="Verified hits (72h)" s="published in the last 3 days" cls="good" />
+            <StatTile v={intel.counts.early_breakout} k="Early breakouts" s="credible abnormal momentum" />
+            <StatTile v={waves.length} k="Promising waves" s="formats with new independent creators" na={waves.length === 0} />
+            <StatTile v={direct.length} k="Platforms with direct stats" s={direct.join(', ') || 'none'} />
+            <StatTile v={intel.funnel.discovered} k="Videos in the 30-day index" s={`${intel.funnel.verified} with verified statistics`} />
+          </div>
+        ) : (
+          <div className="notice warn">The first 3.0 collection has not published yet — the video rankings appear after the next cloud run.</div>
+        )}
       </header>
 
-      <section className="section" style={{ marginTop: 22 }}>
+      <Section title="Biggest viral videos right now" sub="Verified platform statistics, published in the last 72 hours. Tap to play in place." more="All of Viral Now" moreHref="#/viral">
+        <VideoRail cards={viral} now={now} why />
+      </Section>
+
+      <Section title="Fastest-rising breakouts" sub="Credible abnormal momentum: measured velocity, exceptional averages for very young videos, and creator outliers. Provisional entries are labelled." more="Open Early Radar" moreHref="#/radar">
+        <VideoRail cards={rising} now={now} why />
+      </Section>
+
+      <Section title="Trending categories & microtrends" sub="Where independent creators are moving — not one big video, but several creators producing similar content." more="All trends" moreHref="#/trends">
+        {waves.length ? (
+          <div className="grid cols-3">{waves.map((w) => <WaveCard key={w.trendId} w={w} now={now} />)}</div>
+        ) : (
+          <div className="empty">No promising wave clears the bar right now (3+ independent creators with new entrants in 48h). Category activity is on the Trends page.</div>
+        )}
+        {snapshot.categories.length > 0 && (
+          <div className="catstrip" style={{ marginTop: 12 }}>
+            {snapshot.categories.slice(0, 8).map((c) => {
+              const d = categoryLabelDelta(c);
+              return <a key={c.category} className="chip" href={`#/trends?c=${encodeURIComponent(c.category)}`}><b>{c.category}</b><span className="num">{c.videos24h} in 24h</span><span className={`d ${d.dir}`}>{d.label}</span></a>;
+            })}
+          </div>
+        )}
+      </Section>
+
+      <Section title="What should I create today?" sub="Evidence-backed original opportunities for a 30-minute to 2-hour production window, re-ranked for your tools and interests." more="Content Studio" moreHref="#/studio">
         {hero ? (
           <Hero v={hero} now={now} prefsTools={prefs.tools} watched={watch.some((w) => w.trendId === hero.id)} onSave={() => { wl.add({ trendId: hero.id, name: hero.name, category: hero.category, status: 'planning' }); app.toast('Saved to your content plan'); }} />
         ) : (
-          <div className="empty">No opportunity clears the evidence bar in the {WINDOW_LABEL[app.window].toLowerCase()} yet. Widen the window, or check back after the next collection — nothing is padded in to fill the space.</div>
+          <div className="empty">No opportunity clears the evidence bar yet — nothing is padded in to fill the space.</div>
         )}
-      </section>
-
-      <Section title="Emerging now" sub={`Opportunities with at least an early signal in the ${WINDOW_LABEL[app.window].toLowerCase()}, re-ranked for your interests. ${qualified.length <= 1 ? 'Thin today — honest, not padded.' : ''}`} more="Open compass" moreHref="#/compass">
-        {emerging.length ? <div className="tgrid">{emerging.map((v) => <TrendCard key={v.id} v={v} now={now} />)}</div> : <div className="empty">Nothing else qualifies in this window.</div>}
-      </Section>
-
-      <Section title="Trend momentum" sub="Where video activity is moving, measured from relevance-checked videos by publication time." more="Full compass" moreHref="#/compass">
-        <div className="grid cols-2">
-          <div className="card">
-            <h3 style={{ marginBottom: 4 }}>Category activity</h3>
-            <div className="small muted" style={{ marginBottom: 10 }}>Videos in the last 24 hours, with the change against the prior 24 hours.</div>
-            {snapshot.categories.length ? (
-              <HBarChart data={snapshot.categories.slice(0, 10).map((c) => ({ label: c.category, value: c.videos24h, href: `#/compass?c=${encodeURIComponent(c.category)}`, tip: `${c.category}: ${c.videos24h} videos in 24h (${c.videos7d} in 7d) · ${c.creators7d} creators · ${categoryLabelDelta(c).label}` }))} valueFmt={(v) => `${Math.round(v)}`} />
-            ) : <div className="empty">No category activity yet.</div>}
-          </div>
-          <div className="card">
-            <h3 style={{ marginBottom: 4 }}>Lifecycle mix</h3>
-            <div className="small muted" style={{ marginBottom: 10 }}>How the non-news trends in this window are distributed. Stages come from measured growth where it exists.</div>
-            <div className="stack" style={{ gap: 6 }}>
-              {STAGE_ORDER.map((s) => (
-                <a key={s} href={`#/compass?stage=${s}`} className="row between" style={{ padding: '7px 0', borderBottom: '1px solid var(--line)' }}>
-                  <span className="row"><StagePill stage={s} /><span className="small muted">{STAGE[s].desc}</span></span>
-                  <b className="num">{stageCounts[s] || 0}</b>
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Explore categories" sub="Entertainment, animation, animals, comedy, gaming, music and more — only what the data supports.">
-        {snapshot.categories.length ? (
-          <div className="catgrid">
-            {snapshot.categories.map((c) => {
-              const d = categoryLabelDelta(c);
-              return (
-                <a key={c.category} className="cat" href={`#/compass?c=${encodeURIComponent(c.category)}`}>
-                  <div className="n">{c.category}</div>
-                  <div className="m">{c.videos7d} videos · {c.creators7d} creators · {c.qualifiedTrends} qualified</div>
-                  <div className={`d ${d.dir === 'up' ? 'up' : d.dir === 'down' ? 'down' : ''}`}>{d.label}</div>
-                </a>
-              );
-            })}
-          </div>
-        ) : <div className="empty">Category activity appears after the first 2.0 collection.</div>}
-      </Section>
-
-      {(provenFormats.length > 0 || topics.length > 0) && (
-        <div className="grid cols-2 section">
-          {provenFormats.length > 0 && (
-            <div className="card">
-              <h3 style={{ marginBottom: 4 }}>Proven formats, still active</h3>
-              <div className="small muted" style={{ marginBottom: 6 }}>Evergreen categories with fresh, relevance-checked examples. Reliable, crowded — not listed as emerging.</div>
-              {provenFormats.map((v) => <TrendRow key={v.id} v={v} now={now} />)}
-            </div>
-          )}
-          {topics.length > 0 && (
-            <div className="card">
-              <h3 style={{ marginBottom: 4 }}>Audience topics to watch</h3>
-              <div className="small muted" style={{ marginBottom: 6 }}>Search and social interest without enough video examples yet.</div>
-              {topics.map((v) => <TrendRow key={v.id} v={v} now={now} />)}
-            </div>
-          )}
-        </div>
-      )}
-
-      <Section title="Monetization opportunities" sub="Qualified trends in the categories that convert best. Suitability is a category profile, not measured earnings." more="Open Money Engine" moreHref="#/money">
-        {moneyPicks.length ? (
-          <div className="grid cols-3">
+        {moneyPicks.length > 0 && (
+          <div className="grid cols-3" style={{ marginTop: 12 }}>
             {moneyPicks.map((v) => {
               const ms = monetizationSuitability(v.category);
+              const a = advise(v, v.w, prefs);
               return (
                 <a key={v.id} className="card" href={`#/trend/${encodeURIComponent(v.id)}`}>
                   <div className="row between"><KindPill kind={v.kind} /><GradePill grade={v.w.grade} /></div>
                   <h3 style={{ margin: '8px 0 4px' }}>{v.name}</h3>
                   <div className="small muted">{v.category} · {recommendPlatform(v, prefs).platform}</div>
+                  <div className="small" style={{ marginTop: 6 }}>{a.concepts[0]?.title}</div>
                   <div className="row" style={{ marginTop: 10, gap: 14 }}>
                     <div><div className="tiny dim">Money fit</div><b className="num" style={{ color: 'var(--money-ink)', fontSize: 18 }}>{ms.score}</b></div>
-                    <div><div className="tiny dim">Audience</div><b className="num" style={{ fontSize: 18 }}>{v.w.audienceInterest}</b></div>
+                    <div><div className="tiny dim">Creators</div><b className="num" style={{ fontSize: 18 }}>{v.w.creators}</b></div>
                     <div><div className="tiny dim">Momentum</div><b className="num" style={{ fontSize: 18 }}>{v.w.momentum}</b></div>
                   </div>
                 </a>
               );
             })}
           </div>
-        ) : <div className="empty">Money picks appear once trends qualify.</div>}
+        )}
+      </Section>
+
+      <Section title="Cross-platform waves" sub="Formats with supporting evidence on more than one platform. The order shown is the order of the earliest verified content on each platform — when it is unknown, it is not invented." more="Trend map" moreHref="#/trends?tab=map">
+        {crossWaves.length ? (
+          <div className="grid cols-2">{crossWaves.map((w) => <WaveCard key={w.trendId} w={w} now={now} showSequence />)}</div>
+        ) : (
+          <div className="empty">No wave has verified evidence on two platforms yet. Direct statistics currently come from {direct.join(' and ') || 'no platform'}; TikTok, Instagram and Facebook appear only as shares (see Diagnostics).</div>
+        )}
       </Section>
     </>
   );
