@@ -9,7 +9,7 @@ computer. A new cloud session should:
 git clone https://github.com/<owner>/viral-radar
 cd viral-radar
 npm install
-npm test                    # expect 34/34
+npm test                    # expect 41/41
 npm run collect:fixtures    # offline smoke run → data/latest.json
 npm run build               # web/dist
 ```
@@ -29,6 +29,17 @@ git push -u origin main
    `publish` deploys Pages and prints the URL (`https://<owner>.github.io/viral-radar/`).
 3. Optional secret `YOUTUBE_API_KEY`; optional variables `VR_*` (see README).
 
+## 2b. 3.0 operations
+
+- The YouTube key is the repository secret `YOUTUBE_API_KEY` (Google Cloud project *Viral Radar*, account DNA
+  Collision). Quota ledger: `data/cache/youtube-quota.json` (Pacific day; 10,000 units, 90 of 100 searches).
+- Manual diagnostics: Actions → **Diagnose** → inspect video ids (`videos`), batch-verify ids (`batch`), probe
+  TikTok (`probe_tiktok`), or run the discovery benchmark (`benchmark: dev|holdout`, `benchmark_label`). Results
+  are committed under `data/diagnostics/` and `data/benchmark/` — never into the observation store.
+- `data/diagnostics/watch.json` lists video ids re-measured every run for diagnostics only (`track.ndjson`).
+- `data/videos.json` is the full 30-day video index shipped with the site; `latest.json → videos` holds the top lists,
+  funnel and coverage.
+
 ## 3. Where things are
 
 | path | purpose |
@@ -40,6 +51,11 @@ git push -u origin main
 | `pipeline/src/intel/taxonomy.ts` | categories, keywords, monetization profiles, news-event heuristics |
 | `pipeline/src/intel/cluster.ts` | seeds, merging, attachment, dynamic microtrends |
 | `pipeline/src/intel/score.ts` | signal, momentum, confidence, monetization, creator, lifecycle |
+| `pipeline/src/intel/videos.ts` | 3.0 video records: velocity, acceleration, age percentile, creator outliers, evidence classes, scores, lists |
+| `pipeline/src/intel/funnel.ts` | discovery funnel, platform coverage, category waves |
+| `pipeline/src/tools/` | `inspect.ts` (video diagnostics, batch verify), `benchmark.ts` (discovery benchmark), `probe-tiktok.ts` |
+| `web/src/lib/videos.ts`, `web/src/components/video.tsx` | filters/sorts/embeds; cards, grid, rail, modal player |
+| `web/src/data/hallOfFame.ts` | the Hall of Fame entries (verified ids + context) |
 | `pipeline/src/lib/store.ts` | NDJSON history, score history, cache, retention |
 | `pipeline/fixtures/` | real captured responses + `build-fixtures.mjs` (regenerates them) |
 | `web/src/lib/data.ts` | filters, personalisation, ranking, rollups |

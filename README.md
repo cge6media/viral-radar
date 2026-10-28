@@ -1,46 +1,53 @@
 # Viral Radar
 
-**Creator intelligence for video trends (2.0).** Answers one question every morning:
-*what entertainment formats are demonstrably gaining attention, how early can I participate, and which opportunities are worth my production time?*
+**Viral-video intelligence for creators (3.0).** It answers: *which videos are people actually watching right
+now, which ones are about to break out, which formats are independent creators adopting — and what should I make
+today for a realistic return?*
 
-Built, tested and operated entirely in the cloud: a scheduled collector runs on GitHub Actions, the data lives in
-this repository, and the dashboard is a static site on GitHub Pages. No personal machine is involved at any point.
+Built, tested and operated entirely in the cloud: a scheduled collector runs on GitHub Actions every 30 minutes,
+the data lives in this repository, and the dashboard is a static site on GitHub Pages. No personal machine is
+involved at any point.
 
 **Live dashboard:** https://cge6media.github.io/viral-radar/
 
-## What it does (2.0)
+## What it does (3.0)
 
 | Section | What you get |
 |---|---|
-| **Discover** | Daily overview (last update, freshness, qualified opportunities, new in 24h, active sources), **Today's best opportunity** (thumbnail, stage, evidence grade, why it matters, recommended format, save), **Emerging now** grid, **Trend momentum** (category activity by publication time, lifecycle mix), **Explore categories**, **Monetization opportunities**. A 24h / 48h / 7d switch changes every number on the page. |
-| **Trend page** | Overview, **actual video examples** (thumbnails → originals, measured vs shared), growth analysis (adoption, video performance, video momentum, audience interest — `n/a` when not measurable), why it matters + cautions, three original concepts with hook/opening/structure/length/budget, revenue scenarios per platform. |
-| **Compass** | Lifecycle columns, measured movers, category activity, category drill-down. |
-| **Money Engine** | Four separated questions: monetization suitability (category profile), audience opportunity (live), production economics (your tools), financial scenarios (editable). Content investment calculator across platforms; full calculator with low/base/high, two break-evens, ROI; platform comparison with sourced requirements. |
-| **Content Studio** | "Turn this trend into a video idea": three concepts derived from the evidence; production queue. |
-| **Watchlist** | Statuses (watching → published) with actual views/cost/revenue. |
-| **Settings** | Preferences, data sources & quality (source quality framework, 12 automated checks, YouTube quota), how scores work. |
+| **Discover** | The current viral landscape (verified hits, breakouts, promising waves, platforms with direct statistics), **biggest viral videos right now** (verified, last 72h), **fastest-rising breakouts**, trending categories & microtrends, **what should I create today** (evidence-backed concepts for a 30-min–2h production window), cross-platform waves. |
+| **Viral Now** | The biggest verified videos published in the last 24h / 48h / 72h / 7d / 30d, ranked on their own platform's statistics; platform filters that reflect the record's own platform; sorts: most viral, fastest rising, newest breakouts, most engaging, creator outliers. |
+| **Early Radar** | Credible abnormal momentum before a video is an established hit: measured views/hour between real observations, acceleration, creator-baseline outliers, delayed breakouts. Provisional (single-observation) entries are labelled; tiny samples never qualify. |
+| **Trends** | Format waves (independent creators adopting similar content), lifecycle compass, category activity, cross-platform map with the earliest verified evidence per platform. |
+| **Money / Studio / Watchlist** | Monetization suitability, production economics, editable revenue scenarios, investment calculator; three original concepts per opportunity with hook/structure/length/budget; production queue with actuals. |
+| **Hall of Fame** | 38 historic viral videos (2004–2023), 35 verified through the YouTube API with view counts, originals vs re-uploads marked, by era/category/platform — entirely separate from live rankings. |
+| **Diagnostics** | Source coverage per platform (direct / indirect / unavailable, verified videos, shares, freshness, quota), the discovery funnel with rejection reasons, 16 automated quality checks, how scores work. |
 
-**Evidence rules.** Only videos measured on their platform (or verified there) prove a format; social shares corroborate.
-A video's publish date comes only from its platform — the time a post shared it is shown as "shared". Evidence grades
-(Strong / Developing / Early / Insufficient) decide what can be recommended; news/person events and evergreen categories
-without a measured shift never qualify. Rankings are not padded. Details: `docs/SCORING.md`, `docs/AUDIT.md`,
-`docs/RELEVANCE_AUDIT.md`.
+**Every video card** shows real thumbnails, title, creator, verified metrics, age, measured-vs-average momentum,
+its evidence class and *why this video is here*; tapping opens an in-page official embed (YouTube, TikTok,
+Instagram, Facebook, Bluesky) with a direct-link fallback — nothing is rehosted and nothing has fake controls.
+
+**Evidence rules.** Video statistics come only from the video platform (YouTube Data API; Bluesky for its native
+videos) and never mix with share engagement. Velocity exists only between two real observations ≥1h apart; a
+lifetime average is labelled as such. Evidence classes — verified viral hit / early breakout / promising category
+wave / unverified signal / not featured — are never mixed into one ranking. Nothing is padded. Details:
+`docs/SCORING.md`, `docs/DISCOVERY.md`, `docs/BENCHMARK.md`, `docs/AUDIT.md`.
 
 ## Architecture
 
 ```
-Source discovery → Collection → Normalization → Dedup → Classification → Scoring → Dashboard
+Discovery (probes/charts/links) → Collection → Normalization → Dedup → Classification → Video records (velocity, outliers, states) → Clusters/waves → Funnel + quality gate → Dashboard
 
 pipeline/   TypeScript (Node 22). Collectors, store, clustering, taxonomy, scoring. Runs in GitHub Actions.
 data/       The database: append-only NDJSON history (observations + scores), latest.json snapshot, source cache.
 web/        Vite + React dashboard (hash routing → works on GitHub Pages), hand-written dark design system, SVG charts.
 .github/    collect.yml  — every 30 min + manual: collect → commit data → build → deploy Pages
             deploy.yml   — on code pushes: test → build → deploy Pages
-docs/       PROGRESS.md · RESUME.md · DATA_SOURCES.md · SCORING.md · TEST_RESULTS.md
+docs/       PROGRESS.md · RESUME.md · DATA_SOURCES.md · SCORING.md · DISCOVERY.md · BENCHMARK.md · TEST_RESULTS.md
+            diagnose.yml — manual: inspect videos, batch-verify ids, probe TikTok, run the discovery benchmark
 ```
 
 **Sources** (details, status and verification in [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md)):
-Google Trends trending-searches RSS · Bluesky public API (trending topics, topic feeds, creator-format searches — native videos and YouTube/TikTok links with engagement) · Mastodon trends API (hashtags with a 7-day history) · YouTube Data API v3 (optional free key → real view/like counts) · YouTube oEmbed (verifies titles/channels of linked videos) · TikTok Creative Center (opt-in, best-effort).
+YouTube Data API v3 (query-less top-by-views discovery probes by window/region/category, Trending charts, tracking of every video seen in 7 days, channel statistics and upload baselines — live since 2026-10-28) · Bluesky public API (trending topics, feeds, format searches, domain link discovery for YouTube/TikTok/Instagram/Facebook) · Google Trends RSS · Mastodon trends · TikTok oEmbed (verification + embeds; TikTok publishes no statistics anonymously) · Instagram/Facebook via shares only.
 
 ## Deploy (one-time, ~5 minutes, all in the cloud)
 
@@ -69,7 +76,7 @@ the previous release stays up.
 npm install
 npm run collect:fixtures   # offline run against captured real responses → data/latest.json
 npm run collect            # live run (needs internet; YOUTUBE_API_KEY optional)
-npm test                   # 34 tests: parsers on real fixtures, dedup/history, clustering, scoring, calculator
+npm test                   # 41 tests: parsers on real fixtures, dedup/history, clustering, scoring, video states, velocity, calculator
 npm run build              # web/dist (static)
 npx tsx pipeline/src/gate.ts  # release gate on data/latest.json
 npm run dev                # local dev server for the dashboard

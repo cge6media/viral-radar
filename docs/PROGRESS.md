@@ -2,6 +2,21 @@
 
 Last updated: 2026-10-28 (2.0 upgrade session in Anthropic's cloud workspace).
 
+## 3.0 upgrade (2026-10-28)
+
+| phase | status |
+|---|---|
+| 1 YouTube activation: Google Cloud project, API enabled, restricted key, GitHub secret (browser, no exposure); quota accounting fixed (search bucket, Pacific day); first live collection verified | ✅ |
+| 2 Discovery diagnosis: benchmark baseline 4/98 (4.1 %) discovered; root cause = no leaderboard-style discovery; case video IjQwPjLMbxI verified (2.19M views, 14 months old, ×440 creator outlier, slow resurgence) | ✅ |
+| 3 Viral Now + Early Radar (video records, velocity, states, scores, per-platform scale) | ✅ |
+| 4 Multiplatform: query-less YouTube probes (windows/regions/categories), Bluesky domain link discovery, TikTok oEmbed; Creative Center/IG/FB documented as unavailable | ✅ |
+| 5 Benchmark tool + cycles: cycle 1 4.1 % → 40.8 % → 49 % discovered; cycle 2 (rolling schedule, classification prior, paid-reach filter); cycle 3 holdout | see docs/BENCHMARK.md |
+| 6 Playback: in-page official embeds + fallback, real thumbnails, uniform cards; 100/100 featured videos embeddable | ✅ |
+| 7 Navigation: Discover / Viral Now / Early Radar / Trends / Money / Studio / Hall of Fame / Watchlist; diagnostics | ✅ |
+| 8 Hall of Fame: 38 entries, 35 API-verified | ✅ |
+| 9 Money Engine + Studio preserved | ✅ |
+| 10 Tests (41), deploy, verify | ✅ |
+
 ## 2.0 upgrade phases
 
 | phase | status |
@@ -39,7 +54,7 @@ Last updated: 2026-10-28 (2.0 upgrade session in Anthropic's cloud workspace).
 
 ## Remaining work
 
-1. **Add the `YOUTUBE_API_KEY` secret** (free) — the single biggest data upgrade still waiting on a credential; everything else is in place.
+1. **TikTok / Instagram / Facebook direct statistics** need an approved data access (TikTok Research API or Meta app review); until then those platforms are share-evidence only.
 2. Watch the first days of measured history: video velocity, creator growth and lifecycle distribution; tune thresholds in `score.ts` if too many clusters sit in one stage.
 3. Re-run the hand relevance audit after a week of YouTube-verified data; extend `relevance.ts` with new formats as they appear.
 4. Optional embedding stage (semantic similarity) for microtrend grouping once YouTube provides richer titles/descriptions.
