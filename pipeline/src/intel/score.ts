@@ -248,8 +248,9 @@ export function decideLifecycle(x: {
     if (x.ageHours <= 48) return 'emerging';
     return x.signal >= 0.45 ? 'peaking' : 'cooling';                          // flat: moderate → peaking, weak → cooling
   }
-  // provisional (first measurement): never claim acceleration without a second data point
+  // provisional (first measurement): never claim acceleration without a second data point.
+  // An established cluster (older than 72h) with moderate attention reads as peaking (steady, crowded); weak → cooling.
   if (x.momentum >= 70 && x.sources >= 2) return 'breaking_out';
   if (x.ageHours <= 72) return 'emerging';
-  return x.signal >= 0.65 ? 'peaking' : 'cooling';
+  return x.signal >= 0.45 ? 'peaking' : 'cooling';
 }

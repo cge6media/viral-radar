@@ -92,10 +92,10 @@ Evaluated top to bottom; `g` is the growth component (0.5 = flat; 0.42 ≈ 0.8×
 | stage | rule |
 |---|---|
 | Insufficient data | confidence < 20 or fewer than 2 items |
-| Cooling | last seen > 36h ago; or (measured) g < 0.42 (≈ falling below 0.8×); or flat and weak (signal < 0.45) after 48h; or (provisional) older than 72h with signal < 0.65 |
+| Cooling | last seen > 36h ago; or (measured) g < 0.42 (≈ falling below 0.8×); or flat and weak (signal < 0.45) after 48h; or (provisional) older than 72h with signal < 0.45 |
 | Breaking out | momentum ≥ 70 and ≥ 2 sources (measured: and g ≥ 0.53, i.e. not falling) |
 | Accelerating | measured only: g ≥ 0.6 (≈ ≥1.32×) with acceleration ≥ 0.45 (not decelerating) |
-| Peaking | measured: signal ≥ 0.65 with g ≤ 0.6 (high and flat), or flat with moderate signal (≥ 0.45) after 48h; provisional: older than 72h with signal ≥ 0.65 |
+| Peaking | measured: signal ≥ 0.65 with g ≤ 0.6 (high and flat), or flat with moderate signal (≥ 0.45) after 48h; provisional: older than 72h with signal ≥ 0.45 |
 | Emerging | measured: first seen ≤ 48h ago; provisional: first seen ≤ 72h ago |
 
 A first measurement can never be "Accelerating": acceleration needs a second data point.
