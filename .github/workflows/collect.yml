@@ -102,6 +102,13 @@ jobs:
             for i in 1 2 3; do git push && break || (git pull --rebase && sleep 5); done
           fi
 
+      - name: External alerts (optional; needs the ALERT_WEBHOOK_URL secret and VR_ALERT_WEBHOOK=1)
+        if: steps.fresh.outputs.skip != 'true'
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          VR_ALERT_WEBHOOK: ${{ vars.VR_ALERT_WEBHOOK || '0' }}
+        run: npx tsx pipeline/src/tools/notify.ts
+
       - name: Report
         if: steps.fresh.outputs.skip != 'true'
         run: |

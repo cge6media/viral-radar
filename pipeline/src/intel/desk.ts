@@ -130,6 +130,11 @@ function decideAction(t: Trend, f: TrendFeatures, timing: DeskTiming, fit: Retur
   if (!fit.feasible) return { action: 'research', why: `Strong evidence but ${fit.why}` };
   if (grade === 'early' || f.creators < 4) return { action: 'monitor', why: `Only ${f.creators} independent creators so far — promising, not yet proven.` };
   if (timing === 'peaking') return { action: 'participate', why: 'Crowded and flat: only with a sharp original angle.' };
+  if (timing === 'established' && t.kind === 'format' && t.isGeneric) {
+    if (fit.fit >= 65 && evidenceScore >= 55) return { action: 'create_today', why: `An evergreen format with ${f.creators} independent creators this week; it fits ${fit.effort[0]}–${fit.effort[1]}h of AI/animation production — the opportunity is the current signature and your execution.` };
+    if (fit.fit >= 45) return { action: 'research', why: 'Evergreen and active, but only a moderate fit for AI/animation production — study the current signature before committing.' };
+    return { action: 'monitor', why: 'Evergreen, but a weak fit for the creator profile.' };
+  }
   if ((timing === 'emerging' || timing === 'accelerating' || timing === 'resurfacing' || timing === 'established') && evidenceScore >= 55 && fit.fit >= 55) {
     return { action: 'create_today', why: `${f.creators} independent creators, ${timing} attention, and a format that fits ${fit.effort[0]}–${fit.effort[1]}h of AI/animation production.` };
   }
@@ -160,6 +165,7 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
     if (evergreen && w.creators > 80) { skip('category-level activity (too broad to be one opportunity)'); continue; }
     const f = op.features;
     const timing = timingOf(t, now);
+    if (evergreen && timing.timing === 'peaking') { timing.timing = 'established'; timing.why = `Evergreen format: ${w.creators} independent creators this week (${w.newCreators} new in 48h); ${timing.why.replace(/^Attention is high but flat/, 'attention is high and steady')}`; timing.score = 55; }
     const fit = fitScore(t, f);
     const evidenceScore = round(clamp(0.35 * w.confidence + 0.25 * Math.min(100, 12 * f.creators) + 0.2 * (w.directVideos ? 100 : 30) + 0.2 * op.confidence, 0, 100), 0);
     const evidence = evidenceFor(t, byObs);

@@ -128,7 +128,7 @@ export function trendFeatures(t: Trend, byObs: Map<string, VideoRecord>, now: st
   const nameToks = tokenize(t.name.replace(/^#/, '')).filter((x) => !STOPWORDS.has(x));
   const tagName = t.name.replace(/^#/, '').toLowerCase();
   const shape = nameShape(t.name, t.kind === 'microtrend' ? (t.name.startsWith('#') ? 'hashtag' : 'phrase') : t.kind);
-  const inTitle = nameToks.length ? uniqVideos.filter((v) => { const tt = new Set(tokenize(v.title)); const tags = new Set((v.tags || []).map((x) => x.replace(/^#/, '').toLowerCase())); return (t.name.startsWith('#') || shape === 'entity' ? nameToks.some((x) => tt.has(x)) : nameToks.every((x) => tt.has(x))) || tags.has(tagName) || tt.has(tagName); }).length : 0;
+  const inTitle = nameToks.length ? uniqVideos.filter((v) => { const tt = new Set(tokenize(v.title)); const tags = new Set((v.tags || []).map((x) => x.replace(/^#/, '').toLowerCase())); return (t.name.startsWith('#') ? nameToks.some((x) => tt.has(x)) : nameToks.every((x) => tt.has(x))) || tags.has(tagName) || tt.has(tagName); }).length : 0;
   const titleShare = uniqVideos.length ? round(inTitle / uniqVideos.length, 2) : 0;
   const liveShare = uniqVideos.length ? round(uniqVideos.filter((v) => LIVE_RE.test(v.title)).length / uniqVideos.length, 2) : 0;
   const catVotes = new Map<string, number>();
@@ -167,7 +167,7 @@ export function classifyOpportunity(t: Trend, f: TrendFeatures): OpportunityClas
   else if (newsy || releaseShare >= 0.5 || (f.nameShape === 'entity' && (releaseShare >= 0.3 || t.category === 'Gaming' || t.category === 'Film & TV'))) {
     type = 'event'; confidence = 70; basis.push(newsy ? `the examples are ${f.platformCategory || t.category} / news-style content — a news, sports or esports moment` : 'a named title/release (trailer, leak, episode, match) — a topic people cover, not a structure they reuse');
   }
-  else if (t.kind === 'microtrend' && (f.nameShape === 'phrase' || f.nameShape === 'entity') && f.titleShare < 0.4 && !strongStructure) { type = 'uncertain'; confidence = 75; basis.push(`the phrase appears in only ${Math.round(f.titleShare * 100)}% of the titles — description boilerplate, not a format`); }
+  else if (t.kind === 'microtrend' && (f.nameShape === 'phrase' || f.nameShape === 'entity') && f.titleShare < 0.4 && !strongStructure) { type = 'uncertain'; confidence = 75; basis.push(`the name appears in only ${Math.round(f.titleShare * 100)}% of the titles — description boilerplate or a merged phrase, not a recognisable format`); }
   else if (f.dominance >= 0.75 && f.videos >= 2) { type = 'event'; confidence = 80; basis.push('one video is the whole story; the others are incidental'); }
   else if (f.creators <= 2 || (f.dominance >= 0.6 && f.creators <= 3)) {
     type = f.videos >= 1 && (f.directVideos >= 1) ? 'event' : 'uncertain';

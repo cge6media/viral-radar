@@ -6,7 +6,7 @@ import { bestThumb, fmtAgo, fmtNum, growthLabel, personalize, viewFor } from '..
 import { monetizationSuitability, productionEconomics, investmentScenarios, PROGRAMS } from '../lib/money';
 import { GRADE, PLATFORM_LABEL, STAGE, WINDOW_LABEL } from '../lib/types';
 import type { SavedConcept } from '../lib/types';
-import { EvidenceCard, GradePill, GrowthPill, KindPill, ScoreBars, Section, StagePill, StatTile, Thumb, WindowSwitch } from '../components/ui';
+import { EvidenceCard, GradePill, GrowthPill, KindPill, ScoreBars, Section, StagePill, StatTile, Thumb, WindowSwitch, TypePill, TYPE_LABEL } from '../components/ui';
 import { Sparkline } from '../components/charts';
 import { fmtMoney } from '../lib/data';
 
@@ -30,8 +30,8 @@ export default function TrendDetail({ id }: { id: string }) {
   const shown = showAll ? videos : videos.slice(0, 8);
   const inv = investmentScenarios({ videosPerMonth: 8, costPerVideo: econ.cash[0] + (econ.cash[1] - econ.cash[0]) / 2, fixedMonthly: 50, viewsLow: 20_000, viewsBase: 100_000, viewsHigh: 1_000_000, platformIds: ['youtube_shorts', 'youtube_long', 'tiktok_rewards'] });
   const save = (concept?: SavedConcept) => {
-    if (watched) wl.update(t.id, concept ? { concept, status: 'planning' } : {});
-    else wl.add({ trendId: t.id, name: t.name, category: t.category, status: concept ? 'planning' : 'watching', concept });
+    if (watched) wl.update(t.id, concept ? { concept, status: 'selected' } : {});
+    else wl.add({ trendId: t.id, name: t.name, category: t.category, status: concept ? 'selected' : 'watching', concept, formatType: t.opportunity?.type, assessment: { type: t.opportunity?.type, timing: w.lifecycle, grade: w.grade, creators: w.creators, savedRunAt: app.snapshot.generatedAt } });
     app.toast(concept ? 'Concept saved to your production queue' : 'Saved to watchlist');
   };
 
@@ -54,7 +54,9 @@ export default function TrendDetail({ id }: { id: string }) {
             <GrowthPill v={v} />
             {t.isNewsEvent && <span className="pill news">News / person event</span>}
             {t.isGeneric && <span className="pill kind">Evergreen category</span>}
+            {t.opportunity && <TypePill type={t.opportunity.type} />}
           </div>
+          {t.opportunity && <div className="small muted" style={{ marginTop: 6 }}>{TYPE_LABEL[t.opportunity.type].label} ({t.opportunity.confidence}% confidence): {t.opportunity.basis.join('; ')}.{app.snapshot.desk?.opportunities.some((o) => o.trendId === t.id) ? <> <a href={`#/desk?o=${encodeURIComponent('desk:' + t.id)}`}>On today's Creator Desk →</a></> : null}</div>}
           <p className="why">{t.summary}</p>
           <div className="facts">
             <div className="fact"><div className="k">Platforms</div><div className="v">{t.platforms.map((p) => PLATFORM_LABEL[p]).join(' · ')}</div></div>

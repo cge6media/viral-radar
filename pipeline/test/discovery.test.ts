@@ -6,10 +6,12 @@ import { hoursLeftInQuotaDay } from '../src/collectors/youtube.js';
 const NOW = '2026-10-28T12:00:00.000Z';
 
 test('discovery: the reserve rule spreads the daily search budget over the runs still expected', () => {
-  // start of the Pacific day, nothing spent, 24h left, no cadence known yet → assume 2 runs/h → 90/48 ≈ 1
-  assert.equal(allowance({ budget: 90, spent: 0, hoursLeftInDay: 24, runsToday: 1, hoursElapsedToday: 0 }), 1);
-  // hourly cadence measured (6 runs in 6h), 18h left, 70 left → 70/18 = 3
-  assert.equal(allowance({ budget: 90, spent: 20, hoursLeftInDay: 18, runsToday: 6, hoursElapsedToday: 6 }), 3);
+  // start of the Pacific day, nothing spent, 24h left, no cadence known yet → assume 2 runs/h → 90/48 ≈ 2 (rounded)
+  assert.equal(allowance({ budget: 90, spent: 0, hoursLeftInDay: 24, runsToday: 1, hoursElapsedToday: 0 }), 2);
+  // hourly cadence measured (6 runs in 6h), 18h left, 70 left → 70/18 ≈ 4 (rounded, cap 4)
+  assert.equal(allowance({ budget: 90, spent: 20, hoursLeftInDay: 18, runsToday: 6, hoursElapsedToday: 6 }), 4);
+  // 2 runs/h measured, 20h left, 68 left → 68/40 = 1.7 → 2
+  assert.equal(allowance({ budget: 90, spent: 22, hoursLeftInDay: 20, runsToday: 4, hoursElapsedToday: 2 }), 2);
   // GitHub dropped half the runs: fewer runs expected → more per run, capped at 4
   assert.equal(allowance({ budget: 90, spent: 10, hoursLeftInDay: 10, runsToday: 3, hoursElapsedToday: 6 }), 4);
   // late in the day with budget to spare: never more than the cap, never zero while budget remains

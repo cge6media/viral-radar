@@ -14,7 +14,7 @@ const fmt = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `
 export const ALERT_RULES: Record<AlertKind, string> = {
   new_hit: 'a video crossed its age-appropriate hit floor in the last 24h while already being tracked',
   acceleration: 'measured velocity ≥ 20K views/h and ≥ 2.5× the previous interval, with ≥ 50K views gained in it',
-  creator_outlier: '≥ 50× the creator\'s median recent upload, ≥ 500K views, ≤ 7 days old',
+  creator_outlier: '≥ 100× the creator\'s median recent upload (or ≥ 50× with ≥ 2M views), ≤ 7 days old; at most 5 per run',
   format_spreading: 'a repeatable format or meme gained ≥ 3 independent creators in 48h and is actionable',
   category_momentum: 'a category wave with ≥ 3 independent creators measured at ≥ 2× growth',
   resurfacing: 'a video older than a week gaining ≥ 10K views/h measured, ≥ 3× its lifetime average',
@@ -48,12 +48,18 @@ export function buildAlerts(opts: { records: VideoRecord[]; desk: DeskReport; wa
     if (r.state === 'early_breakout' && v && r.acceleration != null && r.acceleration >= 2.5 && v.perHour >= 20_000 && v.perHour * v.hours >= 50_000) {
       push('acceleration', r.id, { severity: 'high', category: r.category, subject: vid(r), evidence: `+${fmt(v.perHour)}/h over ${v.hours}h, ${r.acceleration}× the previous interval; ${fmt(r.metrics.views || 0)} views, ${r.ageHours != null ? Math.round(r.ageHours) + 'h' : '?'} old`, threshold: ALERT_RULES.acceleration });
     }
-    if (r.state === 'early_breakout' && r.baselineRatio != null && r.baselineRatio >= 50 && (r.metrics.views || 0) >= 500_000 && (r.ageHours ?? Infinity) <= 168) {
-      push('creator_outlier', r.id, { severity: 'medium', category: r.category, subject: vid(r), evidence: `${r.baselineRatio}× the channel's median recent upload; ${fmt(r.metrics.views || 0)} views${r.creator?.subscribers ? `, ${fmt(r.creator.subscribers)} subscribers` : ''}`, threshold: ALERT_RULES.creator_outlier });
-    }
+
     if (r.kind === 'delayed' && v && v.perHour >= 10_000) {
       push('resurfacing', r.id, { severity: 'medium', category: r.category, subject: vid(r), evidence: `${Math.round((r.ageHours || 0) / 24)}-day-old video gaining +${fmt(v.perHour)}/h measured (${r.velocityRatio}× lifetime); ${fmt(r.metrics.views || 0)} views`, threshold: ALERT_RULES.resurfacing });
     }
+  }
+  // creator outliers: the five strongest per run, with a high bar
+  const outliers = records
+    .filter((r) => r.verified && r.platform !== 'bluesky' && r.state === 'early_breakout' && r.baselineRatio != null && (r.ageHours ?? Infinity) <= 168 && (r.baselineRatio >= 100 && (r.metrics.views || 0) >= 500_000 || r.baselineRatio >= 50 && (r.metrics.views || 0) >= 2_000_000))
+    .sort((a, b) => (b.baselineRatio || 0) * Math.log10(b.metrics.views || 1) - (a.baselineRatio || 0) * Math.log10(a.metrics.views || 1))
+    .slice(0, 5);
+  for (const r of outliers) {
+    push('creator_outlier', r.id, { severity: 'medium', category: r.category, subject: vid(r), evidence: `${r.baselineRatio}× the channel's median recent upload; ${fmt(r.metrics.views || 0)} views${r.creator?.subscribers ? `, ${fmt(r.creator.subscribers)} subscribers` : ''}`, threshold: ALERT_RULES.creator_outlier });
   }
   for (const o of desk.opportunities) {
     if ((o.type === 'format' || o.type === 'meme') && o.facts.newCreators48h >= 3 && (o.action === 'create_today' || o.action === 'participate' || o.action === 'research')) {

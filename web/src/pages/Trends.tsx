@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../App';
+import type { OpportunityType } from '../lib/types';
+import { TypePill, TYPE_LABEL } from '../components/ui';
 import { usePrefs } from '../lib/store';
 import type { VideoIntel } from '../lib/types';
 import { STAGE, STAGE_ORDER, WINDOW_LABEL } from '../lib/types';
@@ -64,7 +66,7 @@ export default function Trends() {
         <WindowSwitch value={app.window} onChange={app.setWindow} />
       </div>
       <div className="seg" role="tablist" style={{ marginTop: 12 }}>
-        {[['waves', 'Waves'], ['compass', 'Lifecycle compass'], ['categories', 'Categories'], ['map', 'Cross-platform map']].map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>)}
+        {[['waves', 'Waves'], ['types', 'Formats · memes · events'], ['compass', 'Lifecycle compass'], ['categories', 'Categories'], ['map', 'Cross-platform map']].map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>)}
       </div>
       <div className="chips" style={{ marginTop: 12 }}>
         <button className={`chip${!cat ? ' on' : ''}`} onClick={() => setCat('')}>All categories</button>
@@ -77,6 +79,8 @@ export default function Trends() {
           {waves.length ? <div className="grid cols-3">{waves.map((w) => <WaveCard key={w.trendId} w={w} now={now} />)}</div> : <div className="empty">No format wave with enough independent creators in this category yet.</div>}
         </section>
       )}
+
+      {tab === 'types' && <TypesTab cat={cat} />}
 
       {tab === 'compass' && (
         <>
@@ -151,5 +155,44 @@ export default function Trends() {
       )}
       <div className="tiny dim" style={{ marginTop: 16 }}>Window: {WINDOW_LABEL[app.window]} · last refresh {fmtAgo(snapshot.generatedAt, now)}</div>
     </>
+  );
+}
+
+
+const TYPE_ORDER: OpportunityType[] = ['format', 'meme', 'event', 'uncertain'];
+function TypesTab({ cat }: { cat: string }) {
+  const { snapshot, now } = useApp();
+  const [open, setOpen] = useState<string>('');
+  const trends = snapshot.trends.filter((t) => t.opportunity && (!cat || t.category === cat) && t.kind !== 'topic');
+  const by = new Map<OpportunityType, typeof trends>();
+  for (const t of trends) (by.get(t.opportunity!.type) || by.set(t.opportunity!.type, []).get(t.opportunity!.type)!).push(t);
+  return (
+    <section className="section">
+      <p className="small muted" style={{ marginBottom: 12 }}>Every microtrend and format cluster is classified from what can be observed: independent creators, how much of the attention one video holds, repeat creators, how far the examples spread in time, and whether the titles share a structure. A single huge video is a <b>viral event</b>, not an opportunity; a <b>meme</b> is many creators on one moment; a <b>repeatable format</b> is many creators on one structure; <b>uncertain</b> is everything the evidence cannot yet support (broad tags, fragments, boilerplate).</p>
+      {TYPE_ORDER.map((type) => {
+        const list = (by.get(type) || []).sort((a, b) => b.scores.opportunity - a.scores.opportunity);
+        return (
+          <div key={type} className="card" style={{ marginBottom: 12 }}>
+            <div className="row between wrap" style={{ marginBottom: 8 }}><div className="row" style={{ gap: 8 }}><TypePill type={type} /><span className="small muted">{TYPE_LABEL[type].desc}</span></div><b className="num">{list.length}</b></div>
+            {list.length === 0 ? <div className="tiny dim">None in this selection.</div> : list.slice(0, 24).map((t) => {
+              const f = t.opportunity!.features;
+              return (
+                <div key={t.id} style={{ borderTop: '1px solid var(--line)', padding: '8px 0' }}>
+                  <div className="row between wrap" style={{ gap: 8 }}>
+                    <div className="row wrap" style={{ gap: 8, minWidth: 0 }}>
+                      <a href={`#/trend/${encodeURIComponent(t.id)}`} style={{ fontWeight: 700 }}>{t.name}</a>
+                      <span className="tiny dim">{t.category} · {f.creators} creators · {f.videos} videos · top video {Math.round(f.dominance * 100)}% of views · {f.repeatCreators} repeat{f.signature.length ? ` · signature: ${f.signature.slice(0, 4).join(', ')}` : ''}</span>
+                    </div>
+                    <div className="row" style={{ gap: 6 }}><span className="tiny dim num">{t.opportunity!.confidence}% confidence</span><button className="btn ghost sm" onClick={() => setOpen(open === t.id ? '' : t.id)}>{open === t.id ? 'hide basis' : 'basis'}</button></div>
+                  </div>
+                  {open === t.id && <ul className="small" style={{ margin: '6px 0 0', paddingLeft: 18 }}>{t.opportunity!.basis.map((b, i) => <li key={i}>{b}</li>)}{Object.keys(f.hooks).length ? <li>Hooks in titles: {Object.entries(f.hooks).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => `${k} ${v}`).join(', ')}</li> : null}<li>Last seen {fmtAgo(t.lastSeen, now)}</li></ul>}
+                </div>
+              );
+            })}
+            {list.length > 24 && <div className="tiny dim" style={{ marginTop: 6 }}>+{list.length - 24} more</div>}
+          </div>
+        );
+      })}
+    </section>
   );
 }

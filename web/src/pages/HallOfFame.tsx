@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { VideoCard } from '../lib/types';
+import { lessonFor } from '../data/hofLessons';
 import { HALL_OF_FAME, HOF_ERAS, type HofEntry } from '../data/hallOfFame';
 import { VideoThumb, usePlayer } from '../components/video';
 import { fmtNum } from '../lib/data';
@@ -79,6 +80,17 @@ export default function HallOfFame() {
                   {playable && <button className="btn sm primary" onClick={() => player.open(c)}>Play</button>}
                   <a className="btn sm" href={e.url} target="_blank" rel="noopener noreferrer">Original ↗</a>
                 </div>
+                {(() => { const l = lessonFor(e.title); return l ? (
+                  <details className="lesson">
+                    <summary className="small"><b>Creative lesson</b> · <span className={`pill otype ${l.repeatable === 'repeatable format' ? 'format' : l.repeatable === 'one-off event' ? 'event' : 'meme'}`}><i aria-hidden />{l.repeatable}</span></summary>
+                    <div className="small stack" style={{ gap: 6, marginTop: 8 }}>
+                      <div><b>Why it mattered.</b> {l.why}</div>
+                      <div><b>What made it recognisable.</b> {l.recognisable}</div>
+                      <div><b>Derivatives.</b> {l.derivatives}</div>
+                      <div className="row wrap" style={{ gap: 6 }}>{l.mechanisms.map((m) => <span key={m} className="pill kind">{m}</span>)}</div>
+                    </div>
+                  </details>
+                ) : <div className="tiny dim" style={{ marginTop: 8 }}>No documented creative lesson for this entry.</div>; })()}
               </div>
             </article>
           );

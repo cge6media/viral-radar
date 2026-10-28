@@ -4,6 +4,37 @@ import { VIDEO_WINDOW_HOURS } from './types';
 import { fmtNum } from './data';
 
 export type PlatformFilter = 'all' | 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'other';
+export type LanguageFilter = 'all' | 'en' | 'es' | 'latin' | 'nonlatin';
+export const LANGUAGE_FILTERS: { id: LanguageFilter; label: string; desc: string }[] = [
+  { id: 'all', label: 'All languages', desc: 'Everything, worldwide' },
+  { id: 'en', label: 'English', desc: 'Titles detected as English' },
+  { id: 'es', label: 'Spanish', desc: 'Titles detected as Spanish' },
+  { id: 'latin', label: 'Other Latin-script', desc: 'Portuguese, French, German, Indonesian, Filipino, … and unclear Latin-script titles' },
+  { id: 'nonlatin', label: 'Non-Latin scripts', desc: 'Hindi, Arabic, Japanese, Korean, Thai, Cyrillic, …' },
+];
+const LATIN_LANGS = new Set(['en', 'es', 'pt', 'fr', 'de', 'it', 'id', 'tl', 'vi', 'tr', 'latin']);
+export function languageMatches(c: { language?: string }, f: LanguageFilter): boolean {
+  if (f === 'all') return true;
+  const l = c.language || 'other';
+  if (f === 'en') return l === 'en';
+  if (f === 'es') return l === 'es';
+  if (f === 'latin') return LATIN_LANGS.has(l) && l !== 'en' && l !== 'es';
+  return !LATIN_LANGS.has(l);
+}
+export const KIND_LABEL: Record<string, { label: string; short: string; desc: string }> = {
+  established: { label: 'Established hit', short: 'Established', desc: 'Already above the age-appropriate hit floor (1M views in the first day … 5M by 30 days).' },
+  early: { label: 'Early breakout', short: 'Early', desc: 'Below the hit floor for its age, but on a measured abnormal rise (or a very young video with an exceptional average, marked provisional).' },
+  delayed: { label: 'Delayed breakout', short: 'Resurfacing', desc: 'Older than a week and gaining measurably faster than its own lifetime average — resurfacing, not a new upload.' },
+};
+export const BAND_LABEL: Record<string, string> = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
+/** honest Shorts label: verified → "Shorts"; duration/url only → "short-form"; otherwise nothing */
+export function shortsLabel(c: { platform: string; isShort?: boolean; shortsEvidence?: string }): string {
+  if (c.platform !== 'youtube') return '';
+  if (c.shortsEvidence === 'verified' || c.shortsEvidence === 'url') return ' Shorts';
+  if (c.shortsEvidence === 'not_short') return '';
+  if (c.isShort) return ' short-form';
+  return '';
+}
 export type SortMode = 'most_viral' | 'fastest_rising' | 'newest_breakouts' | 'most_engaging' | 'creator_outliers' | 'strongest_momentum';
 export const PLATFORM_FILTERS: { id: PlatformFilter; label: string }[] = [
   { id: 'all', label: 'All platforms' }, { id: 'youtube', label: 'YouTube' }, { id: 'tiktok', label: 'TikTok' }, { id: 'instagram', label: 'Instagram' }, { id: 'facebook', label: 'Facebook' }, { id: 'other', label: 'Other sources' },
@@ -45,6 +76,18 @@ export function toCard(r: VideoRecord): VideoCard {
     velocityPerHour: v?.perHour, velocityHours: v?.hours, velocityRatio: r.velocityRatio, acceleration: r.acceleration, lifetimeRate: r.lifetimeRate,
     baselineRatio: r.baselineRatio, subscriberRatio: r.subscriberRatio,
     category: r.category, formats: r.formats, reasons: r.reasons, crossPlatform: r.crossPlatform.length, verified: r.verified,
+    kind: r.kind, band: r.confidenceBand, language: r.language, shortsEvidence: r.shortsEvidence, gained24h: r.gained?.['24h'],
+  };
+}
+
+/** a Creator Desk evidence row as a playable card (opens the same player as everywhere else) */
+export function evidenceToCard(e: { id: string; platform: string; url: string; title: string; creator?: string; thumbnail?: string; publishedAt?: string; ageHours?: number; views?: number; likes?: number; velocityPerHour?: number; velocityHours?: number; state: VideoCard['state']; kind?: VideoCard['kind']; verified: boolean; durationSec?: number; language?: string }): VideoCard {
+  const platformId = e.platform === 'youtube' ? (e.url.match(/(?:v=|shorts\/|youtu\.be\/)([A-Za-z0-9_-]{6,})/) || [])[1] || e.id.split(':').pop() || e.id : e.id.split(':').pop() || e.id;
+  return {
+    id: e.id, platform: e.platform as VideoCard['platform'], platformId, url: e.url, title: e.title, thumbnail: e.thumbnail, creator: e.creator, publishedAt: e.publishedAt, ageHours: e.ageHours,
+    durationSec: e.durationSec, isShort: e.platform === 'youtube' ? /shorts\//.test(e.url) || (e.durationSec != null && e.durationSec <= 180) : undefined,
+    views: e.views, likes: e.likes, state: e.state, viralScore: 0, breakoutScore: 0, engagementScore: 0, outlierScore: 0,
+    velocityPerHour: e.velocityPerHour, velocityHours: e.velocityHours, category: '', formats: [], reasons: [], crossPlatform: 0, verified: e.verified, kind: e.kind, language: e.language,
   };
 }
 
@@ -53,10 +96,12 @@ export function platformOf(c: { platform: string }): PlatformFilter {
 }
 
 /** Filter + sort over cards. Platform filters reflect the record's own platform (never the platform of a share). */
-export function selectCards(cards: VideoCard[], opts: { platform: PlatformFilter; sort: SortMode; window?: VideoWindow; now: number; states?: VideoCard['state'][] }): VideoCard[] {
+export function selectCards(cards: VideoCard[], opts: { platform: PlatformFilter; sort: SortMode; window?: VideoWindow; now: number; states?: VideoCard['state'][]; language?: LanguageFilter; kinds?: string[] }): VideoCard[] {
   const hours = opts.window ? VIDEO_WINDOW_HOURS[opts.window] : Infinity;
   let list = cards.filter((c) => (opts.platform === 'all' ? c.platform !== 'bluesky' : platformOf(c) === opts.platform));
   if (opts.states) list = list.filter((c) => opts.states!.includes(c.state));
+  if (opts.language && opts.language !== 'all') list = list.filter((c) => languageMatches(c, opts.language!));
+  if (opts.kinds && opts.kinds.length) list = list.filter((c) => opts.kinds!.includes(c.kind || ''));
   if (isFinite(hours)) list = list.filter((c) => c.publishedAt && (opts.now - new Date(c.publishedAt).getTime()) / 36e5 <= hours);
   switch (opts.sort) {
     case 'fastest_rising':

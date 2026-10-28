@@ -5,6 +5,7 @@ import { CATEGORIES } from '../../../pipeline/src/intel/taxonomy';
 import { SourceList, StatTile } from '../components/ui';
 import { fmtAgo, fmtNum } from '../lib/data';
 import { PLATFORM_NAME } from '../lib/videos';
+import Health from '../components/health';
 
 const TOOLS = [['editing', 'Professional video editing'], ['animation', 'Animation'], ['ai-video', 'AI video generation'], ['image', 'Image generation'], ['audio', 'Audio production'], ['music', 'Music / songwriting'], ['camera', 'On-camera / live action']] as const;
 const PLATFORMS = [['youtube_shorts', 'YouTube Shorts'], ['youtube', 'YouTube long-form'], ['tiktok', 'TikTok'], ['instagram', 'Instagram Reels'], ['facebook', 'Facebook'], ['bluesky', 'Bluesky']] as const;
@@ -26,8 +27,10 @@ export default function Settings() {
     <>
       <h1>Diagnostics & settings</h1>
       <div className="seg wrap" style={{ margin: '12px 0 18px' }}>
-        {[['coverage', 'Source coverage'], ['funnel', 'Discovery funnel'], ['data', 'Data & quality'], ['prefs', 'Preferences'], ['about', 'How scores work']].map(([id, label]) => <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>)}
+        {[['health', 'Radar health'], ['coverage', 'Source coverage'], ['funnel', 'Discovery funnel'], ['data', 'Data & quality'], ['prefs', 'Preferences'], ['about', 'How scores work']].map(([id, label]) => <button key={id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>)}
       </div>
+
+      {tab === 'health' && <Health />}
 
       {tab === 'coverage' && (
         <Coverage />

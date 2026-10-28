@@ -69,7 +69,7 @@ export default function Studio() {
                     <dt>Money</dt><dd>{c.monetization}</dd>
                   </dl>
                   <div style={{ marginTop: 10 }}>
-                    <button className="btn sm primary" disabled={!!saved} onClick={() => { if (watch.some((w) => w.trendId === chosen.id)) wl.update(chosen.id, { concept: c, status: 'planning' }); else wl.add({ trendId: chosen.id, name: chosen.name, category: chosen.category, status: 'planning', concept: c }); app.toast('Saved to production queue'); }}>{saved ? 'In production queue' : 'Save to production queue'}</button>
+                    <button className="btn sm primary" disabled={!!saved} onClick={() => { if (watch.some((w) => w.trendId === chosen.id)) wl.update(chosen.id, { concept: c, status: 'selected' }); else wl.add({ trendId: chosen.id, name: chosen.name, category: chosen.category, status: 'selected', concept: c, formatType: chosen.opportunity?.type }); app.toast('Saved to production queue'); }}>{saved ? 'In production queue' : 'Save to production queue'}</button>
                   </div>
                 </div>
               );

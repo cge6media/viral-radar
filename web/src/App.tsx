@@ -13,7 +13,11 @@ import HallOfFame from './pages/HallOfFame';
 import Watchlist from './pages/Watchlist';
 import Settings from './pages/Settings';
 import TrendDetail from './pages/TrendDetail';
+import Desk from './pages/Desk';
+import ScorecardPage from './pages/Scorecard';
+import Alerts, { useAlertState } from './pages/Alerts';
 import { PlayerProvider } from './components/video';
+import { freshness } from './components/health';
 
 export interface AppState {
   snapshot: Snapshot;
@@ -32,19 +36,24 @@ export const useApp = () => {
   return c;
 };
 
+/** primary navigation (five items) + a grouped "More" menu, so the header is not eight equal tabs */
 const NAV = [
   ['#/', 'Discover', Icon.radar],
   ['#/viral', 'Viral Now', Icon.fire],
   ['#/radar', 'Early Radar', Icon.pulse],
+  ['#/desk', 'Creator Desk', Icon.studio],
   ['#/trends', 'Trends', Icon.compass],
+] as const;
+const MORE = [
   ['#/money', 'Money', Icon.money],
-  ['#/studio', 'Studio', Icon.studio],
+  ['#/watchlist', 'Journal', Icon.bookmark],
+  ['#/alerts', 'Alerts', Icon.bell],
+  ['#/scorecard', 'Scorecard', Icon.target],
   ['#/hall-of-fame', 'Hall of Fame', Icon.trophy],
-  ['#/watchlist', 'Watchlist', Icon.bookmark],
+  ['#/studio', 'Studio (concepts)', Icon.studio],
 ] as const;
 /** phone tab bar: four primary tabs + More */
 const TABS = NAV.slice(0, 4);
-const MORE = NAV.slice(4);
 
 function useHash(): string {
   const [h, setH] = useState(() => location.hash || '#/');
@@ -86,8 +95,9 @@ export default function App() {
     return { snapshot, now, window: win, setWindow, ranked: rankView(snapshot.trends, win, prefs, now), reload: () => setVersion((v) => v + 1), toast: (m) => setToast(m) };
   }, [snapshot, v2, now, win, prefs]);
 
-  const ageH = snapshot ? (now - new Date(snapshot.generatedAt).getTime()) / 36e5 : 0;
+  const fresh = snapshot ? freshness(snapshot.generatedAt, now) : null;
   const okSources = snapshot ? snapshot.sources.filter((s) => s.ok).length : 0;
+  const { unseen } = useAlertState(snapshot?.alerts || []);
 
   const page = (() => {
     if (!state) return null;
@@ -99,14 +109,17 @@ export default function App() {
       case '#/trends': case '#/compass': return <Trends />;
       case '#/money': return <Money />;
       case '#/studio': return <Studio />;
+      case '#/desk': return <Desk />;
+      case '#/scorecard': return <ScorecardPage />;
+      case '#/alerts': return <Alerts />;
       case '#/hall-of-fame': return <HallOfFame />;
-      case '#/watchlist': return <Watchlist />;
-      case '#/settings': case '#/diagnostics': return <Settings />;
+      case '#/watchlist': case '#/journal': return <Watchlist />;
+      case '#/settings': case '#/diagnostics': case '#/health': return <Settings />;
       default: return <Discover />;
     }
   })();
   const isActive = (href: string) => (href === '#/' ? hash === '#/' || hash === '' || hash.startsWith('#/trend/') : href === '#/trends' ? hash.startsWith('#/trends') || hash.startsWith('#/compass') : hash.startsWith(href));
-  const moreActive = MORE.some(([href]) => isActive(href)) || hash.startsWith('#/settings') || hash.startsWith('#/diagnostics');
+  const moreActive = MORE.some(([href]) => isActive(href)) || hash.startsWith('#/settings') || hash.startsWith('#/diagnostics') || hash.startsWith('#/health');
   const [sheet, setSheet] = useState(false);
   useEffect(() => setSheet(false), [hash]);
 
@@ -117,17 +130,22 @@ export default function App() {
           <a className="brand" href="#/"><span style={{ color: 'var(--accent-ink)', display: 'inline-flex' }}>{Icon.radar}</span>Viral Radar</a>
           <nav className="topnav" aria-label="Sections">
             {NAV.map(([href, label]) => <a key={href} href={href} className={isActive(href) ? 'active' : ''}>{label}</a>)}
+            <button className={`navmore${moreActive ? ' active' : ''}`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>More ▾</button>
           </nav>
           <div className="right">
-            {snapshot && (
-              <span className={`fresh${ageH > 2 ? ' stale' : ''}${okSources === 0 ? ' bad' : ''}`} title={snapshot.generatedAt}><i aria-hidden />Updated {fmtAgo(snapshot.generatedAt, now)}</span>
+            <a className={`bell${unseen.length ? ' has' : ''}`} href="#/alerts" aria-label={`Alerts, ${unseen.length} new`} title={`${unseen.length} new alert${unseen.length === 1 ? '' : 's'} since your last visit`}>{Icon.bell}{unseen.length > 0 && <span className="num">{unseen.length > 99 ? '99+' : unseen.length}</span>}</a>
+            {snapshot && fresh && (
+              <a href="#/settings?tab=health" className={`fresh ${fresh.state}${okSources === 0 ? ' bad' : ''}`} title={`${fresh.label}: last collection ${snapshot.generatedAt} (${fresh.minutes} min ago). Collections are scheduled every ~30 min; "delayed" and "stale" are measured states, never hidden.`}><i aria-hidden />{fresh.label} · {fmtAgo(snapshot.generatedAt, now)}</a>
             )}
-            <button className="iconbtn" aria-label="More" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{Icon.gear}</button>
+            <button className="iconbtn" aria-label="Settings" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>{Icon.gear}</button>
           </div>
         </div>
         {menu && (
           <div className="menu" role="menu">
-            <a href="#/settings?tab=coverage" role="menuitem">Source coverage & diagnostics</a>
+            {MORE.map(([href, label]) => <a key={href} href={href} role="menuitem">{label}</a>)}
+            <div className="hr" />
+            <a href="#/settings?tab=health" role="menuitem">Radar health & freshness</a>
+            <a href="#/settings?tab=coverage" role="menuitem">Source coverage</a>
             <a href="#/settings?tab=funnel" role="menuitem">Discovery funnel</a>
             <a href="#/settings?tab=data" role="menuitem">Data & quality checks</a>
             <a href="#/settings?tab=prefs" role="menuitem">Preferences</a>
@@ -145,14 +163,14 @@ export default function App() {
         {state && <Ctx.Provider value={state}><PlayerProvider>{page}</PlayerProvider></Ctx.Provider>}
       </main>
       <nav className="tabbar" aria-label="Sections">
-        {TABS.map(([href, label, icon]) => <a key={href} href={href} className={isActive(href) ? 'active' : ''}>{icon}{label.replace('Early ', '').replace(' Now', '')}</a>)}
+        {TABS.map(([href, label, icon]) => <a key={href} href={href} className={isActive(href) ? 'active' : ''}>{icon}{label.replace('Early ', '').replace(' Now', '').replace('Creator ', '')}</a>)}
         <button className={moreActive ? 'active' : ''} onClick={() => setSheet((s) => !s)} aria-expanded={sheet}>{Icon.more}More</button>
       </nav>
       {sheet && (
         <div className="sheet-back" onClick={() => setSheet(false)} role="presentation">
           <div className="sheet" role="menu" onClick={(e) => e.stopPropagation()}>
-            {MORE.map(([href, label, icon]) => <a key={href} href={href} role="menuitem" className={isActive(href) ? 'active' : ''}>{icon}{label}</a>)}
-            <a href="#/settings?tab=coverage" role="menuitem" className={hash.startsWith('#/settings') ? 'active' : ''}>{Icon.gear}Diagnostics & settings</a>
+            {[NAV[4], ...MORE].map(([href, label, icon]) => <a key={href} href={href} role="menuitem" className={isActive(href) ? 'active' : ''}>{icon}{label}{href === '#/alerts' && unseen.length ? <span className="pill measured" style={{ marginLeft: 'auto' }}>{unseen.length} new</span> : null}</a>)}
+            <a href="#/settings?tab=health" role="menuitem" className={hash.startsWith('#/settings') ? 'active' : ''}>{Icon.gear}Health, diagnostics & settings</a>
           </div>
         </div>
       )}

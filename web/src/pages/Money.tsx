@@ -4,6 +4,7 @@ import { fmtMoney, fmtNum, isQualified } from '../lib/data';
 import { CATEGORIES } from '../../../pipeline/src/intel/taxonomy';
 import { ScenarioBars } from '../components/charts';
 import { Section, StatTile } from '../components/ui';
+import ProductionCompare from '../components/compare';
 import { useApp } from '../App';
 import { usePrefs } from '../lib/store';
 
@@ -60,6 +61,8 @@ export default function Money() {
           </table>
         </div>
       </Section>
+
+      <ProductionCompare />
 
       <Section title="Content investment calculator" sub="Plan a month of production once and compare what the same plan could return on each platform. Program revenue only; sponsorship and affiliate are modelled in the full calculator below.">
         <div className="grid cols-2">

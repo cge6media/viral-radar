@@ -1,0 +1,49 @@
+# Browser QA (4.0): a real Chromium on the GitHub runner opens the LIVE site, takes screenshots at 1440/768/390 px,
+# measures load time, clicks video cards and verifies that media is actually delivered (not just an "embeddable"
+# flag). Results are committed to data/qa/ so they can be reviewed without any personal machine.
+name: Browser QA
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site URL'
+        default: 'https://cge6media.github.io/viral-radar/'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm i --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+        working-directory: qa
+      - name: Run QA against the live site
+        run: node qa/playwright-qa.mjs "${{ github.event.inputs.site }}" data/qa
+        env:
+          NODE_PATH: qa/node_modules
+      - name: Commit results
+        run: |
+          git config user.name "viral-radar-bot"
+          git config user.email "viral-radar-bot@users.noreply.github.com"
+          git add data/qa
+          git diff --cached --quiet || git commit -m "qa: browser screenshots + playback $(date -u +'%Y-%m-%dT%H:%MZ')"
+          for i in 1 2 3; do git push && break || (git pull --rebase && sleep 5); done
+      - name: Summary
+        run: |
+          echo "## Browser QA" >> "$GITHUB_STEP_SUMMARY"
+          node -e "const r=require('./data/qa/report.json'); console.log(JSON.stringify(r.summary,null,1)); console.log(); for (const p of r.playback) console.log('- '+p.page+' #'+p.index+' '+(p.mediaDelivered?'▶ media delivered':'✗ no media')+' embed='+p.embed+' '+p.provider+' — '+p.title); for (const s of r.screenshots) console.log('- '+s.page+'@'+s.width+': '+s.h1+' thumbs '+s.thumbsLoaded+' overflow='+s.horizontalOverflow+' '+s.loadMs+'ms'); for (const n of r.navigation) console.log('- nav '+n.width+' '+n.flow+' ok='+n.ok+' '+(n.note||''))" >> "$GITHUB_STEP_SUMMARY"

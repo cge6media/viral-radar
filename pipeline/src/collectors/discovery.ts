@@ -104,7 +104,8 @@ export function allowance(opts: { budget: number; spent: number; hoursLeftInDay:
   if (left === 0) return 0;
   const rate = Math.max(1, Math.min(4, opts.hoursElapsedToday >= 1 ? opts.runsToday / opts.hoursElapsedToday : 2));
   const runsLeft = Math.max(1, Math.ceil(Math.max(0.5, opts.hoursLeftInDay) * rate));
-  return Math.max(1, Math.min(opts.max ?? MAX_PER_RUN, Math.floor(left / runsLeft)));
+  // round, not floor: the rule is recomputed every run, so an optimistic round self-corrects while a floor would strand budget
+  return Math.max(1, Math.min(opts.max ?? MAX_PER_RUN, Math.round(left / runsLeft)));
 }
 
 /** deterministic pseudo-random in [0,1) from a seed string (so runs are reproducible and testable) */

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { VideoCard } from '../lib/types';
 import { fmtNum, fmtAgo, coverHue } from '../lib/data';
-import { STATE_LABEL, PLATFORM_NAME, embedFor, fmtAge, fmtDuration, fmtViews, momentumLine, thumbSources } from '../lib/videos';
+import { STATE_LABEL, PLATFORM_NAME, KIND_LABEL, BAND_LABEL, embedFor, fmtAge, fmtDuration, fmtViews, momentumLine, shortsLabel, thumbSources } from '../lib/videos';
 import { Icon } from './ui';
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -50,9 +50,10 @@ export function VideoThumb({ c, className = '', children }: { c: VideoCard; clas
   );
 }
 
-export function StateBadge({ state, onDark }: { state: VideoCard['state']; onDark?: boolean }) {
+export function StateBadge({ state, kind, onDark }: { state: VideoCard['state']; kind?: VideoCard['kind']; onDark?: boolean }) {
   const s = STATE_LABEL[state];
-  return <span className={`pill vstate ${state}${onDark ? ' on-dark' : ''}`} title={s.desc}><i aria-hidden />{s.short}</span>;
+  const k = kind && state === 'early_breakout' ? KIND_LABEL[kind] : undefined;
+  return <span className={`pill vstate ${state}${kind ? ' ' + kind : ''}${onDark ? ' on-dark' : ''}`} title={k ? k.desc : s.desc}><i aria-hidden />{k ? k.short : s.short}</span>;
 }
 
 /** The card: thumbnail, title, creator, verified metrics, age, momentum, state. Click opens the player. */
@@ -67,10 +68,10 @@ export function VideoCardView({ c, rank, now, compact, why }: { c: VideoCard; ra
         <VideoThumb c={c}>
           <span className="shade" />
           {rank != null && <span className="rank num">{rank}</span>}
-          <span className="tl"><span className={`pill plat ${c.platform} on-dark`}>{PLATFORM_NAME[c.platform]}{c.isShort && c.platform === 'youtube' ? ' Shorts' : ''}</span></span>
+          <span className="tl"><span className={`pill plat ${c.platform} on-dark`} title={c.shortsEvidence === 'verified' ? 'Verified Short: youtube.com/shorts/ serves it' : c.shortsEvidence === 'duration' ? 'Short-form by duration only (≤3 min) — not verified as a Short' : undefined}>{PLATFORM_NAME[c.platform]}{shortsLabel(c)}</span></span>
           {dur && <span className="dur num">{dur}</span>}
           <span className="play" aria-hidden>{Icon.play}</span>
-          <span className="bl"><StateBadge state={c.state} onDark /></span>
+          <span className="bl"><StateBadge state={c.state} kind={c.kind} onDark /></span>
         </VideoThumb>
       </button>
       <div className="body">
@@ -80,7 +81,7 @@ export function VideoCardView({ c, rank, now, compact, why }: { c: VideoCard; ra
           <b className="num">{fmtViews(c)}</b>
           {c.likes != null && c.views != null && <span className="num dim">{fmtNum(c.likes)} likes</span>}
         </div>
-        <div className={`mom ${m.measured ? 'measured' : 'avg'}`} title={m.measured ? 'Measured between two real observations' : 'Lifetime average — not a measured recent rate'}><i aria-hidden />{m.text}</div>
+        <div className={`mom ${m.measured ? 'measured' : 'avg'}`} title={m.measured ? 'Measured between two real observations' : 'Lifetime average — not a measured recent rate'}><i aria-hidden />{m.text}{c.gained24h != null && m.measured ? <span className="dim"> · +{fmtNum(c.gained24h)} in 24h</span> : null}</div>
         {why && (
           <button className="why" onClick={() => setShowWhy((s) => !s)} aria-expanded={showWhy}>{showWhy ? 'Hide' : 'Why this video is here'}</button>
         )}
@@ -93,7 +94,7 @@ export function VideoCardView({ c, rank, now, compact, why }: { c: VideoCard; ra
 export function WhyPanel({ c, now }: { c: VideoCard; now: number }) {
   return (
     <div className="whypanel">
-      <div className="small"><b>{STATE_LABEL[c.state].label}</b> · {c.verified ? 'verified platform statistics' : 'indirect evidence only'} · {c.publishedAt ? `published ${fmtAgo(c.publishedAt, now)} (${new Date(c.publishedAt).toLocaleDateString()})` : 'publish date unverified'}</div>
+      <div className="small"><b>{c.kind && c.state !== 'rejected' ? KIND_LABEL[c.kind].label : STATE_LABEL[c.state].label}</b>{c.band ? <span className={`pill band ${c.band}`} style={{ marginLeft: 6 }} title="Descriptive confidence band from the number of observations, measured velocity and creator baseline — not a probability">{BAND_LABEL[c.band]}</span> : null} · {c.verified ? 'verified platform statistics' : 'indirect evidence only'} · {c.publishedAt ? `published ${fmtAgo(c.publishedAt, now)} (${new Date(c.publishedAt).toLocaleDateString()})` : 'publish date unverified'}{c.language ? ` · language ${c.language}` : ''}</div>
       <ul className="small">
         {c.reasons.map((r, i) => <li key={i}>{r}</li>)}
       </ul>
@@ -152,7 +153,7 @@ function VideoModal({ c, onClose }: { c: VideoCard; onClose: () => void }) {
             {c.likes != null && <span className="num">{fmtNum(c.likes)} likes</span>}
             {c.comments != null && <span className="num">{fmtNum(c.comments)} comments</span>}
             <span className={`mom ${m.measured ? 'measured' : 'avg'}`}><i aria-hidden />{m.text}</span>
-            <StateBadge state={c.state} />
+            <StateBadge state={c.state} kind={c.kind} />
           </div>
           <a className="btn sm" href={c.url} target="_blank" rel="noopener noreferrer">Open original ↗</a>
         </div>

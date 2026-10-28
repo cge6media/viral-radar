@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Observation, SourceStatus, SourceQuality, Window, VideoCard } from '../lib/types';
+import type { Observation, SourceStatus, SourceQuality, Window, VideoCard, DeskAction, DeskTiming, OpportunityType } from '../lib/types';
 import { usePlayer } from './video';
 import { GRADE, KIND_LABEL, KIND_OF_TREND, PLATFORM_LABEL, STAGE, WINDOWS, WINDOW_LABEL } from '../lib/types';
 import { bestThumb, coverHue, exampleLine, fmtAgo, fmtNum, type ViewTrend } from '../lib/data';
@@ -15,8 +15,35 @@ export const Icon = {
   pulse: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 12h4l2-6 4 12 2-6h6" /></svg>,
   trophy: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3" /></svg>,
   more: <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>,
+  bell: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>,
+  target: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></svg>,
   gear: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>,
 };
+
+export const TYPE_LABEL: Record<OpportunityType, { label: string; desc: string }> = {
+  format: { label: 'Repeatable format', desc: 'Several independent creators keep producing it with a recognisable structure — the most valuable kind for a creator.' },
+  meme: { label: 'Emerging meme', desc: 'Several creators remix or react to the same specific moment, sound or phrase inside a short window.' },
+  event: { label: 'Viral event', desc: 'One video or one real-world/calendar moment carries the attention — interesting to watch, rarely repeatable.' },
+  uncertain: { label: 'Uncertain', desc: 'Not enough independent structure to call it a format or a meme yet.' },
+};
+export const ACTION_LABEL: Record<DeskAction, { label: string; desc: string }> = {
+  create_today: { label: 'Create today', desc: 'Evidence, timing and feasibility line up — worth production time now.' },
+  participate: { label: 'Participate selectively', desc: 'Worth one original piece if you have a sharp angle; not a series.' },
+  research: { label: 'Research further', desc: 'Strong evidence, but study the examples before committing production time.' },
+  monitor: { label: 'Monitor closely', desc: 'Promising but not yet proven; check again after the next collections.' },
+  skip: { label: 'Skip for now', desc: 'Cooling, crowded, or not a repeatable mechanism.' },
+};
+export const TIMING_LABEL: Record<DeskTiming, string> = { emerging: 'Emerging', accelerating: 'Accelerating', established: 'Established', resurfacing: 'Resurfacing', peaking: 'Peaking', cooling: 'Cooling' };
+
+export function TypePill({ type }: { type: OpportunityType }) {
+  return <span className={`pill otype ${type}`} title={TYPE_LABEL[type].desc}><i aria-hidden />{TYPE_LABEL[type].label}</span>;
+}
+export function ActionPill({ action }: { action: DeskAction }) {
+  return <span className={`pill action ${action}`} title={ACTION_LABEL[action].desc}>{ACTION_LABEL[action].label}</span>;
+}
+export function TimingPill({ timing }: { timing: DeskTiming }) {
+  return <span className={`pill timing ${timing}`}><i aria-hidden />{TIMING_LABEL[timing]}</span>;
+}
 
 export function Section({ title, sub, children, more, moreHref }: { title: string; sub?: string; children: ReactNode; more?: string; moreHref?: string }) {
   return (
@@ -86,6 +113,7 @@ export function TrendCard({ v, now }: { v: ViewTrend; now: number }) {
       <div style={{ padding: '0 4px' }}>
         <div className="ttl clamp2">{v.name.replace(/^#/, '#')}</div>
         <div className="meta">{v.category} · {KIND_OF_TREND[v.kind]} · {v.w.creators} creator{v.w.creators === 1 ? '' : 's'}{v.w.directVideos ? ` · ${v.w.directVideos} measured` : ''}</div>
+        {v.opportunity && <div style={{ marginTop: 6 }}><TypePill type={v.opportunity.type} /></div>}
       </div>
       <div className="foot">
         <span className="mbar" title={`Momentum ${v.w.momentum}/100`}>Momentum <span className="bar"><i style={{ width: `${v.w.momentum}%` }} /></span><b>{v.w.momentum}</b></span>
@@ -105,6 +133,7 @@ export function TrendRow({ v, now, n }: { v: ViewTrend; now: number; n?: number 
         <div className="m truncate">{v.category} · {v.w.creators} creators · {GRADE[v.w.grade].label}{v.w.directVideos ? ` · ${v.w.directVideos} measured` : ''} · {fmtAgo(v.lastSeen, now)}</div>
       </div>
       <div className="row" style={{ gap: 6 }}>
+        {v.opportunity && <TypePill type={v.opportunity.type} />}
         <StagePill stage={v.w.lifecycle} />
         <b className="num">{v.w.momentum}</b>
       </div>

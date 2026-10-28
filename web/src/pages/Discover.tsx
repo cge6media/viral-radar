@@ -9,6 +9,9 @@ import { GradePill, Section, StagePill, Thumb, GrowthPill, KindPill, StatTile } 
 import { VideoRail } from '../components/video';
 import { PLATFORM_NAME } from '../lib/videos';
 import { WaveCard } from './Trends';
+import { OpportunityCard } from './Desk';
+import { useAlertState } from './Alerts';
+import { freshness } from '../components/health';
 
 export default function Discover() {
   const app = useApp();
@@ -28,14 +31,17 @@ export default function Discover() {
   const waves = intel?.waves.filter((w) => w.state === 'promising_wave').slice(0, 6) || [];
   const crossWaves = intel?.waves.filter((w) => w.platforms.length >= 2).slice(0, 4) || [];
   const direct = intel?.coverage.filter((c) => c.status === 'direct').map((c) => PLATFORM_NAME[c.platform]) || [];
-  const ageH = (now - new Date(snapshot.generatedAt).getTime()) / 36e5;
+  const fresh = freshness(snapshot.generatedAt, now);
+  const desk = snapshot.desk;
+  const deskTop = desk?.opportunities.filter((o) => o.action === 'create_today' || o.action === 'participate' || o.action === 'research').slice(0, 3) || [];
+  const { unseen } = useAlertState(snapshot.alerts || []);
 
   return (
     <>
       <header className="stack" style={{ gap: 12 }}>
         <div className="row between wrap" style={{ alignItems: 'flex-end' }}>
           <div>
-            <div className="kicker">Current viral landscape · updated {fmtAgo(snapshot.generatedAt, now)}{ageH > 2 ? ' · stale' : ''}</div>
+            <div className="kicker">Current viral landscape · data {fresh.label.toLowerCase()} · collected {fmtAgo(snapshot.generatedAt, now)}{fresh.state !== 'fresh' ? ' · the collector is behind schedule' : ''}</div>
             <h1>What people are actually watching right now — and what to make next.</h1>
           </div>
         </div>
@@ -45,12 +51,16 @@ export default function Discover() {
             <StatTile v={intel.counts.early_breakout} k="Early breakouts" s="credible abnormal momentum" />
             <StatTile v={waves.length} k="Promising waves" s="formats with new independent creators" na={waves.length === 0} />
             <StatTile v={direct.length} k="Platforms with direct stats" s={direct.join(', ') || 'none'} />
-            <StatTile v={intel.funnel.discovered} k="Videos in the 30-day index" s={`${intel.funnel.verified} with verified statistics`} />
+            <StatTile v={deskTop.length} k="Worth creating today" s={desk ? `${desk.opportunities.length} on the Creator Desk` : 'Creator Desk'} cls={deskTop.length ? 'good' : ''} na={!deskTop.length} />
           </div>
         ) : (
           <div className="notice warn">The first 3.0 collection has not published yet — the video rankings appear after the next cloud run.</div>
         )}
       </header>
+
+      {unseen.length > 0 && (
+        <a className="notice ok small alertstrip" href="#/alerts"><b>{unseen.length} new alert{unseen.length === 1 ? '' : 's'}</b> since your last visit: {unseen.slice(0, 3).map((a) => a.subject.title.slice(0, 40)).join(' · ')}{unseen.length > 3 ? ' · …' : ''} →</a>
+      )}
 
       <Section title="Biggest viral videos right now" sub="Verified platform statistics, published in the last 72 hours. Tap to play in place." more="All of Viral Now" moreHref="#/viral">
         <VideoRail cards={viral} now={now} why />
@@ -76,9 +86,17 @@ export default function Discover() {
         )}
       </Section>
 
-      <Section title="What should I create today?" sub="Evidence-backed original opportunities for a 30-minute to 2-hour production window, re-ranked for your tools and interests." more="Content Studio" moreHref="#/studio">
+      <Section title="What's worth creating today" sub="The Creator Desk's actionable opportunities: real evidence, opportunity type, timing, production fit and one recommended action. Open one for the playbook." more="Creator Desk" moreHref="#/desk">
+        {deskTop.length ? (
+          <div className="stack" style={{ gap: 12 }}>{deskTop.map((o, i) => <OpportunityCard key={o.id} o={o} rank={i + 1} now={now} compact onOpen={() => { location.hash = `#/desk?o=${encodeURIComponent(o.id)}`; }} />)}</div>
+        ) : (
+          <div className="empty">{desk ? 'No opportunity clears the bar today (independent adoption + timing + production fit). The Creator Desk lists what is being monitored and why the rest was excluded.' : 'The Creator Desk appears after the next collection.'}</div>
+        )}
+      </Section>
+
+      <Section title="Trend concepts (2.0 Studio)" sub="Evidence-backed trend ideas re-ranked for your tools and interests." more="Content Studio" moreHref="#/studio">
         {hero ? (
-          <Hero v={hero} now={now} prefsTools={prefs.tools} watched={watch.some((w) => w.trendId === hero.id)} onSave={() => { wl.add({ trendId: hero.id, name: hero.name, category: hero.category, status: 'planning' }); app.toast('Saved to your content plan'); }} />
+          <Hero v={hero} now={now} prefsTools={prefs.tools} watched={watch.some((w) => w.trendId === hero.id)} onSave={() => { wl.add({ trendId: hero.id, name: hero.name, category: hero.category, status: 'selected', formatType: hero.opportunity?.type }); app.toast('Saved to your content plan'); }} />
         ) : (
           <div className="empty">No opportunity clears the evidence bar yet — nothing is padded in to fill the space.</div>
         )}

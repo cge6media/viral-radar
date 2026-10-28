@@ -40,7 +40,7 @@ export function usePrefs(): [Preferences, (p: Partial<Preferences>) => void] {
   return [prefs, update];
 }
 
-export function useWatchlist(): [WatchItem[], { add: (i: Omit<WatchItem, 'addedAt' | 'status'> & { status?: WatchItem['status'] }) => void; update: (id: string, patch: Partial<WatchItem>) => void; remove: (id: string) => void }] {
+export function useWatchlist(): [WatchItem[], { add: (i: Omit<WatchItem, 'addedAt' | 'status'> & { status?: WatchItem['status'] }) => void; update: (id: string, patch: Partial<WatchItem>) => void; remove: (id: string) => void; replaceAll: (list: WatchItem[]) => void; merge: (list: WatchItem[]) => number }] {
   const [items, setItems] = useState<WatchItem[]>(() => readList());
   useEffect(() => {
     const l = () => setItems(readList());
@@ -61,8 +61,36 @@ export function useWatchlist(): [WatchItem[], { add: (i: Omit<WatchItem, 'addedA
       },
       update: (id, patch) => save(readList().map((x) => (x.trendId === id ? { ...x, ...patch } : x))),
       remove: (id) => save(readList().filter((x) => x.trendId !== id)),
+      replaceAll: (list) => save(list),
+      merge: (list) => {
+        const cur = readList();
+        const ids = new Set(cur.map((x) => x.trendId));
+        const add = list.filter((x) => x && typeof x.trendId === 'string' && !ids.has(x.trendId));
+        save([...add, ...cur]);
+        return add.length;
+      },
     },
   ];
+}
+
+/** every private key this browser keeps (journal, preferences, alert bookkeeping) — for backup/restore */
+export const PRIVATE_KEYS = [PREF_KEY, WATCH_KEY, 'vr.alerts.lastVisit', 'vr.alerts.seen', 'vr.window'];
+export function exportPrivateData(): string {
+  const out: Record<string, unknown> = { exportedAt: new Date().toISOString(), version: 1 };
+  for (const k of PRIVATE_KEYS) { try { const v = localStorage.getItem(k); if (v) out[k] = JSON.parse(v); } catch { /* ignore */ } }
+  return JSON.stringify(out, null, 2);
+}
+export function importPrivateData(json: string, mode: 'merge' | 'replace'): { items: number } {
+  const data = JSON.parse(json) as Record<string, unknown>;
+  let items = 0;
+  if (Array.isArray(data[WATCH_KEY])) {
+    const list = data[WATCH_KEY] as WatchItem[];
+    if (mode === 'replace') { write(WATCH_KEY, list); items = list.length; }
+    else { const cur = readList(); const ids = new Set(cur.map((x) => x.trendId)); const add = list.filter((x) => x && typeof x.trendId === 'string' && !ids.has(x.trendId)); write(WATCH_KEY, [...add, ...cur]); items = add.length; }
+  }
+  if (data[PREF_KEY] && typeof data[PREF_KEY] === 'object' && mode === 'replace') write(PREF_KEY, data[PREF_KEY]);
+  notify();
+  return { items };
 }
 
 function readList(): WatchItem[] {
