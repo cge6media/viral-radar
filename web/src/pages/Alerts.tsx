@@ -4,6 +4,7 @@ import { useWatchlist, usePrefs } from '../lib/store';
 import type { Alert, AlertKind } from '../lib/types';
 import { fmtAgo } from '../lib/data';
 import { Section, StatTile } from '../components/ui';
+import { Lede } from '../components/ui';
 import { evidenceToCard } from '../lib/videos';
 import { usePlayer } from '../components/video';
 
@@ -61,7 +62,7 @@ export default function Alerts() {
       <header className="stack" style={{ gap: 10 }}>
         <div className="kicker">Early-warning alerts · 7-day log · {unseen.length} new since {lastVisit ? fmtAgo(lastVisit, now) : 'your first visit'}</div>
         <h1>Alerts</h1>
-        <p className="muted" style={{ margin: 0, maxWidth: 760 }}>Only unusually strong signals: a video crossing its hit floor while tracked, acceleration ≥2.5× at ≥20K views/h, creator outliers ≥100× their median upload, formats gaining ≥3 independent creators in 48h, category waves measured at ≥2×, older videos resurfacing. Deduplicated per subject with a 48-hour cooldown. Every alert shows what caused it; none of them is a promise of future virality.</p>
+        <Lede>Only unusually strong signals: a video crossing its hit floor while tracked, acceleration ≥2.5× at ≥20K views/h, creator outliers ≥100× their median upload, formats gaining ≥3 independent creators in 48h, category waves measured at ≥2×, older videos resurfacing. Deduplicated per subject with a 48-hour cooldown. Every alert shows what caused it; none of them is a promise of future virality.</Lede>
         <div className="tiles">
           <StatTile v={unseen.length} k="New since last visit" cls={unseen.length ? 'good' : ''} na={!unseen.length} />
           <StatTile v={alerts.filter((a) => KIND[a.kind].group === 'hits').length} k="Verified hits (7d)" />

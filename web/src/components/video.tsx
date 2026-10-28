@@ -42,7 +42,7 @@ export function VideoThumb({ c, className = '', children }: { c: VideoCard; clas
       {src && (
         <>
           <img className="bg" src={src} alt="" aria-hidden loading="lazy" referrerPolicy="no-referrer" onError={() => setI((x) => x + 1)} />
-          <img className={`fg ${portrait ? 'cover' : 'contain'}`} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setI((x) => x + 1)} />
+          <img className={`fg ${portrait ? 'cover' : 'contain'}`} src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setI((x) => x + 1)} onLoad={(e) => { const im = e.currentTarget; if (im.naturalWidth > 0 && im.naturalWidth <= 120 && i < sources.length - 1) setI((x) => x + 1); }} />
         </>
       )}
       {children}

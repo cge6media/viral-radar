@@ -4,6 +4,7 @@ import { exportPrivateData, importPrivateData, useWatchlist } from '../lib/store
 import type { PublishedRecord, WatchItem, WatchStatus } from '../lib/types';
 import { fmtMoney, fmtNum, fmtAgo, bestThumb } from '../lib/data';
 import { Section, StagePill, StatTile, Thumb } from '../components/ui';
+import { Lede } from '../components/ui';
 import { downloadText } from '../lib/playbook';
 import { ActionPill, TypePill } from './Desk';
 import type { DeskAction, OpportunityType } from '../lib/types';
@@ -34,7 +35,7 @@ export default function Watchlist() {
       <header className="stack" style={{ gap: 10 }}>
         <div className="kicker">Content decision journal · private to this browser</div>
         <h1>Journal</h1>
-        <p className="muted" style={{ margin: 0, maxWidth: 760 }}>Every trend you save keeps the assessment Viral Radar made at that moment (type, timing, action, score). Move it through Watching → Selected → Producing → Published → Completed, record the real platform, date, URL, views, production hours, cost and revenue, and the journal compares what happened with what was recommended. Nothing here is uploaded or committed anywhere — export a backup file to move it between devices.</p>
+        <Lede>Every trend you save keeps the assessment Viral Radar made at that moment (type, timing, action, score). Move it through Watching → Selected → Producing → Published → Completed, record the real platform, date, URL, views, production hours, cost and revenue, and the journal compares what happened with what was recommended. Nothing here is uploaded or committed anywhere — export a backup file to move it between devices.</Lede>
         <div className="tiles five">
           <StatTile v={items.length} k="Saved" />
           <StatTile v={published.length} k="Published" cls={published.length ? 'good' : ''} na={!published.length} />

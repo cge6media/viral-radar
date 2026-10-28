@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Observation, SourceStatus, SourceQuality, Window, VideoCard, DeskAction, DeskTiming, OpportunityType } from '../lib/types';
 import { usePlayer } from './video';
 import { GRADE, KIND_LABEL, KIND_OF_TREND, PLATFORM_LABEL, STAGE, WINDOWS, WINDOW_LABEL } from '../lib/types';
@@ -43,6 +43,17 @@ export function ActionPill({ action }: { action: DeskAction }) {
 }
 export function TimingPill({ timing }: { timing: DeskTiming }) {
   return <span className={`pill timing ${timing}`}><i aria-hidden />{TIMING_LABEL[timing]}</span>;
+}
+
+/** Page intro: full on desktop, clamped to three lines on phones with a "more" toggle (the first five seconds matter). */
+export function Lede({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`lede${open ? ' open' : ''}`}>
+      <p className="muted" style={{ margin: 0, maxWidth: 760 }}>{children}</p>
+      <button className="lede-more linklike tiny" onClick={() => setOpen((o) => !o)}>{open ? 'less' : 'more'}</button>
+    </div>
+  );
 }
 
 export function Section({ title, sub, children, more, moreHref }: { title: string; sub?: string; children: ReactNode; more?: string; moreHref?: string }) {

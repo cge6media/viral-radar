@@ -121,3 +121,26 @@ TikTok/Instagram/Facebook recall cannot be measured until a statistics source ex
   Instagram and Facebook cannot be benchmarked for recall until a data source exists (see docs/DISCOVERY.md §4).
 - "In feed" counts the top-40 lists shipped in `latest.json`; the Viral Now page browses the whole index, so a
   "qualified, below the cutoff" video is still reachable by window and sort.
+
+# 4.0 — four evaluation dimensions
+
+The 3.0 benchmark measures **discovery recall** (did the system find videos independently identified as popular?)
+and **eligibility precision** (do the recommended videos satisfy the numerical thresholds?). 4.0 keeps both and
+adds two that numbers alone cannot answer:
+
+| dimension | question | how it is measured |
+|---|---|---|
+| Discovery recall | Did we find the videos ChartsList / ShortsMonkey list? | `benchmark.ts` dev + holdout sets, unchanged references |
+| Eligibility precision | Does each recommended video meet the stated criteria? | rule judge on Viral Now 72h / 7d and Early Radar |
+| Creative relevance | Does the result represent a usable, understandable content format? | independent recommendation audit (`docs/RECOMMENDATION_AUDIT.md`): rubric-scored sample, read by a reviewer who did not build the system |
+| Opportunity usefulness | Could a creator realistically act on it? | same audit: specificity, feasibility, originality of the suggested concepts, monetization realism, timing |
+| Forward prediction | Did early recommendations become successful afterwards? | `docs/PREDICTIONS.md`: immutable predictions, outcomes at 24h/48h/72h/7d, baselines, crossings |
+
+A video can be verified at 10M views and have no creative relevance; a format can have modest numbers and be the
+most useful item on the page. The audit therefore scores the *recommendation*, not the video's size.
+
+Microtrend labels are evaluated separately from YouTube's broad uploader categories: the audit samples classified
+clusters (format / meme / event / uncertain) and judges the label from the titles, descriptions and statistics the
+pipeline actually had (no visual inspection is claimed).
+
+Results of the 4.0 runs are appended below as they are produced.

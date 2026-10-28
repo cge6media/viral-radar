@@ -103,7 +103,9 @@ export function monetizationFor(t: Trend, f: TrendFeatures): DeskOpportunity['mo
 function evidenceFor(t: Trend, byObs: Map<string, VideoRecord>): DeskEvidence[] {
   const seen = new Set<string>();
   const out: DeskEvidence[] = [];
-  const videos = t.evidence.filter((e) => e.kind === 'video');
+  let videos = t.evidence.filter((e) => e.kind === 'video');
+  // relevance pools match on descriptions too; when enough examples match the format's rules in their TITLE, show only those
+  if (t.kind === 'format') { const strict = videos.filter((e) => titleMatchesFormat(t, e.title)); if (strict.length >= 3) videos = strict; }
   const nameToks = t.name.replace(/^#/, '').toLowerCase().split(/\s+/).filter((x) => x.length >= 3);
   const sig = new Set([...nameToks, ...(t.opportunity?.features.signature || [])]);
   const matches = (title: string) => { const l = title.toLowerCase(); return (t.kind === 'format' ? titleMatchesFormat(t, title) : Array.from(sig).some((x) => l.includes(x))) ? 1 : 0; };

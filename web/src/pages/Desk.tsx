@@ -6,6 +6,7 @@ import { fmtAgo, fmtNum } from '../lib/data';
 import { evidenceToCard } from '../lib/videos';
 import { VideoRail } from '../components/video';
 import { Section, StatTile, TypePill, ActionPill, TimingPill, TYPE_LABEL, ACTION_LABEL, TIMING_LABEL } from '../components/ui';
+import { Lede } from '../components/ui';
 export { TypePill, ActionPill, TimingPill, TYPE_LABEL, ACTION_LABEL, TIMING_LABEL };
 import { buildBriefs, briefsToMarkdown, downloadText, type Brief } from '../lib/playbook';
 
@@ -35,7 +36,7 @@ export default function Desk() {
       <header className="stack" style={{ gap: 10 }}>
         <div className="kicker">Creator Desk · data {fmtAgo(desk.generatedAt, now)}{ageH > 2 ? ' · stale' : ''}</div>
         <h1>Today's creator opportunities</h1>
-        <p className="muted" style={{ margin: 0, maxWidth: 760 }}>If you have 30 minutes to two hours today, which opportunity is worth it? Ranked for AI entertainment, animation, characters, editing and music, in English/Spanish, with revenue as the goal. Every item carries its real evidence, its type, how early it is, whether it fits a ≤2h production, how it could pay, and one recommended action. Nothing is padded in: when fewer qualify, fewer are shown.</p>
+        <Lede>If you have 30 minutes to two hours today, which opportunity is worth it? Ranked for AI entertainment, animation, characters, editing and music, in English/Spanish, with revenue as the goal. Every item carries its real evidence, its type, how early it is, whether it fits a ≤2h production, how it could pay, and one recommended action. Nothing is padded in: when fewer qualify, fewer are shown.</Lede>
         <div className="tiles">
           <StatTile v={primary.length} k="Actionable now" s="create / participate / research" cls={primary.length ? 'good' : ''} na={primary.length === 0} />
           <StatTile v={ops.filter((o) => o.type === 'format').length} k="Repeatable formats" s="independent creators, shared structure" />

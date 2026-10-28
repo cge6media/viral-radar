@@ -1,3 +1,4 @@
+import { Lede } from '../components/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../App';
 import type { VideoCard, VideoWindow } from '../lib/types';
@@ -80,7 +81,7 @@ export default function ViralNow() {
     <>
       <header className="stack" style={{ gap: 10 }}>
         <h1>Viral Now</h1>
-        <p className="muted" style={{ margin: 0, maxWidth: 760 }}>The biggest verified videos published in the selected period — ranked on their own platform's statistics (views, age, measured growth, engagement). Ordinary uploads never make this list; small creators do when their numbers are exceptional.</p>
+        <Lede>The biggest verified videos published in the selected period — ranked on their own platform's statistics (views, age, measured growth, engagement). Ordinary uploads never make this list; small creators do when their numbers are exceptional.</Lede>
         <div className="row wrap" style={{ gap: 10 }}>
           <div className="seg" role="group" aria-label="Publish window">
             {VIDEO_WINDOWS.map((w) => <button key={w} className={win === w ? 'on' : ''} onClick={() => setWin(w)} title={VIDEO_WINDOW_LABEL[w]}>{w}</button>)}

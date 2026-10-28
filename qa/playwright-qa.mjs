@@ -16,7 +16,7 @@ const widths = [[1440, 900, 'desktop'], [768, 1024, 'tablet'], [390, 844, 'mobil
 const pages = [['#/', 'discover'], ['#/viral', 'viral'], ['#/radar', 'radar'], ['#/desk', 'desk'], ['#/trends', 'trends'], ['#/scorecard', 'scorecard'], ['#/alerts', 'alerts'], ['#/watchlist', 'journal'], ['#/money', 'money'], ['#/hall-of-fame', 'hof'], ['#/settings?tab=health', 'health']];
 const report = { site, at: new Date().toISOString(), load: [], screenshots: [], playback: [], console: [], navigation: [] };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 for (const [w, h, name] of widths) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, userAgent: name === 'mobile' ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' : undefined, isMobile: name === 'mobile', hasTouch: name === 'mobile' });
   const page = await ctx.newPage();
@@ -44,7 +44,8 @@ for (const [w, h, name] of widths) {
     await page.waitForSelector('main h1', { timeout: 30000 });
     const btn = page.locator('button:has-text("Open the playbook")').first();
     if (await btn.count()) {
-      await btn.click();
+      await btn.scrollIntoViewIfNeeded();
+      await btn.click({ force: true, timeout: 10000 });
       await page.waitForSelector('text=Production playbook', { timeout: 15000 });
       await page.screenshot({ path: path.join(out, `playbook-${name}.png`) });
       const exportBtn = page.locator('button:has-text("Export brief")').first();
@@ -74,13 +75,23 @@ for (const [hash, label] of [['#/viral', 'viral'], ['#/radar', 'radar'], ['#/hal
     const hasIframe = await frame.waitFor({ state: 'attached', timeout: 8000 }).then(() => true).catch(() => false);
     let frameSrc = hasIframe ? await frame.getAttribute('src').catch(() => '') : '';
     // give the player time to start (autoplay=1 in the embed URL)
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(5000);
     let playing = media.size > before;
-    // YouTube: ask the embedded player state via postMessage listener is cross-origin; the videoplayback request is the proof
-    if (!playing && hasIframe) { await page.waitForTimeout(4000); playing = media.size > before; }
+    let clickedPlay = false;
+    // a real click on the player's own play button inside the (cross-origin) embed — the media request is the proof
+    if (!playing && hasIframe) {
+      try {
+        const fl = page.frameLocator('.modal-media iframe').first();
+        const playBtn = fl.locator('.ytp-large-play-button, button[aria-label*="Play"], [class*="play"]').first();
+        if (await playBtn.count()) { await playBtn.click({ timeout: 4000 }); clickedPlay = true; }
+        else { const box = await frame.boundingBox(); if (box) { await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); clickedPlay = true; } }
+      } catch { /* ignore */ }
+      await page.waitForTimeout(6000);
+      playing = media.size > before;
+    }
     const fallback = await page.locator('.modal-media .noembed a').count();
     if (i === 0) await page.screenshot({ path: path.join(out, `player-${label}.png`) });
-    report.playback.push({ page: label, index: i + 1, title: (title || '').replace(/^Play: /, '').slice(0, 70), embed: hasIframe, provider: /youtube/.test(frameSrc) ? 'youtube' : /tiktok/.test(frameSrc) ? 'tiktok' : /instagram/.test(frameSrc) ? 'instagram' : /facebook/.test(frameSrc) ? 'facebook' : /bsky/.test(frameSrc) ? 'bluesky' : hasIframe ? 'other' : 'none', mediaDelivered: playing, fallbackLink: fallback > 0 });
+    report.playback.push({ page: label, index: i + 1, title: (title || '').replace(/^Play: /, '').slice(0, 70), embed: hasIframe, clickedPlay, provider: /youtube/.test(frameSrc) ? 'youtube' : /tiktok/.test(frameSrc) ? 'tiktok' : /instagram/.test(frameSrc) ? 'instagram' : /facebook/.test(frameSrc) ? 'facebook' : /bsky/.test(frameSrc) ? 'bluesky' : hasIframe ? 'other' : 'none', mediaDelivered: playing, fallbackLink: fallback > 0 });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
   }

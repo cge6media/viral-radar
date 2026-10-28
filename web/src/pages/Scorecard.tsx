@@ -4,6 +4,7 @@ import type { Scorecard } from '../lib/types';
 import { PREDICTION_HORIZONS } from '../lib/types';
 import { fmtAgo, fmtNum } from '../lib/data';
 import { Section, StatTile } from '../components/ui';
+import { Lede } from '../components/ui';
 import { KIND_LABEL } from '../lib/videos';
 
 const H_LABEL: Record<string, string> = { '24': '24h', '48': '48h', '72': '72h', '168': '7d' };
@@ -30,7 +31,7 @@ export default function ScorecardPage() {
       <header className="stack" style={{ gap: 10 }}>
         <div className="kicker">Prediction scorecard · as of {fmtAgo(s.generatedAt, now)}{s.firstPredictionAt ? ` · recording since ${new Date(s.firstPredictionAt).toLocaleString()}` : ''}</div>
         <h1>Does the radar predict anything?</h1>
-        <p className="muted" style={{ margin: 0, maxWidth: 780 }}>Every collection writes immutable predictions — the Early Radar's top entries and two simple baselines drawn from the same candidates — and later collections evaluate each one at 24h, 48h, 72h and 7 days from real observations. A prediction counts as a <b>breakout</b> when the video reaches the age-appropriate hit floor or doubles its views with at least 100K gained. A horizon that has not elapsed is <b>pending</b>, never a success; a horizon without an observation is <b>unobserved</b> and excluded. Precision is only stated from ten or more evaluated predictions; nothing here is a probability.</p>
+        <Lede>Every collection writes immutable predictions — the Early Radar's top entries and two simple baselines drawn from the same candidates — and later collections evaluate each one at 24h, 48h, 72h and 7 days from real observations. A prediction counts as a <b>breakout</b> when the video reaches the age-appropriate hit floor or doubles its views with at least 100K gained. A horizon that has not elapsed is <b>pending</b>, never a success; a horizon without an observation is <b>unobserved</b> and excluded. Precision is only stated from ten or more evaluated predictions; nothing here is a probability.</Lede>
         <div className="tiles five">
           <StatTile v={s.predictions} k="Predictions recorded" s="radar + two baselines, ≤60 days" />
           <StatTile v={s.pending} k="Horizons pending" s="outcome window not elapsed" />

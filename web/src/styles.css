@@ -626,3 +626,13 @@ a.fresh:hover { color: var(--ink); }
 .hof .lesson { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
 .hof .lesson summary { cursor: pointer; color: var(--ink-2); }
 .hof .lesson summary:hover { color: var(--ink); }
+/* page intros clamp on phones */
+.lede .lede-more { display: none; color: var(--accent-ink); margin-top: 2px; }
+@media (max-width: 720px) {
+  .lede:not(.open) p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .lede .lede-more { display: inline; }
+  .seg { flex-wrap: wrap; border-radius: 18px; }
+  .opp .scores { flex-wrap: wrap; white-space: normal; }
+  .topbar .fresh { font-size: 12px; }
+}
+.vcard.compact .mom { white-space: normal; }

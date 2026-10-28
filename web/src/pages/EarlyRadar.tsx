@@ -5,6 +5,7 @@ import { VideoGrid } from '../components/video';
 import { PlatformBar, SortBar, CoverageNote, LanguageBar, useAllCards, usePersisted } from './ViralNow';
 import { fmtAgo, fmtNum } from '../lib/data';
 import { StatTile } from '../components/ui';
+import { Lede } from '../components/ui';
 
 const RADAR_SORTS = [
   { id: 'strongest_momentum' as SortMode, label: 'Strongest momentum', desc: 'Breakout score: measured growth, acceleration, creator outlier, youth' },
@@ -38,7 +39,7 @@ export default function EarlyRadar() {
     <>
       <header className="stack" style={{ gap: 10 }}>
         <h1>Early Radar</h1>
-        <p className="muted" style={{ margin: 0, maxWidth: 760 }}>Two kinds of attention that are <b>not yet established hits</b>: <b>early breakouts</b> — young videos below the hit floor for their age but on a measured abnormal rise (views/hour between real observations, acceleration, the creator's own baseline) — and <b>delayed breakouts</b> — older videos resurfacing with measured new velocity, labelled as such and never ranked as new uploads. Established hits live in Viral Now. Every entry clears absolute and relative floors; a change from 4 to 8 likes is never a breakout here.</p>
+        <Lede>Two kinds of attention that are <b>not yet established hits</b>: <b>early breakouts</b> — young videos below the hit floor for their age but on a measured abnormal rise (views/hour between real observations, acceleration, the creator's own baseline) — and <b>delayed breakouts</b> — older videos resurfacing with measured new velocity, labelled as such and never ranked as new uploads. Established hits live in Viral Now. Every entry clears absolute and relative floors; a change from 4 to 8 likes is never a breakout here.</Lede>
         <div className="tiles five">
           <StatTile v={intel.counts.early_breakout} k="Breakouts in the index" s="30-day window, all platforms" />
           <StatTile v={measured} k="With measured velocity" s="two real observations ≥1h apart" cls="good" />
