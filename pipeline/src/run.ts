@@ -86,17 +86,32 @@ export async function main(): Promise<Snapshot> {
   ]);
 
   // ---- 2. YouTube: verify linked videos + charts + rationed discovery ----
+  // tracking refresh, prioritised: featured videos every run, videos seen in the last 72h every run, the rest of the
+  // 7-day universe on alternating runs (the universe outgrew a flat 1,500-id cap once discovery widened)
   const knownYt = new Set<string>();
-  for (const o of [...existing, ...bs.items]) if (o.video?.platform === 'youtube' && hoursBetween(o.firstSeenAt || o.observedAt, runStart) <= 24 * 7) knownYt.add(o.video.id);
+  const firstSeenById = new Map<string, string>();
+  for (const o of [...existing, ...bs.items]) if (o.video?.platform === 'youtube' && hoursBetween(o.firstSeenAt || o.observedAt, runStart) <= 24 * 7) {
+    knownYt.add(o.video.id);
+    const fs = o.firstSeenAt || o.observedAt;
+    if (!firstSeenById.has(o.video.id) || fs < firstSeenById.get(o.video.id)!) firstSeenById.set(o.video.id, fs);
+  }
+  const previous = await readJson<Snapshot>('latest.json');
+  const featured = new Set<string>([...Object.values(previous?.videos?.viralNow || {}).flat(), ...(previous?.videos?.earlyRadar || [])].filter((c) => c.platform === 'youtube').map((c) => c.platformId));
+  const runParity = Number(runStart.slice(14, 16)) >= 30 ? 1 : 0;
+  const trackIds = Array.from(knownYt).sort((a, b) => rank(a) - rank(b));
+  function rank(id: string): number {
+    if (featured.has(id)) return 0;
+    if (hoursBetween(firstSeenById.get(id) || runStart, runStart) <= 72) return 1;
+    return 2 + ((id.charCodeAt(0) + id.charCodeAt(1)) % 2 === runParity ? 0 : 1);
+  }
   const topicTerms = bs.items.filter((o) => o.kind === 'social_topic').map((o) => o.title).filter((t) => classify(t).category !== 'News & Politics' && !decideNewsEvent([], t, classify(t).category));
   // exploitation: microtrends that already showed momentum last run become discovery probes
-  const previous = await readJson<Snapshot>('latest.json');
   const trendTerms = (previous?.trends || []).filter((t) => t.kind === 'microtrend' && t.qualified && !t.isGeneric).sort((a, b) => b.scores.opportunity - a.scores.opportunity).map((t) => t.name.replace(/^#/, '').replace(/([a-z])([A-Z])/g, '$1 $2')).slice(0, 3);
   // diagnostics watch list (benchmark cases): re-measured every run, never stored as observations
   const watch = (await readJson<{ ids: string[] }>('diagnostics/watch.json'))?.ids || [];
   let ytDiagnostics: { id: string; t: string; views?: number; likes?: number; comments?: number }[] = [];
   const yt = await runSource('youtube', async () => {
-    const r = await collectYouTube({ trackIds: Array.from(knownYt), topicTerms, trendTerms, diagnosticIds: watch });
+    const r = await collectYouTube({ trackIds, topicTerms, trendTerms, diagnosticIds: watch });
     ytDiagnostics = r.diagnostics || [];
     return r;
   });

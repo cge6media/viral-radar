@@ -38,7 +38,7 @@ export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 6
 export const YT_CHART_CATEGORIES = (process.env.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24').split(',').map((s) => s.trim()).filter(Boolean);
 export const SEARCH_BUDGET = Number(process.env.VR_YT_SEARCH_BUDGET || 90);
 export const UNIT_BUDGET = Number(process.env.VR_YT_UNIT_BUDGET || 9000);
-export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 1500);
+export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 2500);
 /**
  * Query-less "top by views" probes — the single most important discovery source. search.list accepts no `q`, so
  * `order=viewCount&publishedAfter=…&videoDuration=short&regionCode=…` returns the most-viewed videos published in a
