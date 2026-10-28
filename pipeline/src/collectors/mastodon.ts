@@ -27,10 +27,12 @@ export function tagToObservation(t: MastoTag, instance: string, rank: number, ob
     id: `mastodon:hashtag:${key}`,
     source: 'mastodon',
     kind: 'hashtag',
+    level: 'indirect',
     key,
     title: `#${t.name}`,
     url: t.url,
     observedAt,
+    publishedAt: observedAt,
     metrics: { uses: latest?.value, accounts: latest?.accounts, rank },
     text: t.name.replace(/([a-z])([A-Z])/g, '$1 $2'),
     tags: [t.name.toLowerCase()],
@@ -39,16 +41,18 @@ export function tagToObservation(t: MastoTag, instance: string, rank: number, ob
   };
 }
 
-export async function collectMastodon(instances = MASTODON_INSTANCES): Promise<{ items: Observation[]; errors: string[] }> {
+export async function collectMastodon(instances = MASTODON_INSTANCES): Promise<{ items: Observation[]; errors: string[]; subrequests: number }> {
   const items: Observation[] = [];
   const errors: string[] = [];
+  let subrequests = 0;
   for (const inst of instances) {
     try {
+      subrequests++;
       const tags = await fetchJson<MastoTag[]>(`https://${inst}/api/v1/trends/tags?limit=20`);
       tags.forEach((t, i) => items.push(tagToObservation(t, inst, i + 1)));
     } catch (e) {
       errors.push(`${inst}: ${(e as Error).message}`);
     }
   }
-  return { items, errors };
+  return { items, errors, subrequests };
 }

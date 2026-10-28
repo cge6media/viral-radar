@@ -10,7 +10,7 @@ process.env.VR_DATA_DIR = tmp;
 const store = await import('../src/lib/store.js');
 import type { Observation } from '../src/types.js';
 
-const o = (id: string, observedAt: string, likes: number): Observation => ({ id, source: 'bluesky', kind: 'post', key: id, title: id, url: 'https://x', observedAt, metrics: { likes } });
+const o = (id: string, observedAt: string, likes: number): Observation => ({ id, source: 'bluesky', kind: 'post', level: 'indirect', key: id, title: id, url: 'https://x', observedAt, metrics: { likes } });
 
 test('store: full record on first sight, ticks only when ≥3h passed or the metric moved ≥15%; latest state + firstSeenAt on load; cache fallback', async () => {
   const t1 = '2026-10-28T01:05:00.000Z';

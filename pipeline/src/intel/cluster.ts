@@ -1,36 +1,68 @@
 /**
- * Clustering: observations → trend clusters (microtrends).
+ * Clustering v2 — observations → trend clusters of three kinds.
  *
- * Strategy (simplest reliable methods first):
- *  1. Seed clusters from topic-like evidence (Google Trends terms, Bluesky topics, trending hashtags).
- *     Seeds with the same normalized key across regions/sources merge automatically.
- *  2. Merge seeds whose token sets overlap heavily (Jaccard) — "nz vs ind" and "new zealand vs india".
- *  3. Attach video/post evidence to the best-matching seed by weighted token overlap (IDF-weighted).
- *  4. Discover NEW microtrends from the remaining posts: hashtags or title bigrams used by ≥ N distinct
- *     creators become their own cluster (this is where "rapping cats"-style microtrends surface).
- *  5. Remaining posts from a creator-format query (e.g. "cat video") form a format-level cluster.
+ *  topic       seeded by audience-interest signals (Google Trends terms, Bluesky topics, trending hashtags) with the
+ *              posts/videos that discuss them. Audience interest, not necessarily a video format.
+ *  microtrend  VIDEO-FIRST: a distinctive phrase, hashtag or character/subject shared by videos from ≥3 independent
+ *              creators inside the window. This is where "animated animal courtroom skits" would surface.
+ *  format      a predefined, relevance-validated format pool (cooking, cat videos, …). Describes category activity;
+ *              generic formats are never emerging trends by themselves.
+ *
+ * Independence: creators are counted by channel/author; the same video shared by many accounts is one example.
  */
 import type { Observation } from '../types.js';
 import { normalizeKey, tokenize, uniq } from '../lib/util.js';
+import { FORMATS, FORMAT_BY_ID, videoText } from './relevance.js';
 
 export interface Cluster {
   id: string;
+  kind: 'topic' | 'microtrend' | 'format';
   name: string;
-  /** how the cluster was created */
-  origin: 'seed' | 'hashtag' | 'bigram' | 'format';
+  origin: 'seed' | 'hashtag' | 'phrase' | 'format';
   keywords: string[];
   members: Observation[];
+  formatId?: string;
 }
 
-const MIN_CREATORS_FOR_MICROTREND = Number(process.env.VR_MIN_CREATORS || 3);
+export const MIN_CREATORS = Number(process.env.VR_MIN_CREATORS || 3);
 
-function tokensOf(o: Observation): string[] {
-  const base = tokenize(`${o.title} ${(o.tags || []).join(' ')}`);
-  // for topic-like items also use description text (they are short); for posts, limit noise
-  if (o.kind === 'search_interest' || o.kind === 'social_topic' || o.kind === 'hashtag') {
-    return uniq([...base, ...tokenize(o.text || '').slice(0, 12)]);
+/** Who made this? Channel for verified videos, author for native posts, the sharer (prefixed) when unverified. */
+export function creatorKey(o: Observation): string {
+  if (o.creator?.url) return o.creator.url.toLowerCase();
+  if (o.creator?.name) return `name:${o.creator.name.toLowerCase()}`;
+  if (o.sharedBy?.url) return `share:${o.sharedBy.url.toLowerCase()}`;
+  return `item:${o.id}`;
+}
+export function isVerifiedCreator(o: Observation): boolean {
+  return !!o.creator;
+}
+/** One example = one distinct video (or one distinct non-video item). */
+export function exampleKey(o: Observation): string {
+  return o.video ? `${o.video.platform}:${o.video.id}` : o.id;
+}
+
+export function independentCreators(members: Observation[]): number {
+  const seenExample = new Set<string>();
+  const creators = new Set<string>();
+  for (const m of members) {
+    const ek = exampleKey(m);
+    if (seenExample.has(ek)) continue;
+    seenExample.add(ek);
+    creators.add(creatorKey(m));
   }
-  return uniq(base);
+  return creators.size;
+}
+
+const GENERIC_TAGS = new Set(['art', 'video', 'videos', 'shorts', 'short', 'fyp', 'viral', 'trending', 'bsky', 'bskyart', 'bluesky', 'oc', 'gif', 'sketch', 'commission', 'commissions', 'comms', 'commsopen', 'nsfw', 'youtube', 'tiktok', 'reels', 'new', 'live', 'animation', 'animated', 'music', 'comedy', 'funny', 'cute', 'love', 'cat', 'cats', 'dog', 'dogs', 'gaming', 'game', 'games', 'film', 'movie', 'asmr', 'satisfying']);
+const PHRASE_STOP = new Set(['official', 'video', 'videos', 'episode', 'part', 'full', 'new', 'best', 'top', 'first', 'last', 'day', 'days', 'week', 'today', 'live', 'stream', 'shorts', 'short', 'trailer', 'teaser', 'season', 'update', 'reaction', 'reacts', 'review', 'explained', 'ft', 'feat', 'remix', 'lyrics', 'audio', 'hd', '4k', 'vlog', 'tutorial', 'bsky', 'social', 'com', 'www', 'http', 'https', 'youtube', 'youtu', 'watch', 'tiktok', 'instagram', 'twitch', 'link', 'thread', 'rt', 'via', 'credit', 'commission', 'commissions', 'comm', 'cmm', 'comms', 'open', 'please', 'thanks', 'thank', 'love', 'like', 'got', 'made', 'make', 'making', 'amazing', 'check', 'out', 'really', 'just', 'one', 'two', 'three', 'guys', 'everyone', 'wait', 'still']);
+
+/** Tokens for phrase mining: video-level text without handles, URLs and platform boilerplate. */
+export function phraseTokens(o: Observation): string[] {
+  const text = videoText(o)
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/@[\w.-]+/g, ' ')
+    .replace(/\b[\w-]+\.(?:bsky\.social|com|net|org|tv|app|io)\b/gi, ' ');
+  return tokenize(text).filter((t) => !PHRASE_STOP.has(t) && !/^\d+$/.test(t));
 }
 
 function jaccard(a: Set<string>, b: Set<string>): number {
@@ -40,153 +72,155 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : inter / union;
 }
 
+export function titleCase(s: string): string {
+  return s.replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+}
+
 export function buildClusters(observations: Observation[]): Cluster[] {
   const topicLike = observations.filter((o) => o.kind === 'search_interest' || o.kind === 'social_topic' || o.kind === 'hashtag');
-  const postLike = observations.filter((o) => o.kind === 'video' || o.kind === 'post');
+  const videos = uniqBy(observations.filter((o) => o.kind === 'video'), (o) => o.id);
+  const posts = observations.filter((o) => o.kind === 'post');
 
-  // document frequency for IDF weighting
-  const df = new Map<string, number>();
-  const allTokens = observations.map((o) => tokensOf(o));
-  for (const toks of allTokens) for (const t of uniq(toks)) df.set(t, (df.get(t) || 0) + 1);
-  const N = Math.max(1, observations.length);
-  const idf = (t: string) => Math.log(1 + N / (1 + (df.get(t) || 0)));
-
-  // 1. seeds keyed by normalized key (same term across regions merges)
+  // ---------- 1. topic clusters ----------
   const seeds = new Map<string, Cluster>();
   for (const o of topicLike) {
     const k = o.key;
-    if (!seeds.has(k)) seeds.set(k, { id: `t_${k.replace(/\s+/g, '_').slice(0, 60)}`, name: o.title.replace(/^#/, ''), origin: 'seed', keywords: tokensOf(o), members: [] });
-    const c = seeds.get(k)!;
-    c.members.push(o);
-    c.keywords = uniq([...c.keywords, ...tokensOf(o)]);
+    if (!seeds.has(k)) seeds.set(k, { id: `t_${k.replace(/\s+/g, '_').slice(0, 60)}`, kind: 'topic', name: o.title.replace(/^#/, ''), origin: 'seed', keywords: uniq(tokenize(`${o.title} ${o.text || ''}`)), members: [] });
+    seeds.get(k)!.members.push(o);
   }
-
-  // 2. merge overlapping seeds
-  let clusters = Array.from(seeds.values());
+  let topics = Array.from(seeds.values());
   let merged = true;
   while (merged) {
     merged = false;
-    outer: for (let i = 0; i < clusters.length; i++) {
-      for (let j = i + 1; j < clusters.length; j++) {
-        const a = new Set(clusters[i].members.flatMap((m) => tokenize(m.title)));
-        const b = new Set(clusters[j].members.flatMap((m) => tokenize(m.title)));
-        if (a.size === 0 || b.size === 0) continue;
-        const jac = jaccard(a, b);
-        const containment = [...a].filter((x) => b.has(x)).length / Math.min(a.size, b.size);
-        if (jac >= 0.5 || (containment >= 0.99 && Math.min(a.size, b.size) >= 2)) {
-          clusters[i].members.push(...clusters[j].members);
-          clusters[i].keywords = uniq([...clusters[i].keywords, ...clusters[j].keywords]);
-          clusters.splice(j, 1);
+    outer: for (let i = 0; i < topics.length; i++) {
+      for (let j = i + 1; j < topics.length; j++) {
+        const a = new Set(topics[i].members.flatMap((m) => tokenize(m.title)));
+        const b = new Set(topics[j].members.flatMap((m) => tokenize(m.title)));
+        if (!a.size || !b.size) continue;
+        const contain = [...a].filter((x) => b.has(x)).length / Math.min(a.size, b.size);
+        if (jaccard(a, b) >= 0.5 || (contain >= 0.99 && Math.min(a.size, b.size) >= 2)) {
+          topics[i].members.push(...topics[j].members);
+          topics[i].keywords = uniq([...topics[i].keywords, ...topics[j].keywords]);
+          topics.splice(j, 1);
           merged = true;
           break outer;
         }
       }
     }
   }
-
-  // 3. attach posts to best seed by IDF-weighted overlap
-  const unassigned: Observation[] = [];
-  for (const o of postLike) {
-    const toks = new Set(tokensOf(o));
+  // attach posts/videos that cover a topic's core tokens, or came from its feed
+  const inTopic = new Set<string>();
+  for (const o of [...posts, ...videos]) {
+    const toks = new Set(tokenize(`${o.title} ${o.text || ''}`));
     let best: Cluster | undefined;
-    let bestScore = 0;
-    for (const c of clusters) {
+    let bestCov = 0;
+    for (const c of topics) {
       const seedToks = new Set(c.members.filter((m) => m.kind !== 'video' && m.kind !== 'post').flatMap((m) => tokenize(m.title)));
-      if (seedToks.size === 0) continue;
-      let s = 0;
-      for (const t of seedToks) if (toks.has(t)) s += idf(t);
-      // require at least the seed's core tokens to be substantially present
-      const coverage = [...seedToks].filter((t) => toks.has(t)).length / seedToks.size;
-      const score = coverage >= 0.6 || (coverage >= 0.5 && seedToks.size >= 3) ? s : 0;
-      // hashtag seeds: direct tag match is decisive
-      const tagHit = c.origin === 'seed' && c.members.some((m) => m.kind === 'hashtag' && (o.tags || []).includes(m.key.replace(/\s+/g, '')));
-      const final = tagHit ? Math.max(score, 5) : score;
-      if (final > bestScore) {
-        bestScore = final;
+      if (!seedToks.size) continue;
+      const cov = [...seedToks].filter((t) => toks.has(t)).length / seedToks.size;
+      const ok = cov >= 0.6 || (cov >= 0.5 && seedToks.size >= 3) || c.members.some((m) => m.kind === 'hashtag' && (o.tags || []).includes(m.key.replace(/\s+/g, '')));
+      if (ok && cov > bestCov) {
         best = c;
+        bestCov = cov;
       }
     }
-    // Topic-feed posts belong to their topic cluster by construction (query = topic:<key>)
-    if (!best && o.query?.startsWith('topic:')) {
-      const key = o.query.slice(6);
-      best = clusters.find((c) => c.members.some((m) => m.kind === 'social_topic' && m.key === key));
-      if (best) bestScore = 1;
+    if (!best && o.query?.startsWith('topic:')) best = topics.find((c) => c.members.some((m) => m.kind === 'social_topic' && m.key === o.query!.slice(6)));
+    if (best) {
+      best.members.push(o);
+      inTopic.add(o.id);
     }
-    if (best && bestScore > 0) best.members.push(o);
-    else unassigned.push(o);
   }
 
-  // 4. discover microtrends from hashtags / bigrams among unassigned posts (≥ N distinct creators)
-  // tags that merely restate a creator-format query (e.g. #animation for "animation") are handled by step 5
-  const queryTokens = new Set(unassigned.flatMap((o) => (o.query?.startsWith('search:') ? tokenize(o.query.slice(7)) : [])));
-  const byTag = new Map<string, Observation[]>();
-  for (const o of unassigned) for (const t of uniq(o.tags || [])) {
-    if (GENERIC_TAGS.has(t) || t.length < 3 || queryTokens.has(t)) continue;
-    if (!byTag.has(t)) byTag.set(t, []);
-    byTag.get(t)!.push(o);
+  // ---------- 2. video-first microtrends ----------
+  const videoById = new Map(videos.map((v) => [v.id, v]));
+  const N = Math.max(1, videos.length);
+  const df = new Map<string, number>();
+  const tokensByVideo = new Map<string, string[]>();
+  for (const v of videos) {
+    const toks = phraseTokens(v);
+    tokensByVideo.set(v.id, toks);
+    for (const t of uniq(toks)) df.set(t, (df.get(t) || 0) + 1);
+  }
+  // candidate keys: hashtags and bigrams/trigrams from video-level text
+  const cand = new Map<string, { label: string; origin: 'hashtag' | 'phrase'; members: Set<string> }>();
+  const addCand = (key: string, label: string, origin: 'hashtag' | 'phrase', id: string) => {
+    if (!cand.has(key)) cand.set(key, { label, origin, members: new Set() });
+    cand.get(key)!.members.add(id);
+  };
+  const queryTokens = new Set(FORMATS.flatMap((f) => f.queries.flatMap((q) => tokenize(q))));
+  for (const v of videos) {
+    for (const tag of uniq(v.tags || [])) {
+      if (GENERIC_TAGS.has(tag) || tag.length < 4 || queryTokens.has(tag)) continue;
+      addCand(`#${tag}`, `#${tag}`, 'hashtag', v.id);
+    }
+    const toks = tokensByVideo.get(v.id) || [];
+    const seen = new Set<string>();
+    for (let n = 3; n >= 2; n--) {
+      for (let i = 0; i + n <= toks.length; i++) {
+        const gram = toks.slice(i, i + n);
+        // skip grams that are just generic/format words or too common across all videos
+        if (gram.every((t) => queryTokens.has(t) || GENERIC_TAGS.has(t))) continue;
+        // a token present in >40% of a sizeable corpus is a theme of the corpus, not of a microtrend
+        if (N >= 20 && gram.some((t) => (df.get(t) || 0) / N > 0.4)) continue;
+        const key = gram.join(' ');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        addCand(key, titleCase(key), 'phrase', v.id);
+      }
+    }
   }
   const taken = new Set<string>();
-  const tagClusters: Cluster[] = [];
-  for (const [tag, members] of [...byTag.entries()].sort((a, b) => b[1].length - a[1].length)) {
-    const fresh = members.filter((m) => !taken.has(m.id));
-    const creators = new Set(fresh.map((m) => m.creator?.name || m.id));
-    if (creators.size < MIN_CREATORS_FOR_MICROTREND) continue;
+  const micro: Cluster[] = [];
+  const ranked = [...cand.entries()]
+    .map(([key, c]) => ({ key, ...c, creators: independentCreators([...c.members].map((id) => videoById.get(id)!)) }))
+    .filter((c) => c.creators >= MIN_CREATORS)
+    // prefer more creators, then longer (more specific) phrases
+    .sort((a, b) => b.creators - a.creators || b.key.split(' ').length - a.key.split(' ').length || b.members.size - a.members.size);
+  for (const c of ranked) {
+    const fresh = [...c.members].filter((id) => !taken.has(id)).map((id) => videoById.get(id)!);
+    if (independentCreators(fresh) < MIN_CREATORS) continue;
     fresh.forEach((m) => taken.add(m.id));
-    tagClusters.push({ id: `h_${tag}`, name: `#${tag}`, origin: 'hashtag', keywords: [tag], members: fresh });
+    const kws = c.origin === 'hashtag' ? [c.key.slice(1)] : c.key.split(' ');
+    micro.push({ id: `m_${normalizeKey(c.key).replace(/\s+/g, '_').slice(0, 60)}`, kind: 'microtrend', name: c.label, origin: c.origin, keywords: kws, members: fresh });
   }
-
-  const rest1 = unassigned.filter((o) => !taken.has(o.id));
-  const byBigram = new Map<string, Observation[]>();
-  for (const o of rest1) {
-    if (o.title.startsWith('(')) continue; // placeholder titles
-    const toks = tokenize(o.title);
-    const seen = new Set<string>();
-    for (let i = 0; i < toks.length - 1; i++) {
-      const bg = `${toks[i]} ${toks[i + 1]}`;
-      if (seen.has(bg)) continue;
-      if (queryTokens.has(toks[i]) && queryTokens.has(toks[i + 1])) continue; // restates a creator-format query
-      seen.add(bg);
-      if (!byBigram.has(bg)) byBigram.set(bg, []);
-      byBigram.get(bg)!.push(o);
+  // merge microtrends whose member sets overlap heavily (e.g. "pumpkin carving" and "carving timelapse")
+  for (let i = 0; i < micro.length; i++) {
+    for (let j = micro.length - 1; j > i; j--) {
+      const a = new Set(micro[i].members.map((m) => m.id)), b = new Set(micro[j].members.map((m) => m.id));
+      if (jaccard(a, b) >= 0.6) {
+        micro[i].members = uniqBy([...micro[i].members, ...micro[j].members], (m) => m.id);
+        micro[i].keywords = uniq([...micro[i].keywords, ...micro[j].keywords]);
+        micro.splice(j, 1);
+      }
     }
   }
-  const bigramClusters: Cluster[] = [];
-  for (const [bg, members] of [...byBigram.entries()].sort((a, b) => b[1].length - a[1].length)) {
-    const fresh = members.filter((m) => !taken.has(m.id));
-    const creators = new Set(fresh.map((m) => m.creator?.name || m.id));
-    if (creators.size < MIN_CREATORS_FOR_MICROTREND) continue;
-    fresh.forEach((m) => taken.add(m.id));
-    bigramClusters.push({ id: `b_${bg.replace(/\s+/g, '_')}`, name: titleCase(bg), origin: 'bigram', keywords: bg.split(' '), members: fresh });
+  // corroborate microtrends with topic signals that share tokens (adds audience-interest evidence)
+  for (const m of micro) {
+    const kw = new Set(m.keywords);
+    for (const t of topics) {
+      const seedToks = t.members.filter((x) => x.kind !== 'video' && x.kind !== 'post').flatMap((x) => tokenize(x.title));
+      if (seedToks.some((x) => kw.has(x)) && seedToks.length <= 4) m.members.push(...t.members.filter((x) => x.kind !== 'video' && x.kind !== 'post'));
+    }
+    m.members = uniqBy(m.members, (x) => x.id);
   }
 
-  // 5. format-level clusters from creator-format queries
-  const rest2 = unassigned.filter((o) => !taken.has(o.id));
-  const byQuery = new Map<string, Observation[]>();
-  for (const o of rest2) {
-    const q = o.query?.startsWith('search:') ? o.query.slice(7) : undefined;
-    if (!q) continue;
-    if (!byQuery.has(q)) byQuery.set(q, []);
-    byQuery.get(q)!.push(o);
-  }
-  const formatClusters: Cluster[] = [];
-  for (const [q, members] of byQuery) {
-    const creators = new Set(members.map((m) => m.creator?.name || m.id));
-    if (creators.size < MIN_CREATORS_FOR_MICROTREND) continue;
-    members.forEach((m) => taken.add(m.id));
-    formatClusters.push({ id: `f_${normalizeKey(q).replace(/\s+/g, '_')}`, name: `${titleCase(q)} (format)`, origin: 'format', keywords: tokenize(q), members });
+  // ---------- 3. format pools (validated videos only) ----------
+  const formats: Cluster[] = [];
+  for (const f of FORMATS) {
+    const members = videos.filter((v) => (v.formats || []).includes(f.id));
+    if (!members.length) continue;
+    formats.push({ id: `f_${f.id}`, kind: 'format', name: f.name, origin: 'format', keywords: uniq(f.queries.flatMap((q) => tokenize(q))), members, formatId: f.id });
   }
 
-  clusters = [...clusters, ...tagClusters, ...bigramClusters, ...formatClusters];
-  // drop empty, dedupe members
-  for (const c of clusters) {
-    const seen = new Set<string>();
-    c.members = c.members.filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
-  }
-  return clusters.filter((c) => c.members.length > 0);
+  const all = [...micro, ...topics, ...formats].map((c) => ({ ...c, members: uniqBy(c.members, (m) => m.id) })).filter((c) => c.members.length > 0);
+  return all;
 }
 
-const GENERIC_TAGS = new Set(['art', 'video', 'videos', 'shorts', 'fyp', 'viral', 'trending', 'bsky', 'bskyart', 'bluesky', 'oc', 'gif', 'sketch', 'commission', 'commissions', 'comms', 'commsopen', 'nsfw']);
+function uniqBy<T>(arr: T[], key: (x: T) => string): T[] {
+  const seen = new Set<string>();
+  return arr.filter((x) => (seen.has(key(x)) ? false : (seen.add(key(x)), true)));
+}
 
-export function titleCase(s: string): string {
-  return s.replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+export function formatLabel(id?: string): string | undefined {
+  return id ? FORMAT_BY_ID.get(id)?.name : undefined;
 }

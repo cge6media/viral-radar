@@ -34,10 +34,12 @@ export function hashtagToObservation(h: TtHashtag, region: string, idx: number, 
     id: `tiktok:hashtag:${key}`,
     source: 'tiktok',
     kind: 'hashtag',
+    level: 'indirect',
     key,
     title: `#${h.hashtag_name}`,
     url: `https://www.tiktok.com/tag/${encodeURIComponent(h.hashtag_name)}`,
     observedAt,
+    publishedAt: observedAt,
     metrics: { uses: h.publish_cnt, views: h.video_views, rank: h.rank ?? idx + 1 },
     region,
     text: `${h.hashtag_name.replace(/([a-z])([A-Z])/g, '$1 $2')} ${h.industry_info?.value || ''}`,
@@ -47,8 +49,8 @@ export function hashtagToObservation(h: TtHashtag, region: string, idx: number, 
   };
 }
 
-export async function collectTikTok(): Promise<{ items: Observation[]; errors: string[]; disabled?: boolean }> {
-  if (process.env.VR_TIKTOK !== '1') return { items: [], errors: ['disabled (set VR_TIKTOK=1 to enable best-effort collection)'], disabled: true };
+export async function collectTikTok(): Promise<{ items: Observation[]; errors: string[]; disabled?: boolean; subrequests: number; probe?: { status: string } }> {
+  if (process.env.VR_TIKTOK !== '1') return { items: [], errors: ['disabled (set VR_TIKTOK=1 to enable best-effort collection)'], disabled: true, subrequests: 0 };
   const items: Observation[] = [];
   const errors: string[] = [];
   const region = process.env.VR_TIKTOK_REGION || 'US';
@@ -63,5 +65,5 @@ export async function collectTikTok(): Promise<{ items: Observation[]; errors: s
   } catch (e) {
     errors.push(`creative center: ${(e as Error).message}`);
   }
-  return { items, errors };
+  return { items, errors, subrequests: 1, probe: { status: errors.length ? errors[0] : `ok ${items.length} hashtags` } };
 }

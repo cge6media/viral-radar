@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseGoogleTrendsRss } from '../src/collectors/googleTrends.js';
-import { postToObservation, topicToObservation, topicFeedUri } from '../src/collectors/bluesky.js';
+import { postToObservation, topicToObservation, topicFeedUri, mergeShares } from '../src/collectors/bluesky.js';
 import { tagToObservation } from '../src/collectors/mastodon.js';
 import { videoToObservation, isoDurationSeconds } from '../src/collectors/youtube.js';
 import { FIXTURE_DIR } from '../src/lib/http.js';
@@ -47,28 +47,57 @@ test('Bluesky: trending topic → social_topic observation with feed URI', async
   assert.equal(o.metrics.rank, 4);
 });
 
-test('Bluesky: native video post → video observation; external YouTube link → video keyed by YouTube id', async () => {
+test('Bluesky v2: native video is DIRECT evidence published by the post; an external YouTube link is INDIRECT with no publish date and empty video metrics', async () => {
   const { posts } = JSON.parse(await fx('bsky-search-cat-video.json'));
   const native = postToObservation(posts[0], 'search:cat video')!;
   assert.equal(native.kind, 'video');
+  assert.equal(native.level, 'direct');
   assert.equal(native.metrics.likes, 3077);
-  assert.equal(native.metrics.reposts, 374);
+  assert.equal(native.publishedAt, '2026-10-22T12:43:07.992Z');
+  assert.equal(native.videoPublishedAt, native.postPublishedAt);
+  assert.equal(native.video?.platform, 'bluesky');
   assert.match(native.url, /^https:\/\/bsky\.app\/profile\/rainmaker1973-m\.bsky\.social\/post\//);
-  assert.match(native.thumbnail!, /thumbnail\.jpg$/);
   const yt = postToObservation(posts[1], 'search:cat video')!;
   assert.equal(yt.kind, 'video');
+  assert.equal(yt.level, 'indirect');
   assert.equal(yt.key, 'yt:vEtbfzMLVWU');
   assert.equal(yt.id, 'bluesky:video:yt:vEtbfzMLVWU');
-  assert.match(yt.url, /youtu\.be\/vEtbfzMLVWU/);
+  assert.equal(yt.url, 'https://www.youtube.com/watch?v=vEtbfzMLVWU');
+  assert.equal(yt.publishedAt, undefined, 'the share time is NOT the video publish time');
+  assert.equal(yt.postPublishedAt, '2026-10-25T20:00:00.577Z');
+  assert.deepEqual(yt.metrics, {}, 'video stats unknown until verified');
+  assert.equal(yt.postMetrics?.likes, 142);
+  assert.equal(yt.sharedBy?.name, "Here's Johnny");
+  assert.equal(yt.creator, undefined, 'the sharer is not the creator');
   assert.deepEqual(yt.tags, ['musicchallenge', 'emojisounds']);
   assert.equal(yt.title, 'Stray Cats - Stray Cat Strut (Official Music Video)');
+  assert.match(yt.thumbnail!, /i\.ytimg\.com\/vi\/vEtbfzMLVWU/);
+});
+
+test('Bluesky v2: text-only search results are not evidence; topic-feed text posts are kept', async () => {
+  const base = { uri: 'at://did:plc:x/app.bsky.feed.post/abc', cid: 'c', author: { did: 'did:plc:x', handle: 'h.bsky.social' }, record: { text: 'cooking dinner tonight', createdAt: new Date().toISOString() } };
+  assert.equal(postToObservation(base as never, 'search:cooking video'), undefined);
+  const kept = postToObservation(base as never, 'topic:x', undefined, { allowTextPosts: true })!;
+  assert.equal(kept.kind, 'post');
+  assert.equal(kept.level, 'indirect');
+});
+
+test('Bluesky v2: the same external video shared by two accounts merges into one record counting both sharers', async () => {
+  const { posts } = JSON.parse(await fx('bsky-search-cat-video.json'));
+  const a = postToObservation(posts[2], 'search:cat video')!; // oOSYB38y2xA by Leigh
+  const b = postToObservation(posts[3], 'search:cat video')!; // oOSYB38y2xA by DeeEm
+  assert.equal(a.id, b.id);
+  const merged = mergeShares([a, b]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].postMetrics?.accounts, 2);
+  assert.equal(merged[0].postMetrics?.likes, 47 + 37);
 });
 
 test('Bluesky: adult-labelled or 🔞 posts are dropped', () => {
-  const base = { uri: 'at://did:plc:x/app.bsky.feed.post/abc', cid: 'c', author: { did: 'did:plc:x', handle: 'h.bsky.social' }, record: { text: 'hello' } };
-  assert.ok(postToObservation(base as never, 'q'));
-  assert.equal(postToObservation({ ...base, labels: [{ val: 'porn' }] } as never, 'q'), undefined);
-  assert.equal(postToObservation({ ...base, record: { text: 'hi 🔞' } } as never, 'q'), undefined);
+  const base = { uri: 'at://did:plc:x/app.bsky.feed.post/abc', cid: 'c', author: { did: 'did:plc:x', handle: 'h.bsky.social' }, record: { text: 'hello', createdAt: new Date().toISOString() } };
+  assert.ok(postToObservation(base as never, 'q', undefined, { allowTextPosts: true }));
+  assert.equal(postToObservation({ ...base, labels: [{ val: 'porn' }] } as never, 'q', undefined, { allowTextPosts: true }), undefined);
+  assert.equal(postToObservation({ ...base, record: { text: 'hi 🔞', createdAt: new Date().toISOString() } } as never, 'q', undefined, { allowTextPosts: true }), undefined);
 });
 
 test('Mastodon: tag → hashtag observation with sorted 7-day history', async () => {
@@ -88,10 +117,13 @@ test('YouTube: documented videos.list item → video observation (Shorts detecti
     id: 'abc123XYZ_0', snippet: { publishedAt: '2026-10-27T10:00:00Z', channelId: 'UC1', title: 'Test #shorts', description: 'd', channelTitle: 'Chan', categoryId: '23', thumbnails: { medium: { url: 'https://i.ytimg.com/vi/abc123XYZ_0/mqdefault.jpg' } } },
     statistics: { viewCount: '1234567', likeCount: '1000', commentCount: '10' }, contentDetails: { duration: 'PT45S' },
   };
-  const o = videoToObservation(v, 'US', 3, 'mostPopular US');
+  const o = videoToObservation(v, 'chart:US:all', 3, undefined, 'US');
   assert.equal(o.url, 'https://www.youtube.com/shorts/abc123XYZ_0');
   assert.equal(o.metrics.views, 1234567);
   assert.equal(o.creator?.name, 'Chan');
-  assert.match(o.text!, /Comedy/);
+  assert.equal(o.platformCategory, 'Comedy');
+  assert.equal(o.level, 'direct');
+  assert.equal(o.videoPublishedAt, '2026-10-27T10:00:00Z');
+  assert.equal(o.video?.durationSec, 45);
   assert.equal(isoDurationSeconds('PT1H2M3S'), 3723);
 });

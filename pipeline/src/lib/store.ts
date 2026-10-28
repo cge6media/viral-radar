@@ -58,6 +58,42 @@ async function listFiles(dir: string, sinceDays: number): Promise<string[]> {
 interface Tick { _t: 1; id: string; observedAt: string; metrics: Metrics }
 const isTick = (x: unknown): x is Tick => !!x && typeof x === 'object' && (x as Tick)._t === 1;
 
+/** v1 records (no `level`) are upgraded on load so timestamps and metrics follow the v2 rules. */
+export function migrate(o: Observation): Observation {
+  if (o.level) return o;
+  const x: Observation = { ...o };
+  const yt = /youtu\.?be/.test(o.url) ? (o.url.match(/(?:v=|shorts\/|youtu\.be\/)([A-Za-z0-9_-]{6,})/) || [])[1] : undefined;
+  if (o.kind === 'video' && o.source === 'youtube') {
+    x.level = 'direct';
+    x.videoPublishedAt = o.publishedAt;
+    x.video = { platform: 'youtube', id: o.key.replace(/^yt:/, ''), statsDirect: true };
+  } else if (o.kind === 'video' && yt) {
+    // v1 stored the share time as publishedAt and the post's engagement as the video's metrics — undo both
+    x.level = 'indirect';
+    x.postPublishedAt = o.publishedAt;
+    x.publishedAt = undefined;
+    x.postMetrics = { ...o.metrics, accounts: 1 };
+    x.metrics = {};
+    x.video = { platform: 'youtube', id: yt, statsDirect: false };
+    x.url = `https://www.youtube.com/watch?v=${yt}`;
+    if (o.creator && !/youtube\.com/.test(o.creator.url || '')) {
+      x.sharedBy = o.creator;
+      x.creator = undefined;
+    }
+    x.thumbnail = o.thumbnail || `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`;
+  } else if (o.kind === 'video') {
+    x.level = 'direct';
+    x.postPublishedAt = o.publishedAt;
+    x.videoPublishedAt = o.publishedAt;
+    x.video = { platform: 'bluesky', id: o.key.replace(/^bsky:/, ''), statsDirect: true };
+  } else {
+    x.level = 'indirect';
+    if (o.kind === 'post') x.postPublishedAt = o.publishedAt;
+    if (!x.publishedAt && o.kind !== 'post') x.publishedAt = o.observedAt;
+  }
+  return x;
+}
+
 /** Latest state per id, with firstSeenAt. */
 export async function loadObservations(sinceDays = RETENTION_DAYS): Promise<Observation[]> {
   const byId = new Map<string, Observation>();
@@ -73,7 +109,26 @@ export async function loadObservations(sinceDays = RETENTION_DAYS): Promise<Obse
       }
     }
   }
-  return Array.from(byId.values());
+  return Array.from(byId.values()).map(migrate);
+}
+
+/**
+ * Metric history for specific ids inside the retention window: every full record and tick, chronological.
+ * Used for video velocity (views gained per hour) and engagement momentum.
+ */
+export async function loadMetricHistory(ids: Iterable<string>, sinceDays = 8): Promise<Map<string, { t: string; metrics: Metrics }[]>> {
+  const want = new Set(ids);
+  const out = new Map<string, { t: string; metrics: Metrics }[]>();
+  if (!want.size) return out;
+  for (const file of await listFiles(obsDir(), sinceDays)) {
+    for (const rec of await readNdjson<Observation | Tick>(file)) {
+      if (!want.has(rec.id)) continue;
+      if (!out.has(rec.id)) out.set(rec.id, []);
+      out.get(rec.id)!.push({ t: rec.observedAt, metrics: rec.metrics });
+    }
+  }
+  for (const arr of out.values()) arr.sort((a, b) => a.t.localeCompare(b.t));
+  return out;
 }
 
 export function primaryMetric(m: Metrics): number | undefined {
@@ -120,14 +175,20 @@ export interface ScoreRecord {
   confidence: number;
   monetization: number;
   creator: number;
+  /** attention signal 0..1 (v1) / adoption 0..1 (v2) */
   signal: number;
   lifecycle: string;
   evidenceCount: number;
+  /** v2: independent creators in the 7-day window */
+  adoption?: number;
+  /** v2: direct videos in the 7-day window */
+  directVideos?: number;
+  grade?: string;
 }
-type CompactScore = { r: string; t: string; i: string; n: string; m: number; c: number; $: number; k: number; s: number; l: string; e: number };
-const compact = (x: ScoreRecord): CompactScore => ({ r: x.runId, t: x.t, i: x.trendId, n: x.name, m: x.momentum, c: x.confidence, $: x.monetization, k: x.creator, s: x.signal, l: x.lifecycle, e: x.evidenceCount });
+type CompactScore = { r: string; t: string; i: string; n: string; m: number; c: number; $: number; k: number; s: number; l: string; e: number; a?: number; d?: number; g?: string };
+const compact = (x: ScoreRecord): CompactScore => ({ r: x.runId, t: x.t, i: x.trendId, n: x.name, m: x.momentum, c: x.confidence, $: x.monetization, k: x.creator, s: x.signal, l: x.lifecycle, e: x.evidenceCount, a: x.adoption, d: x.directVideos, g: x.grade });
 const expand = (x: CompactScore | ScoreRecord): ScoreRecord =>
-  'runId' in x ? x : { runId: x.r, t: x.t, trendId: x.i, name: x.n, momentum: x.m, confidence: x.c, monetization: x.$, creator: x.k, signal: x.s, lifecycle: x.l, evidenceCount: x.e };
+  'runId' in x ? x : { runId: x.r, t: x.t, trendId: x.i, name: x.n, momentum: x.m, confidence: x.c, monetization: x.$, creator: x.k, signal: x.s, lifecycle: x.l, evidenceCount: x.e, adoption: x.a, directVideos: x.d, grade: x.g };
 
 export async function appendScores(records: ScoreRecord[]): Promise<void> {
   await ensureDirs();

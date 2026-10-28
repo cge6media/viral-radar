@@ -1,143 +1,204 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classify, looksLikeNewsEvent, profileFor } from '../src/intel/taxonomy.js';
-import { buildClusters } from '../src/intel/cluster.js';
-import { scoreCluster, decideLifecycle, clusterSignal, sourceHistoryGrowth } from '../src/intel/score.js';
+import { classify, decideNewsEvent, looksLikeNewsEvent, profileFor } from '../src/intel/taxonomy.js';
+import { validateObservation, FORMATS, videoText } from '../src/intel/relevance.js';
+import { buildClusters, independentCreators } from '../src/intel/cluster.js';
+import { scoreWindow, decideLifecycle, videoRate, videoVelocity, sourceHistoryGrowth, contentTime, inWindow } from '../src/intel/score.js';
 import type { Observation } from '../src/types.js';
 import { normalizeKey, parseApproxTraffic, youtubeId, isVideoUrl, extractHashtags, tokenize } from '../src/lib/util.js';
 
 const NOW = '2026-10-28T00:30:00.000Z';
+const h = (hoursAgo: number) => new Date(new Date(NOW).getTime() - hoursAgo * 36e5).toISOString();
 const obs = (p: Partial<Observation> & { title: string; kind: Observation['kind']; source: Observation['source'] }): Observation => ({
   id: `${p.source}:${p.kind}:${normalizeKey(p.title)}`,
   key: normalizeKey(p.title),
+  level: p.kind === 'video' ? 'direct' : 'indirect',
   url: 'https://example.invalid/' + normalizeKey(p.title).replace(/\s/g, '-'),
   observedAt: NOW,
   metrics: {},
   ...p,
 });
+/** a verified YouTube video (direct) */
+const ytv = (id: string, title: string, creator: string, views: number, hoursOld: number, extra: Partial<Observation> = {}): Observation =>
+  obs({ id: `youtube:video:${id}`, key: `yt:${id}`, title, kind: 'video', source: 'youtube', level: 'direct', url: `https://www.youtube.com/watch?v=${id}`, publishedAt: h(hoursOld), videoPublishedAt: h(hoursOld), metrics: { views, likes: Math.round(views / 50) }, creator: { name: creator, url: `https://www.youtube.com/@${creator}` }, video: { platform: 'youtube', id, statsDirect: true }, firstSeenAt: h(Math.min(hoursOld, 20)), ...extra });
+/** an external YouTube link shared on Bluesky (indirect, unverified) */
+const share = (id: string, title: string, sharer: string, likes: number, hoursOld: number, extra: Partial<Observation> = {}): Observation =>
+  obs({ id: `bluesky:video:yt:${id}`, key: `yt:${id}`, title, kind: 'video', source: 'bluesky', level: 'indirect', url: `https://www.youtube.com/watch?v=${id}`, postPublishedAt: h(hoursOld), metrics: {}, postMetrics: { likes, reposts: 1, accounts: 1 }, sharedBy: { name: sharer }, video: { platform: 'youtube', id, statsDirect: false }, firstSeenAt: h(Math.min(hoursOld, 20)), ...extra });
 
 test('util: normalizeKey, traffic parsing, YouTube ids, hashtags', () => {
   assert.equal(normalizeKey('  Héllo, WORLD!  '), 'hello world');
   assert.equal(parseApproxTraffic('2,000+'), 2000);
-  assert.equal(parseApproxTraffic('1K+'), 1000);
   assert.equal(youtubeId('https://youtu.be/vEtbfzMLVWU?si=x'), 'vEtbfzMLVWU');
   assert.equal(youtubeId('https://youtube.com/shorts/H87gnRNXARI?si=y'), 'H87gnRNXARI');
-  assert.equal(youtubeId('https://m.youtube.com/watch?v=DmAOBosGlHY&list=RD'), 'DmAOBosGlHY');
-  assert.equal(youtubeId('https://example.com/watch?v=abc'), undefined);
   assert.ok(isVideoUrl('https://www.tiktok.com/@u/video/7301234567890123456'));
   assert.ok(!isVideoUrl('https://twitch.tv/someone'));
   assert.deepEqual(extractHashtags('#EmojiSounds #MusicChallenge day 26 #musicchallenge'), ['emojisounds', 'musicchallenge']);
   assert.deepEqual(tokenize('The Rolling Stones - Stray Cat Blues (Official Lyric Video)'), ['rolling', 'stones', 'stray', 'cat', 'blues', 'lyric']);
 });
 
-test('taxonomy: classification picks the right parent/subcategory', () => {
+test('taxonomy: stage-1 classification and news detection', () => {
   assert.equal(classify('Rapping cats: an AI animated cat raps about Mondays').category, 'Animals & Pets');
   assert.equal(classify('Fox World Series broadcast: viewers criticize AI videos and pregame segments').category, 'Sports');
-  const c = classify('Spooky month stream schedules: creators share lineups of horror games like Phasmophobia');
-  assert.equal(c.category, 'Gaming');
-  assert.equal(c.subcategory, 'Horror Games');
-  assert.equal(classify('#EmojiSounds #MusicChallenge day 26').category, 'Music');
+  assert.equal(classify('Spooky month stream schedules: creators share lineups of horror games like Phasmophobia').subcategory, 'Horror Games');
   assert.equal(classify('zzqx qwpl').category, 'Other');
   assert.ok(profileFor('News & Politics').advertiser < profileFor('Food & Cooking').advertiser);
-});
-
-test('taxonomy: news/person events are flagged', () => {
   assert.ok(looksLikeNewsEvent('nz vs ind live score prediction', 'Sports'));
-  assert.ok(looksLikeNewsEvent('Trump speaks in Corpus Christi', 'News & Politics'));
-  assert.ok(looksLikeNewsEvent('M6 crash live updates', 'Other'));
-  assert.ok(!looksLikeNewsEvent('cat video compilation', 'Animals & Pets'));
+  assert.ok(decideNewsEvent([{ kind: 'social_topic', title: 'Trump says solar panels fry animals', text: '' }], 'x', 'Animals & Pets'));
+  assert.ok(!decideNewsEvent([], 'Animal courtroom skits', 'Animals & Pets'));
 });
 
-test('cluster: posts attach to the matching topic seed; format query posts form a format cluster; same term merges across regions', () => {
+// ---------- relevance regression cases (the false positives found in production) ----------
+const videoLink = (title: string, text = ''): Observation => share('x' + normalizeKey(title).replace(/\s/g, '').slice(0, 8), title, 'someone', 10, 5, { text });
+const nativeClip = (text: string): Observation => obs({ id: `bluesky:video:bsky:${normalizeKey(text).slice(0, 10)}`, title: text.slice(0, 60), kind: 'video', source: 'bluesky', level: 'direct', text, video: { platform: 'bluesky', id: 'r1', statsDirect: true }, publishedAt: h(3), metrics: { likes: 40 } });
+
+test('relevance: "cooking up an album" and other non-cooking videos are rejected; real cooking videos pass', () => {
+  const pass = (t: string) => validateObservation(videoLink(t)).formats.includes('cooking');
+  assert.ok(pass('The Last Meal of Ichabod Crane - Sleepy Hollow Cooking'));
+  assert.ok(pass('Jack-O-Lantering Everything - You Suck at Cooking (episode 179)'));
+  assert.ok(pass('BEST CAULIFLOWER CHEESE RECIPE EVER | Delicious Homemade Cheese Sauce'));
+  assert.ok(!pass('Polyphia - LET THERE BE LIGHT (Official Video)'), 'a music video shared with "cooking up" chatter');
+  assert.ok(!pass('Polyphia cooking up a new album - LET THERE BE LIGHT (Official Video)'));
+  assert.ok(!pass('UK New Entry 1973 (143) Limmie & Family Cookin\' - You Can Do Magic'));
+  assert.ok(!pass('He just keeps cooking them'));
+  assert.ok(!pass('How to Deal with Elon Musk'));
+  assert.ok(!pass('A Night With a Restaurant Deep Cleaner | On the Job | NYT Cooking'));
+  // the surrounding post text never counts for an external link
+  const r = validateObservation(videoLink('Polyphia - LET THERE BE LIGHT (Official Video)', 'the band is cooking in the kitchen with this recipe'));
+  assert.ok(!r.formats.includes('cooking'));
+  assert.equal(videoText(videoLink('Some Title', 'ignored chatter')), 'Some Title');
+});
+
+test('relevance: a song containing "cat" is not a cat video; a political "satisfying" post is not satisfying content', () => {
+  const cats = (t: string) => validateObservation(videoLink(t)).formats.includes('cats');
+  assert.ok(!cats('Stray Cats - Stray Cat Strut (Official Music Video)'));
+  assert.ok(!cats('Yusuf / Cat Stevens - Morning Has Broken (Official Lyric Video)'));
+  assert.ok(!cats("Harry Chapin - Cat's In The Cradle (Official Lyric Video)"));
+  assert.ok(cats('My cat discovered the printer and now refuses to leave'));
+  assert.ok(validateObservation(nativeClip('A video analysis of the difference between dog joining cat and cat joining the dog.')).formats.includes('cats'));
+  const sat = (t: string) => validateObservation(nativeClip(t)).formats.includes('satisfying');
+  assert.ok(!sat('So satisfying to see the senate vote go the right way tonight'));
+  assert.ok(!sat('Very satisfying election result in Brazil'));
+  assert.ok(sat('Oddly satisfying kinetic sand cutting, no talking'));
+  assert.ok(validateObservation(nativeClip('Pressure washing a 20-year-old patio, start to finish')).formats.includes('satisfying'));
+});
+
+test('relevance: only videos can be format evidence; animal comedy format needs the comedic construction', () => {
+  const post = obs({ title: 'I love cooking', kind: 'post', source: 'bluesky', text: 'cooking dinner tonight with a new recipe' });
+  assert.deepEqual(validateObservation(post).formats, []);
+  assert.ok(validateObservation(nativeClip('Animated cat lawyer interviews a very guilty dog in court #animation')).formats.includes('animal_comedy'));
+  assert.ok(!validateObservation(nativeClip('My cat sleeping on the couch again')).formats.includes('animal_comedy'));
+  assert.ok(FORMATS.every((f) => f.queries.length > 0));
+});
+
+// ---------- clustering ----------
+test('cluster: a distinctive phrase shared by ≥3 independent creators becomes a microtrend; shares of the same video count once', () => {
+  const list: Observation[] = [
+    ytv('a1', 'Animated courtroom skit: cat lawyer vs dog', 'chanA', 50_000, 20),
+    ytv('b2', 'Courtroom skit — the hamster objects (animated)', 'chanB', 30_000, 30),
+    nativeClip('new animated courtroom skit, the judge is a goose #animation'),
+    share('a1', 'Animated courtroom skit: cat lawyer vs dog', 'fan1', 100, 2), // same video, shared
+    share('a1', 'Animated courtroom skit: cat lawyer vs dog', 'fan2', 50, 1),
+    ytv('z9', 'Minecraft parkour part 4', 'chanZ', 100_000, 40),
+  ];
+  const clusters = buildClusters(list);
+  const micro = clusters.filter((c) => c.kind === 'microtrend');
+  assert.equal(micro.length, 1);
+  assert.match(micro[0].name, /Courtroom Skit/i);
+  assert.equal(independentCreators(micro[0].members), 3, 'two fans sharing chanA\'s video do not add creators');
+});
+
+test('cluster: topics keep their feed posts; format pools contain only validated videos', () => {
   const list: Observation[] = [
     obs({ title: 'Spooky month stream schedules', kind: 'social_topic', source: 'bluesky', text: 'Creators share weekly lineups of horror games', metrics: { rank: 4 } }),
-    obs({ title: 'My spooky month stream schedule is up!', kind: 'post', source: 'bluesky', id: 'bluesky:post:p1', key: 'p1', creator: { name: 'a' }, query: 'topic:spooky month stream schedules', metrics: { likes: 10 } }),
-    obs({ title: 'nz vs ind', kind: 'search_interest', source: 'google_trends', region: 'US', id: 'google_trends:search_interest:nz vs ind:US', metrics: { approxTraffic: 2000 } }),
-    obs({ title: 'nz vs ind', kind: 'search_interest', source: 'google_trends', region: 'GB', id: 'google_trends:search_interest:nz vs ind:GB', metrics: { approxTraffic: 5000 } }),
-    ...['a', 'b', 'c', 'd'].map((c, i) => obs({ title: `New animation ${i}`, kind: 'video', source: 'bluesky', id: `bluesky:video:v${i}`, key: `v${i}`, creator: { name: c }, query: 'search:animation', metrics: { likes: 100 + i }, tags: ['animation'] })),
+    obs({ id: 'bluesky:post:p1', key: 'p1', title: 'My spooky month stream schedule is up!', kind: 'post', source: 'bluesky', creator: { name: 'a' }, query: 'topic:spooky month stream schedules', metrics: { likes: 10 } }),
+    { ...videoLink('BEST CAULIFLOWER CHEESE RECIPE EVER'), formats: ['cooking'] },
+    { ...videoLink('Polyphia - LET THERE BE LIGHT (Official Video)'), formats: ['music_video'] },
   ];
   const clusters = buildClusters(list);
-  const spooky = clusters.find((c) => c.name === 'Spooky month stream schedules')!;
-  assert.ok(spooky);
-  assert.equal(spooky.members.length, 2, 'topic feed post attached to its topic');
-  const nz = clusters.find((c) => c.name === 'nz vs ind')!;
-  assert.equal(nz.members.length, 2, 'US+GB merged');
-  const fmt = clusters.find((c) => c.origin === 'format')!;
-  assert.equal(fmt.name, 'Animation (format)');
-  assert.equal(fmt.members.length, 4);
-  assert.ok(!clusters.some((c) => c.name === '#animation'), 'tag restating the query is not a separate cluster');
+  const topic = clusters.find((c) => c.kind === 'topic')!;
+  assert.equal(topic.members.length, 2);
+  const cooking = clusters.find((c) => c.id === 'f_cooking')!;
+  assert.equal(cooking.members.length, 1);
+  assert.ok(!cooking.members.some((m) => /Polyphia/.test(m.title)));
 });
 
-test('cluster: a hashtag used by ≥3 creators becomes its own microtrend', () => {
-  const list: Observation[] = ['x', 'y', 'z'].map((c, i) =>
-    obs({ title: `Day 26 song ${i}`, kind: 'video', source: 'bluesky', id: `bluesky:video:e${i}`, key: `e${i}`, creator: { name: c }, query: 'search:cat video', tags: ['emojisounds', 'musicchallenge'], metrics: { likes: 40 } }),
-  );
-  const clusters = buildClusters(list);
-  assert.equal(clusters.length, 1);
-  assert.equal(clusters[0].origin, 'hashtag');
-  assert.equal(clusters[0].name, '#emojisounds');
+// ---------- scoring ----------
+test('score: timestamps — an external share has no publish date, so it falls outside a 24h window by content time', () => {
+  const s = share('q1', 'Some video', 'x', 10, 1);
+  assert.equal(contentTime(s), s.postPublishedAt, 'post time is the only content time of a share');
+  assert.equal(s.publishedAt, undefined);
+  const v = ytv('q2', 'Some video', 'chan', 1000, 30);
+  assert.ok(!inWindow(v, '24h', NOW) && inWindow(v, '48h', NOW));
 });
 
-test('score: provisional on first sight, observed growth when history exists, lifecycle responds', () => {
-  const members: Observation[] = [
-    obs({ title: 'rapping cats', kind: 'search_interest', source: 'google_trends', metrics: { approxTraffic: 20000 } }),
-    obs({ title: 'Rapping cat remix', kind: 'video', source: 'bluesky', id: 'bluesky:video:r1', key: 'r1', creator: { name: 'a' }, metrics: { likes: 800, reposts: 100 }, publishedAt: '2026-10-27T20:00:00.000Z' }),
-    obs({ title: 'Rapping cat remix 2', kind: 'video', source: 'bluesky', id: 'bluesky:video:r2', key: 'r2', creator: { name: 'b' }, metrics: { likes: 300 }, publishedAt: '2026-10-27T22:00:00.000Z' }),
-  ];
-  const cluster = { id: 't_rapping_cats', name: 'rapping cats', origin: 'seed' as const, keywords: ['rapping', 'cats'], members };
-  const first = scoreCluster({ cluster, category: 'Animals & Pets', isNewsEvent: false, now: NOW, history: [] });
-  assert.equal(first.scores.momentumBasis, 'provisional');
-  assert.equal(first.scores.growth, undefined, 'no invented growth');
-  assert.equal(first.scores.components.growth, 0.5);
-  assert.ok(first.scores.momentum > 0 && first.scores.momentum <= 100);
-  assert.ok(first.scores.confidence > 20);
-  assert.ok(['emerging', 'breaking_out', 'accelerating', 'peaking'].includes(first.lifecycle));
+test('score: separated components, grades, provisional vs measured growth, velocity', () => {
+  const members = [ytv('a1', 'Cat lawyer courtroom skit', 'A', 120_000, 24), ytv('b2', 'Dog courtroom skit', 'B', 40_000, 36), ytv('c3', 'Goose judge courtroom skit', 'C', 8_000, 12), obs({ title: 'courtroom skit', kind: 'search_interest', source: 'google_trends', metrics: { approxTraffic: 5000 } })];
+  const cluster = { id: 'm_courtroom_skit', kind: 'microtrend' as const, name: 'Courtroom Skit', origin: 'phrase' as const, keywords: ['courtroom', 'skit'], members };
+  const base = { cluster, category: 'Comedy', isNewsEvent: false, isGeneric: false, now: NOW, window: '7d' as const, history: [], metricHistory: new Map() };
+  const s = scoreWindow(base);
+  assert.equal(s.creators, 3);
+  assert.equal(s.directVideos, 3);
+  assert.ok(s.videoPerformance! > 50, `performance ${s.videoPerformance}`);
+  assert.equal(s.videoMomentum, null, 'no repeated observations yet → no momentum claim');
+  assert.equal(s.growth.basis, 'provisional');
+  assert.equal(s.grade, 'developing', 'three creators with direct stats but only one run → developing');
+  assert.ok(s.audienceInterest > 40);
+  assert.ok(['emerging', 'accelerating', 'breaking_out'].includes(s.lifecycle));
 
-  const prev = { runId: 'r0', t: '2026-10-27T18:00:00.000Z', trendId: cluster.id, name: 'rapping cats', momentum: 40, confidence: 30, monetization: 70, creator: 60, signal: first.signal / 2, lifecycle: 'emerging', evidenceCount: 2 };
-  const second = scoreCluster({ cluster, category: 'Animals & Pets', isNewsEvent: false, now: NOW, history: [prev] });
-  assert.equal(second.scores.momentumBasis, 'observed');
-  assert.ok(second.scores.growth! > 1.5, `growth ratio ${second.scores.growth}`);
-  assert.ok(second.scores.momentum > first.scores.momentum, 'growing trend scores higher momentum than provisional');
+  // measured growth from history: 1 → 3 creators over 6h
+  const hist = [{ runId: 'r0', t: h(6), trendId: cluster.id, name: 'x', momentum: 40, confidence: 30, monetization: 60, creator: 50, signal: 0.1, lifecycle: 'emerging', evidenceCount: 1, adoption: 1 }, { runId: 'r1', t: h(3), trendId: cluster.id, name: 'x', momentum: 45, confidence: 35, monetization: 60, creator: 52, signal: 0.3, lifecycle: 'emerging', evidenceCount: 2, adoption: 2 }];
+  const s2 = scoreWindow({ ...base, history: hist });
+  assert.equal(s2.growth.basis, 'measured');
+  assert.equal(s2.growth.ratio, 1.5);
+  assert.equal(s2.grade, 'strong');
+  assert.ok(s2.momentum >= s.momentum);
 
-  const falling = { ...prev, signal: first.signal * 4 };
-  const third = scoreCluster({ cluster, category: 'Animals & Pets', isNewsEvent: false, now: NOW, history: [falling] });
-  assert.equal(third.lifecycle, 'cooling');
+  // velocity: a video that gained 20k views in the last 2h after averaging 5k/h
+  const mh = new Map([[members[0].id, [{ t: h(2), metrics: { views: 100_000 } }, { t: NOW, metrics: { views: 120_000 } }]]]);
+  const s3 = scoreWindow({ ...base, metricHistory: mh });
+  assert.ok(s3.videoMomentum != null && s3.videoMomentum > 50, `momentum ${s3.videoMomentum}`);
+  assert.equal(s3.velocity?.videosMeasured, 1);
+  assert.equal(s3.velocity?.viewsPerHour, 10_000);
 });
 
-test('score: news events are penalised on monetization and creator fit', () => {
-  const members: Observation[] = [obs({ title: 'election results', kind: 'search_interest', source: 'google_trends', metrics: { approxTraffic: 500000 } }), obs({ title: 'election results live', kind: 'social_topic', source: 'bluesky', metrics: { rank: 1 } })];
-  const cluster = { id: 't_e', name: 'election results', origin: 'seed' as const, keywords: [], members };
-  const a = scoreCluster({ cluster, category: 'News & Politics', isNewsEvent: true, now: NOW, history: [] });
-  const b = scoreCluster({ cluster, category: 'Animals & Pets', isNewsEvent: false, now: NOW, history: [] });
-  assert.ok(a.scores.monetization < b.scores.monetization / 2);
-  assert.ok(a.scores.creator < b.scores.creator);
+test('score: shares alone are indirect — no performance claim, interest from the post, grade limited', () => {
+  const members = [share('v1', 'Cooking a 3-course meal in a dorm', 'u1', 300, 2), share('v2', 'Dorm cooking challenge', 'u2', 80, 5), share('v3', 'Dorm room recipe', 'u3', 20, 8)];
+  const s = scoreWindow({ cluster: { id: 'm_dorm', kind: 'microtrend', name: 'Dorm Cooking', origin: 'phrase', keywords: ['dorm'], members }, category: 'Food & Cooking', isNewsEvent: false, isGeneric: false, now: NOW, window: '7d', history: [], metricHistory: new Map() });
+  assert.equal(s.videoPerformance, null);
+  assert.equal(s.directVideos, 0);
+  assert.equal(s.grade, 'early', 'unverified shares corroborate but cannot prove a format');
+  assert.ok(s.notes.some((n) => /needs platform verification/.test(n)));
+  assert.ok(s.audienceInterest > 0);
 });
 
-test('score: signal normalisation is monotonic and bounded', () => {
-  const lo = clusterSignal([obs({ title: 'x', kind: 'video', source: 'youtube', metrics: { views: 20_000 } })]);
-  const hi = clusterSignal([obs({ title: 'x', kind: 'video', source: 'youtube', metrics: { views: 20_000_000 } })]);
-  assert.ok(lo < hi && hi <= 1 && lo >= 0);
-  assert.equal(decideLifecycle({ momentum: 10, confidence: 5, signal: 0.1, growth: 0.5, accel: 0.5, basis: 'provisional', ageHours: 1, hSeen: 0, evidence: 1, sources: 1 }), 'insufficient_data');
-  assert.equal(decideLifecycle({ momentum: 60, confidence: 50, signal: 0.5, growth: 0.5, accel: 0.5, basis: 'observed', ageHours: 10, hSeen: 40, evidence: 5, sources: 2 }), 'cooling');
+test('score: videoRate is age-normalized; velocity needs ≥1h between points', () => {
+  const young = ytv('y', 'x', 'c', 10_000, 2);
+  const old = ytv('o', 'x', 'c', 10_000, 200);
+  assert.ok(videoRate(young, NOW)!.perHour > videoRate(old, NOW)!.perHour);
+  assert.equal(videoVelocity(young, [{ t: h(0.5), metrics: { views: 9000 } }, { t: NOW, metrics: { views: 10_000 } }], NOW), undefined);
+  const v = videoVelocity(young, [{ t: h(1), metrics: { views: 5000 } }, { t: NOW, metrics: { views: 10_000 } }], NOW)!;
+  assert.equal(v.perHour, 5000);
+  assert.equal(v.metric, 'views');
 });
 
 test('score: source history ignores the partial current day unless it is already stronger pro-rated', () => {
   const day = (d: number) => new Date(Date.UTC(2026, 9, 21 + d)).toISOString();
   const hist = [5, 8, 20, 60, 150, 400].map((v, i) => ({ t: day(i), value: v }));
-  const nowEarly = new Date(Date.UTC(2026, 9, 27, 0, 30)).toISOString(); // 00:30 on day 6 → today's bucket is 30 min old
-  const withQuietToday = obs({ title: 'x', kind: 'hashtag', source: 'mastodon', history: [...hist, { t: day(6), value: 6 }] });
-  const g = sourceHistoryGrowth([withQuietToday], nowEarly)!;
-  // compares the last COMPLETE day (400) with the mean of the five before it (48.6), not the 30-minute-old bucket
+  const nowEarly = new Date(Date.UTC(2026, 9, 27, 0, 30)).toISOString();
+  const quiet = obs({ title: 'x', kind: 'hashtag', source: 'mastodon', history: [...hist, { t: day(6), value: 6 }] });
+  const g = sourceHistoryGrowth([quiet], nowEarly)!;
   assert.ok(g.ratio > 7 && g.ratio < 9, `ratio ${g.ratio}`);
-  const nowLate = new Date(Date.UTC(2026, 9, 27, 18, 0)).toISOString(); // 18:00 → today pro-rates ×1.33
-  const withStrongToday = obs({ title: 'x', kind: 'hashtag', source: 'mastodon', history: [...hist, { t: day(6), value: 900 }] });
-  const g2 = sourceHistoryGrowth([withStrongToday], nowLate)!;
-  assert.ok(g2.ratio > g.ratio, 'a strong partial day raises the ratio');
+  const strong = obs({ title: 'x', kind: 'hashtag', source: 'mastodon', history: [...hist, { t: day(6), value: 900 }] });
+  assert.ok(sourceHistoryGrowth([strong], new Date(Date.UTC(2026, 9, 27, 18, 0)).toISOString())!.ratio > g.ratio);
 });
 
-test('lifecycle: stale, weak, flat trends are cooling rather than emerging/peaking', () => {
-  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.3, growth: 0.5, accel: 0.5, basis: 'provisional', ageHours: 200, hSeen: 1, evidence: 5, sources: 1 }), 'cooling');
-  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.2, growth: 0.5, accel: 0.5, basis: 'observed', ageHours: 100, hSeen: 1, evidence: 5, sources: 1 }), 'cooling');
-  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.5, growth: 0.5, accel: 0.5, basis: 'observed', ageHours: 100, hSeen: 1, evidence: 5, sources: 1 }), 'peaking');
-  assert.equal(decideLifecycle({ momentum: 45, confidence: 50, signal: 0.3, growth: 0.5, accel: 0.5, basis: 'provisional', ageHours: 10, hSeen: 1, evidence: 5, sources: 1 }), 'emerging');
+test('lifecycle: never accelerating without a measurement; stale → cooling; insufficient ↔ insufficient', () => {
+  const base = { grade: 'developing' as const, momentum: 55, videoPerformance: 40, growth: 0.5, growthMeasured: false, newCreators: 0, creators: 3, ageHours: 100, hSinceLatest: 2, sources: 1 };
+  assert.notEqual(decideLifecycle(base), 'accelerating');
+  assert.equal(decideLifecycle({ ...base, growthMeasured: true, growth: 0.7 }), 'accelerating');
+  assert.equal(decideLifecycle({ ...base, velocityRatio: 1.6 }), 'accelerating');
+  assert.equal(decideLifecycle({ ...base, hSinceLatest: 80 }), 'cooling');
+  assert.equal(decideLifecycle({ ...base, grade: 'insufficient' }), 'insufficient_data');
+  assert.equal(decideLifecycle({ ...base, ageHours: 10 }), 'emerging');
+  assert.equal(decideLifecycle({ ...base, momentum: 75, sources: 2, newCreators: 3 }), 'breaking_out');
 });

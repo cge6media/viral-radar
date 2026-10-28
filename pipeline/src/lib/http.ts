@@ -37,10 +37,12 @@ async function readFixture(url: string): Promise<string | undefined> {
       /* try next */
     }
   }
-  // Also allow named fixtures via a manifest: fixtures/manifest.json {url: file}
+  // Also allow named fixtures via a manifest: fixtures/manifest.json {url: file}; dynamic time params are ignored
   try {
     const manifest = JSON.parse(await readFile(path.join(FIXTURE_DIR, 'manifest.json'), 'utf8')) as Record<string, string>;
-    if (manifest[url]) return await readFile(path.join(FIXTURE_DIR, manifest[url]), 'utf8');
+    const strip = (u: string) => u.replace(/[?&](since|until|publishedAfter|t)=[^&]*/g, '').replace(/\?&/, '?');
+    const hit = manifest[url] || manifest[strip(url)] || Object.entries(manifest).find(([k]) => strip(k) === strip(url))?.[1];
+    if (hit) return await readFile(path.join(FIXTURE_DIR, hit), 'utf8');
   } catch {
     /* no manifest */
   }

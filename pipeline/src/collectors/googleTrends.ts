@@ -52,6 +52,7 @@ export function parseGoogleTrendsRss(xml: string, geo: string, observedAt = nowI
       id: `google_trends:search_interest:${key}:${geo}`,
       source: 'google_trends',
       kind: 'search_interest',
+      level: 'indirect',
       key,
       title,
       url: `https://trends.google.com/trending?geo=${encodeURIComponent(geo)}&q=${encodeURIComponent(title)}`,
@@ -74,16 +75,18 @@ function str(v: unknown): string {
   return String(v).trim();
 }
 
-export async function collectGoogleTrends(regions = GOOGLE_TRENDS_REGIONS): Promise<{ items: Observation[]; errors: string[] }> {
+export async function collectGoogleTrends(regions = GOOGLE_TRENDS_REGIONS): Promise<{ items: Observation[]; errors: string[]; subrequests: number }> {
   const items: Observation[] = [];
   const errors: string[] = [];
+  let subrequests = 0;
   for (const geo of regions) {
     try {
+      subrequests++;
       const xml = await fetchText(feedUrl(geo));
       items.push(...parseGoogleTrendsRss(xml, geo));
     } catch (e) {
       errors.push(`${geo}: ${(e as Error).message}`);
     }
   }
-  return { items, errors };
+  return { items, errors, subrequests };
 }
