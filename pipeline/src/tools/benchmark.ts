@@ -229,6 +229,16 @@ async function main() {
   const stamp = now.replace(/[-:]/g, '').slice(0, 13);
   await writeFile(path.join(dir, `${stamp}-${label}.json`), JSON.stringify(result, null, 1), 'utf8');
   await writeFile(path.join(dir, `${label}.md`), markdown(result), 'utf8');
+  // 4.0: a compact summary the dashboard's Radar health tab can show (copied into the site build)
+  const summary = {
+    generatedAt: now, set, label,
+    recall: { total: recall.eligible, discovered: recall.discovered, verified: recall.verified, qualified: recall.qualified, inFeed: recall.inFeed, discoveredRate: result.recall.discoveredRate },
+    precision: precisionReport, classification: { rate: classification.rate, comparable: classification.comparable }, playback: { rate: playback.rate, thumbRate: playback.thumbRate, checked: playback.checked },
+    negativesLeaked: negatives.reduce((a, n) => a + n.leaked, 0), negativesChecked: negatives.reduce((a, n) => a + n.count, 0),
+    misses: eligible.filter((p) => !p.discovered).slice(0, 40).map((p) => ({ id: p.id, title: p.title, views: p.views, ageHours: p.ageHours, reason: p.outcome })),
+    outcomes, missReasons,
+  };
+  await writeFile(path.join(dir, 'latest.json'), JSON.stringify(summary, null, 1), 'utf8');
   console.log(markdown(result));
 }
 

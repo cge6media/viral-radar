@@ -88,3 +88,30 @@ Bluesky today, most waves are single-platform — that is reported, not papered 
 | Google Trends / Mastodon | indirect | search spikes, hashtag series | corroboration only |
 
 The diagnostics page (Settings → Source coverage / Discovery funnel) shows these numbers live every run.
+
+## 5. Adaptive discovery allocation (4.0)
+
+3.0 spent the same two `search.list` calls per run on a fixed 58-slot rotation regardless of what each probe had
+been returning. 4.0 (`pipeline/src/collectors/discovery.ts`) makes the allocation measurable and adaptive:
+
+1. **Reserve rule.** A run may spend `round((budget − spent) ÷ runs still expected today)` searches, clamped to
+   1–4, where the expected run count comes from the measured cadence today (runs ÷ hours elapsed, floored at one
+   run per hour). The Pacific quota day is never exhausted early, and runs that GitHub dropped are made up by the
+   runs that follow.
+2. **Yield ledger** (`data/cache/youtube-yield.json`, summarised in `data/diagnostics/discovery-yield.json`): per
+   probe, searches, returned ids, **new ids** (never seen in the 30-day store), **new candidates** (≥10K views),
+   **new eligible** (≥500K views and ≤30 days — the benchmark's own eligibility), new fresh (≤24 h), and an
+   exponentially weighted new-eligible-per-search (α = 0.3). Daily totals keep 30 days of history.
+3. **Bandit choice.** Probes outside their cooldown (fresh 1.5–3 h, windows 8–24 h, day slices 20 h, categories
+   and regions 12 h, keywords 24–48 h) are ranked by an upper-confidence score (EWMA yield + optimism for rarely-run
+   probes, prior 3 eligible/search); 25 % of picks instead **explore** the least-run probe. A probe whose first page
+   returned ≥8 new eligible videos earns a second page in the same run.
+4. **Pool.** The 3.0 families plus global and Spanish-language 7-day probes, 26 regions, 13 categories, global
+   day slices, live topic/trend terms and a rotating slice of format queries — a format we have never named can
+   still surface through the query-less probes.
+5. **Zero-search exploitation.** The newest uploads of channels that just produced a featured hit or breakout are
+   fetched through `playlistItems.list` (1 unit each, ≤30 channels per run, each channel at most every 6 h): a hot
+   creator's next video is seen in its first hours. First run: 125 new videos from 30 channels, 6 of them already
+   ≥500K views.
+
+Everything the scheduler decided (pick, how, yield) is visible under Diagnostics → Radar health.

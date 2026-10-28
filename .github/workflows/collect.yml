@@ -158,9 +158,10 @@ jobs:
         run: npm run build -w web
       - name: Copy data into the build
         run: |
-          mkdir -p web/dist/data/predictions web/dist/data/diagnostics
+          mkdir -p web/dist/data/predictions web/dist/data/diagnostics web/dist/data/benchmark
           cp data/latest.json data/videos.json web/dist/data/
           cp data/health.json web/dist/data/ 2>/dev/null || true
+          cp data/benchmark/latest.json web/dist/data/benchmark/ 2>/dev/null || true
           cp data/predictions/scorecard.json web/dist/data/predictions/ 2>/dev/null || true
           cp data/diagnostics/discovery-yield.json web/dist/data/diagnostics/ 2>/dev/null || true
           ls -la web/dist/data

@@ -157,3 +157,69 @@ promising wave = ≥3 independent creators, ≥2 new in 48h, no measured decline
 established = ≥6 creators, flat; crowded = ≥30 creators with weak video performance; declining = cooling or
 measured <0.8×. Growth baselines only come from earlier runs with the **same active-source signature**, so turning a
 source on never reads as growth.
+
+# 4.0 — age-aware hits, breakout kinds, opportunity types, predictions
+
+## Established vs early vs delayed (per video)
+
+The 3.0 hit rule (5M views, or 1M with ≥50K/h) ignored age, so a 17-day-old 4.6M-view video ranked as an "early"
+breakout. 4.0 uses an **age-appropriate hit floor** (`hitFloorViews` in `pipeline/src/intel/videos.ts`): 1M views
+inside the first 24 h, 2M by 72 h, 3M by 7 days, 5M by 30 days, log-linear in between. Every verified video is
+then one of:
+
+| kind | rule | shown as |
+|---|---|---|
+| **established** | views ≥ floor(age), or ≥1M with a ≥50K/h rate | Viral Now (`verified_hit`) |
+| **early** | below the floor, age ≤ 7 d, and a measured abnormal rate (≥10K/h with ≥50K views, or ≥3K/h accelerating ≥1.5× with ≥20K views), or a very young video with an exceptional average (provisional), or a creator outlier (≥20× the channel's median upload, ≤14 d) — all subject to the creator's normal range | Early Radar, "Early breakout" |
+| **delayed** | age > 7 d, measured ≥5K/h and ≥3× the lifetime average (≥5× past 30 days), ≥100K views | Early Radar, "Resurfacing" — never ranked as a new upload |
+
+Lifetime average, measured interval rate and acceleration stay separate fields; acceleration is only claimed when
+both intervals gained ≥1,000 views (≥20 likes) so counting noise cannot produce a ratio. A single observation is
+labelled provisional. `confidenceBand` (high ≥70, medium ≥45, low) is a descriptive band from the number of
+observations, measured velocity, baseline availability and share corroboration — it is not a probability.
+
+Shorts are labelled by the strongest evidence available: `verified` (youtube.com/shorts/<id> answers 200 — a HEAD
+check with a self-test on long videos, cached in `data/cache/youtube-shorts.json`), `url` (a /shorts/ link was
+shared), `duration` (≤180 s only → "short-form candidate" in the UI), `not_short` (the Shorts URL redirects to
+/watch), or `none`.
+
+Language is detected from the title and description (script, then stop-word voting; the uploader's declared
+language wins when present). It is a filter for the owner's use (English / Spanish / other Latin-script / non-Latin)
+and never a ranking factor.
+
+## Opportunity types (per cluster)
+
+`pipeline/src/intel/formats.ts` classifies every microtrend/format cluster from observable facts only — titles,
+descriptions, statistics — never from imagined visuals:
+
+- **event** — news/person event, a calendar moment, one video holding ≥75 % of the cluster's views, ≤2 creators,
+  or news/sports/esports/release content (trailer, leak, episode, match, award).
+- **meme** — ≥3 independent creators on one *specific* phrase/moment (name present in ≥40 % of titles, top video
+  <60 % of views) with new creators in 48 h or a spread ≤7 days.
+- **format** — a relevance-validated format with ≥4 creators, or a microtrend with ≥4 independent creators, top
+  video ≤60 % of views, examples spread ≥48 h, and either a shared title signature (≥2 words used by ≥3 creators
+  with the name in ≥50 % of titles) or ≥2 creators who repeat it.
+- **uncertain** — broad/descriptor tags (#aianimation, #digitalart, #humor), title fragments ("from season 5",
+  "siapa yang"), description boilerplate ("join discord": the phrase appears in <40 % of the titles), live-stream
+  clusters, or too few examples.
+
+`TrendFeatures` records the basis: creators, videos, dominance, repeat creators, spread, new creators, platforms,
+short-form share, median duration, languages, title hooks (question, POV, when, versus, numbered, series,
+challenge, reaction, transformation, storytime, tutorial, sensory, payoff, animated, AI, character, music,
+escalation…), the shared signature words and the name shape.
+
+## Creator Desk ranking
+
+`pipeline/src/intel/desk.ts` turns formats and memes (and calendar events as "participate") into opportunities:
+`score = 0.4·evidence + 0.3·timing + 0.3·fit`. *Evidence* = confidence, independent creators, direct statistics,
+type confidence. *Timing* = emerging 80 · accelerating 90 · established 55–60 · resurfacing 65 · peaking 40 ·
+cooling 15 (from the 7-day lifecycle and measured growth). *Fit* = category fit for AI/animation/characters/music
+production (0.35) + tool fit from the observed hooks (0.25) + language fit en/es (0.2) + type fit (0.2). Actions:
+`create_today` (format/meme, ≥4 creators, timing not peaking/cooling, evidence ≥55, fit ≥55 or an evergreen format
+with fit ≥65, and an example ≥100K views), `participate` (calendar events with fit ≥50; crowded peaks),
+`research` (strong evidence, moderate fit), `monitor` (<4 creators, early grade, small numbers), `skip` (cooling,
+single events). At most two opportunities per category, eight in total; when fewer qualify, fewer are shown.
+
+## Prediction scorecard
+
+See `docs/PREDICTIONS.md`.

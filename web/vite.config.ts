@@ -14,7 +14,7 @@ export default defineConfig({
       closeBundle() {
         const outDir = path.resolve(__dirname, 'dist/data');
         // the same list as .github/workflows/collect.yml "Copy data" (which refreshes a cached build without rebuilding)
-        for (const name of ['latest.json', 'videos.json', 'predictions/scorecard.json', 'diagnostics/discovery-yield.json', 'health.json']) {
+        for (const name of ['latest.json', 'videos.json', 'predictions/scorecard.json', 'diagnostics/discovery-yield.json', 'health.json', 'benchmark/latest.json']) {
           const src = path.resolve(__dirname, '../data', name);
           if (existsSync(src)) {
             mkdirSync(path.dirname(path.join(outDir, name)), { recursive: true });
