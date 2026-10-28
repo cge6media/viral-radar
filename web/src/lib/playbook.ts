@@ -51,9 +51,20 @@ const HOOK_TEXT: Record<string, string> = {
   escalation: 'escalates level by level',
 };
 
+/** the thing the videos are about, phrased so it reads naturally inside a sentence */
+const POOL_SUBJECT: Record<string, string> = {
+  cooking: 'a 60-second recipe', cats: 'a cat video', dogs: 'a dog video', animal_comedy: 'a dubbed-animal skit', animation: 'an animated short', short_film: 'a micro short film', ai_video: 'an AI-generated short',
+  comedy_skit: 'a comedy skit', satisfying: 'a satisfying / ASMR clip', timelapse: 'a process timelapse', storytime: 'a told story', cover_song: 'a cover performance', music_video: 'a music video', gaming_clip: 'a gaming moment',
+  puppets: 'a puppet / character bit', street_interview: 'a street interview', explainer: 'a 45-second explainer',
+};
+const SIG_SKIP = new Set(['version', 'official', 'explained', 'video', 'videos', 'shorts', 'short', 'full', 'new', 'best', 'cover', 'song', 'live', 'part', 'episode']);
 function subject(o: DeskOpportunity): string {
-  const sig = o.features.signature.filter((w) => w.length > 2).slice(0, 3);
-  return sig.length ? sig.join(' ') : o.name.toLowerCase();
+  const pool = POOL_SUBJECT[o.trendId.replace(/^f_/, '')];
+  const latin = (w: string) => /^[a-z0-9'’-]+$/i.test(w);
+  const sig = o.features.signature.filter((w) => w.length > 2 && latin(w) && !SIG_SKIP.has(w.toLowerCase()) && !o.name.toLowerCase().includes(w.toLowerCase())).slice(0, 2);
+  if (pool) return sig.length ? `${pool} (${sig.join(' / ')})` : pool;
+  const name = o.name.replace(/^#/, '').toLowerCase();
+  return sig.length ? `${name} (${sig.join(' / ')})` : name;
 }
 
 function durationLine(o: DeskOpportunity): string {
@@ -124,7 +135,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
   briefs.push({
     variation: 'Character-led',
     variationWhy: 'An original recurring character makes a borrowed format yours and compounds across videos.',
-    title: `A recurring original character does “${subj}”`,
+    title: `An original recurring character takes on ${subj}`,
     concept: `An original ${animated ? 'animated' : 'AI-generated'} character with one strong trait (overconfident, deadpan, tiny-but-furious) is dropped into the ${o.type === 'format' ? 'format' : 'moment'} the examples share (${subj}). The trait, not the format, produces the joke or payoff.`,
     hook: `First frame: the character mid-action with the ${hookStyle ? HOOK_TEXT[hookStyle] : 'situation'} stated in on-screen text in ≤ 6 words — e.g. “${cap(subj)}, but ${['pov', 'when'].includes(hookStyle || '') ? 'it is me' : 'something is wrong'}”.`,
     structure: [
@@ -146,7 +157,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     briefs.push({
       variation: 'Escalating series',
       variationWhy: `The examples use ${hooks.includes('series') ? 'episodic "part N" titles' : hooks.includes('escalation') ? 'level-by-level escalation' : 'challenge/number framing'} — a built-in reason to return.`,
-      title: `“${cap(subj)}” — levels 1 to 5`,
+      title: `${cap(subj)}, levels 1 to 5`,
       concept: `One video = one ladder. The same ${subj} situation is attempted at five escalating levels (easy → absurd); each level is a 4–6 s scene; the fifth breaks the rules of the format itself.`,
       hook: 'Text in the first frame: “Level 1” over the simplest version; viewers stay to see how far it goes.',
       structure: [
@@ -166,7 +177,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     briefs.push({
       variation: 'Reversal',
       variationWhy: `The examples promise ${hooks.includes('payoff') ? 'a payoff' : hooks.includes('transformation') ? 'a transformation' : 'an expected outcome'} — subverting it is the cheapest originality.`,
-      title: `“${cap(subj)}” — but the ending is the opposite`,
+      title: `${cap(subj)} — with the opposite ending`,
       concept: `Set up the exact expectation the examples create (${subj}), then land the opposite outcome in the last two seconds; the reversal is the joke/payoff and makes the video quotable.`,
       hook: 'First frame copies the format\'s familiar setup so the audience recognises it instantly (text: “you know how this goes…”).',
       structure: [
@@ -189,7 +200,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     briefs.push({
       variation: 'Original track',
       variationWhy: 'Music-led examples: an original song or parody adds streaming revenue and Content ID on re-uses.',
-      title: `A 30-second original song about “${subj}”`,
+      title: `A 30-second original song for ${subj}`,
       concept: `Write a hook-first original song (8 bars, one earworm line) about ${subj}; the video is the character performing it with one visual gag per bar.`,
       hook: 'The chorus line in the first second, sung, with the lyric on screen.',
       structure: [{ beat: 'Chorus (0–6 s)', what: 'The earworm line, straight in.' }, { beat: 'Verse (6–18 s)', what: 'Three specific details from the format, one per bar.' }, { beat: 'Chorus 2 + twist (18–28 s)', what: 'Same line, one word changed.' }, { beat: 'Tag (last 2 s)', what: 'Spoken button; loop to the chorus.' }],
@@ -204,7 +215,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     briefs.push({
       variation: 'Explainer as a skit',
       variationWhy: 'The examples teach or explain — a character explaining it badly, then well, keeps the information and adds comedy.',
-      title: `“${cap(subj)}” explained by someone who should not be explaining it`,
+      title: `${cap(subj)}, explained by someone who should not be explaining it`,
       concept: `An unqualified original character confidently explains ${subj} wrong; a second character (or on-screen text) corrects it in one line; the correct version is the payoff.`,
       hook: 'The wrong explanation starts mid-sentence in the first frame.',
       structure: [{ beat: 'Wrong (0–8 s)', what: 'Confident, specific, wrong.' }, { beat: 'Doubt (8–12 s)', what: 'One visual cue the audience notices first.' }, { beat: 'Correct (12–25 s)', what: 'The real explanation, fast, with one diagram.' }, { beat: 'Button', what: 'The wrong character takes credit.' }],
@@ -219,7 +230,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
     briefs.push({
       variation: 'Cross-genre mashup',
       variationWhy: 'Transplanting the mechanism into an unexpected setting is original by construction and cheap to produce with generated scenes.',
-      title: `“${cap(subj)}” — in the wrong world`,
+      title: `${cap(subj)} — in the wrong world`,
       concept: `Keep the exact mechanism the examples share (${subj}) and move it to a setting where it should not exist (a medieval court, a space station, a nature documentary, a corporate meeting); the mismatch generates the beats.`,
       hook: 'The setting is visible in the first frame; the familiar mechanism starts anyway.',
       structure: [{ beat: 'Setting (0–2 s)', what: 'One establishing shot that says where we are.' }, { beat: 'Mechanism (2–10 s)', what: 'The format plays exactly as the examples do.' }, { beat: 'Collision (10–20 s)', what: 'The setting pushes back; two beats.' }, { beat: 'Payoff', what: 'The mechanism wins in the setting\'s own terms.' }],
