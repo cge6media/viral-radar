@@ -1,11 +1,11 @@
 {
- "generatedAt": "2026-10-28T02:28:28.568Z",
- "runId": "202610280228_d6ae99796cf8",
+ "generatedAt": "2026-10-28T02:50:02.085Z",
+ "runId": "202610280249_e09430e53101",
  "quality": {
   "relevance": {
-   "sampled": 117,
-   "relevant": 116,
-   "rate": 0.991
+   "sampled": 118,
+   "relevant": 117,
+   "rate": 0.992
   },
   "duplicates": 0,
   "wrongDates": 0,
@@ -15,7 +15,7 @@
    {
     "name": "format evidence passes relevance validation",
     "ok": true,
-    "detail": "116/117 (99%)"
+    "detail": "117/118 (99%)"
    },
    {
     "name": "no duplicate videos within a trend",
@@ -55,7 +55,7 @@
    {
     "name": "at least one qualified opportunity",
     "ok": true,
-    "detail": "9 qualified of 197"
+    "detail": "9 qualified of 223"
    },
    {
     "name": "no news/person events in recommendations",
@@ -79,7 +79,7 @@
    "source": "google_trends",
    "label": "Google Trends — trending searches",
    "status": "live",
-   "lastSuccess": "2026-10-28T02:28:18.683Z",
+   "lastSuccess": "2026-10-28T02:49:54.081Z",
    "items": 40,
    "uniqueVideos": 0,
    "directVideos": 0,
@@ -100,11 +100,11 @@
    "source": "bluesky",
    "label": "Bluesky — topics, feeds, video discovery",
    "status": "live",
-   "lastSuccess": "2026-10-28T02:28:24.290Z",
-   "items": 568,
-   "uniqueVideos": 321,
-   "directVideos": 197,
-   "relevantItems": 255,
+   "lastSuccess": "2026-10-28T02:49:58.095Z",
+   "items": 570,
+   "uniqueVideos": 327,
+   "directVideos": 200,
+   "relevantItems": 257,
    "metrics": [
     "likes",
     "reposts",
@@ -112,7 +112,7 @@
     "native video",
     "external video links"
    ],
-   "medianAgeHours": 5.2,
+   "medianAgeHours": 4.7,
    "historyDays": 1,
    "errorRate": 0,
    "weight": 0.7,
@@ -124,7 +124,7 @@
    "source": "mastodon",
    "label": "Mastodon — trending hashtags (7-day history)",
    "status": "live",
-   "lastSuccess": "2026-10-28T02:28:18.044Z",
+   "lastSuccess": "2026-10-28T02:49:53.963Z",
    "items": 20,
    "uniqueVideos": 0,
    "directVideos": 0,
@@ -188,19 +188,10 @@
  ],
  "qualified": [
   {
-   "id": "t_spooky_month_stream_schedules",
-   "name": "Spooky month stream schedules",
-   "kind": "topic",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_digitalart",
    "name": "#digitalart",
    "kind": "microtrend",
-   "grade": "developing",
+   "grade": "strong",
    "creators": 5,
    "videos": 5,
    "direct": 4
@@ -209,16 +200,25 @@
    "id": "m_vtuber",
    "name": "#vtuber",
    "kind": "microtrend",
-   "grade": "developing",
+   "grade": "strong",
    "creators": 4,
    "videos": 11,
    "direct": 6
   },
   {
+   "id": "t_spooky_month_stream_schedules",
+   "name": "Spooky month stream schedules",
+   "kind": "topic",
+   "grade": "early",
+   "creators": 2,
+   "videos": 2,
+   "direct": 2
+  },
+  {
    "id": "m_musicchallenge",
    "name": "#musicchallenge",
    "kind": "microtrend",
-   "grade": "developing",
+   "grade": "early",
    "creators": 28,
    "videos": 30,
    "direct": 0
