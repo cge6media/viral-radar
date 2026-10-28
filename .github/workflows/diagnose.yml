@@ -49,7 +49,8 @@ jobs:
         run: |
           git config user.name "viral-radar-bot"
           git config user.email "viral-radar-bot@users.noreply.github.com"
-          git add data/diagnostics data/benchmark 2>/dev/null || true
+          mkdir -p data/diagnostics data/benchmark
+          git add data/diagnostics data/benchmark
           if git diff --cached --quiet; then echo "No diagnostic changes."; else
             git commit -m "diagnostics: $(date -u +'%Y-%m-%dT%H:%MZ')"
             for i in 1 2 3; do git push && break || (git pull --rebase && sleep 5); done
