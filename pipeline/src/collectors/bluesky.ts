@@ -78,10 +78,16 @@ function videoFromEmbed(embed?: Record<string, unknown>): { url: string; thumb?:
   return undefined;
 }
 
+/** Search results (sort=top) include old evergreen posts; a trend radar only wants recent ones. */
+export const MAX_POST_AGE_DAYS = Number(process.env.VR_BSKY_MAX_AGE_DAYS || 14);
+
 export function postToObservation(p: BskyPost, query: string, observedAt = nowIso()): Observation | undefined {
   if (!isSafe(p)) return undefined;
+  const created = p.record?.createdAt ? new Date(p.record.createdAt).getTime() : NaN;
+  if (!isNaN(created) && Date.now() - created > MAX_POST_AGE_DAYS * 864e5) return undefined;
   const text = p.record?.text || '';
   const vid = videoFromEmbed(p.embed);
+  if (!vid && !text.trim()) return undefined; // image-only / empty posts carry no usable evidence
   const webUrl = postWebUrl(p);
   const title = (vid?.title || text.split('\n')[0] || '').slice(0, 140) || '(untitled post)';
   const yt = vid && !vid.native ? youtubeId(vid.url) : undefined;

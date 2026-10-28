@@ -138,11 +138,13 @@ export function buildClusters(observations: Observation[]): Cluster[] {
   const rest1 = unassigned.filter((o) => !taken.has(o.id));
   const byBigram = new Map<string, Observation[]>();
   for (const o of rest1) {
+    if (o.title.startsWith('(')) continue; // placeholder titles
     const toks = tokenize(o.title);
     const seen = new Set<string>();
     for (let i = 0; i < toks.length - 1; i++) {
       const bg = `${toks[i]} ${toks[i + 1]}`;
       if (seen.has(bg)) continue;
+      if (queryTokens.has(toks[i]) && queryTokens.has(toks[i + 1])) continue; // restates a creator-format query
       seen.add(bg);
       if (!byBigram.has(bg)) byBigram.set(bg, []);
       byBigram.get(bg)!.push(o);

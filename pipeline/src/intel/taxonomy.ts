@@ -253,7 +253,22 @@ export function looksLikeNewsEvent(text: string, category: string): boolean {
   if (category === 'News & Politics') return true;
   const t = text.toLowerCase();
   if (/\b(vs\.?|v)\b.*\b(live|score|prediction|odds|t20|match)\b/.test(t)) return true;
-  if (/\b(crash|arrested|charged|dies|died|death|obituary|lawsuit|verdict|shooting|earthquake|hurricane|wildfire|traffic|weather|météo|clima|времето)\b/.test(t)) return true;
+  if (/\b(crash|arrested|charged|dies|died|death|obituary|lawsuit|sues|sued|verdict|indicted|shooting|earthquake|hurricane|wildfire|traffic|weather|météo|clima|времето)\b/.test(t)) return true;
   if (/\b(rankings?|box office|poll|runoff|election|rally|senate|sell out|sells out|stockpile|contract|retirement)\b/.test(t)) return true;
+  // named political figures / institutions make a topic a news story regardless of its subject matter
+  if (/\b(trump|biden|harris|obama|vance|netanyahu|bolsonaro|lula|putin|zelensky|zelenskyy|xi jinping|modi|starmer|macron|white house|congress|parliament|supreme court|governor|mayor)\b/.test(t)) return true;
   return false;
+}
+
+/**
+ * Decide whether a cluster is a news/person event. Looks at the topic itself (seed titles + descriptions, or the
+ * cluster name) — never at every attached post, so one political reply cannot flag a whole format cluster.
+ * A Google-Trends search spike whose term names no content category is treated as a person/event.
+ */
+export function decideNewsEvent(members: { kind: string; title: string; text?: string }[], clusterName: string, category: string): boolean {
+  const seedLike = members.filter((m) => m.kind === 'search_interest' || m.kind === 'social_topic' || m.kind === 'hashtag');
+  const topicText = seedLike.length ? seedLike.map((m) => `${m.title} ${m.text || ''}`).join(' ') : clusterName;
+  const searchSeeded = seedLike.length > 0 && seedLike.every((m) => m.kind === 'search_interest');
+  const titleCls = classify(seedLike.map((m) => m.title).join(' ') || clusterName);
+  return looksLikeNewsEvent(topicText, category) || (searchSeeded && titleCls.category === 'Other');
 }

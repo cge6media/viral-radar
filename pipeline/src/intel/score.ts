@@ -91,9 +91,11 @@ export function scoreCluster(input: ScoreInput): { scores: ScoreBreakdown; lifec
 
   // --- recency: how fresh is the latest evidence (24h half-life on observed; 48h on published) ---
   const lastSeen = members.map((m) => m.observedAt).sort().pop() || now;
-  const latestPublished = members.map((m) => m.publishedAt).filter(Boolean).sort().pop();
+  const published = members.map((m) => m.publishedAt).filter((x): x is string => !!x).sort();
+  // with ≥5 dated items use the median publish time so one fresh post cannot carry a pile of stale ones
+  const refPublished = published.length >= 5 ? published[Math.floor(published.length / 2)] : published[published.length - 1];
   const hSeen = hoursBetween(lastSeen, now);
-  const hPub = latestPublished ? hoursBetween(latestPublished, now) : 48;
+  const hPub = refPublished ? hoursBetween(refPublished, now) : 48;
   const recency = clamp(0.6 * Math.pow(0.5, hSeen / 24) + 0.4 * Math.pow(0.5, hPub / 48), 0, 1);
   components.recency = round(recency, 3);
 
@@ -191,7 +193,7 @@ export function scoreCluster(input: ScoreInput): { scores: ScoreBreakdown; lifec
   creator = clamp(creator);
 
   // --- lifecycle ---
-  const firstSeen = members.map((m) => m.observedAt).sort()[0] || now;
+  const firstSeen = members.map((m) => m.firstSeenAt || m.observedAt).sort()[0] || now;
   const firstPublished = members.map((m) => m.publishedAt).filter(Boolean).sort()[0];
   const ageHours = Math.max(hoursBetween(firstSeen, now), firstPublished ? Math.min(hoursBetween(firstPublished, now), 24 * 14) : 0);
   const lifecycle = decideLifecycle({ momentum, confidence, signal, growth, accel, basis: momentumBasis, ageHours, hSeen, evidence: members.length, sources: sources.size });
@@ -228,10 +230,9 @@ export function decideLifecycle(x: {
     if (x.ageHours <= 48) return 'emerging';
     return 'peaking';
   }
-  // provisional
+  // provisional (first measurement): never claim acceleration without a second data point
   if (x.momentum >= 70 && x.sources >= 2) return 'breaking_out';
-  if (x.ageHours <= 48 && x.momentum >= 40) return 'emerging';
+  if (x.ageHours <= 72) return 'emerging';
   if (x.signal >= 0.65) return 'peaking';
-  if (x.momentum >= 50) return 'accelerating';
   return 'emerging';
 }

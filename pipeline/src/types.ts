@@ -46,8 +46,10 @@ export interface Observation {
   key: string;
   title: string;
   url: string;
-  /** when the collector saw it (ISO) */
+  /** when the collector saw it (ISO) — latest sighting */
   observedAt: string;
+  /** first sighting across history (set by the store loader) */
+  firstSeenAt?: string;
   /** when the item was published / started trending, if the source tells us */
   publishedAt?: string;
   metrics: Metrics;

@@ -10,7 +10,7 @@ import { collectMastodon } from './collectors/mastodon.js';
 import { collectYouTube, enrichYouTubeLinks } from './collectors/youtube.js';
 import { collectTikTok } from './collectors/tiktok.js';
 import { buildClusters } from './intel/cluster.js';
-import { classify, looksLikeNewsEvent } from './intel/taxonomy.js';
+import { classify, decideNewsEvent } from './intel/taxonomy.js';
 import { observationLevel, scoreCluster } from './intel/score.js';
 import {
   appendObservations, appendScores, loadObservations, loadScores, loadSourceCache, pruneHistory,
@@ -88,12 +88,12 @@ export async function main(): Promise<Snapshot> {
   const existing = await loadObservations();
   const written = await appendObservations(fresh, existing);
   const all = dedupeLatest([...existing, ...fresh]);
-  console.log(`  observations: +${written} new, ${all.length} unique in window (${existing.length} loaded from history)`);
+  console.log(`  observations: +${written.full} new, ${written.ticks} ticks, ${all.length} unique in window (${existing.length} loaded from history)`);
 
   // ---- 3. cluster + classify + score ----
   const now = nowIso();
   // only cluster evidence from the last 7 days; older observations still feed history/growth
-  const recent = all.filter((o) => hoursBetween(o.observedAt, now) <= 24 * 7);
+  const recent = all.filter((o) => hoursBetween(o.observedAt, now) <= 24 * 7 && !(o.kind === 'post' && !(o.text || '').trim()));
   const clusters = buildClusters(recent);
   const scoreHistory = await loadScores();
   const byTrend = new Map<string, ScoreRecord[]>();
@@ -105,16 +105,11 @@ export async function main(): Promise<Snapshot> {
   const trends: Trend[] = [];
   const records: ScoreRecord[] = [];
   for (const c of clusters) {
-    const text = c.members.map((m) => `${m.title} ${m.text || ''}`).join(' \n ');
+    // a format cluster is named after the creator-format query that produced it — let that name lead classification
+    const text = (c.origin === 'format' ? `${c.name} `.repeat(4) : '') + c.members.map((m) => `${m.title} ${m.text || ''}`).join(' \n ');
     const tags = c.members.flatMap((m) => m.tags || []);
     const cls = classify(text, tags);
-    // Search-interest-only clusters (Google Trends spikes) are topics/events, not repeatable formats,
-    // unless the search term itself names a content category (e.g. "cricket", "halloween costumes").
-    const searchOnly = c.members.every((m) => m.kind === 'search_interest');
-    const titleCls = classify(c.members.map((m) => m.title).join(' '));
-    const isNewsEvent =
-      looksLikeNewsEvent(c.members.map((m) => m.title + ' ' + (m.text || '')).join(' '), cls.category) ||
-      (searchOnly && titleCls.category === 'Other');
+    const isNewsEvent = decideNewsEvent(c.members, c.name, cls.category);
     const hist = byTrend.get(c.id) || [];
     const { scores, lifecycle, signal } = scoreCluster({ cluster: c, category: cls.category, isNewsEvent, now, history: hist });
     const platforms = Array.from(new Set(c.members.map((m) => m.source)));
@@ -132,7 +127,7 @@ export async function main(): Promise<Snapshot> {
       lifecycle,
       platforms,
       evidenceKinds: Array.from(new Set(c.members.map((m) => m.kind))),
-      firstSeen: c.members.map((m) => m.observedAt).sort()[0],
+      firstSeen: c.members.map((m) => m.firstSeenAt || m.observedAt).sort()[0],
       lastSeen: c.members.map((m) => m.observedAt).sort().pop()!,
       evidenceCount: c.members.length,
       sourceCount: platforms.length,
@@ -183,7 +178,8 @@ function dedupeLatest(obs: Observation[]): Observation[] {
   const m = new Map<string, Observation>();
   for (const o of obs) {
     const prev = m.get(o.id);
-    if (!prev || prev.observedAt < o.observedAt) m.set(o.id, o);
+    if (!prev) m.set(o.id, o);
+    else if (prev.observedAt < o.observedAt) m.set(o.id, { ...o, firstSeenAt: prev.firstSeenAt || prev.observedAt });
   }
   return Array.from(m.values());
 }
