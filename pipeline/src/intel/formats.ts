@@ -32,7 +32,7 @@ export const DESCRIPTOR = new Set([...DESCRIPTOR_WORDS,
   'lucu', 'ngakak', 'kocak', 'komedi', 'comedia', 'cómico', 'comico', 'gracioso', 'risa', 'risas', 'chistes', 'humor', 'curiosidades', 'curiosidad', 'historia', 'historias', 'hechos', 'datos', 'fakta', 'faktaunik', 'unik', 'cerita', 'kisah', 'emotional', 'emotionalstory', 'emosional', 'kahani', 'kahaniya', 'kahaniyan', 'drama', 'cine', 'película', 'pelicula', 'peliculas', 'musica', 'música', 'canción', 'cancion', 'canciones', 'baile', 'animación', 'animacion', 'dibujos', 'juego', 'juegos', 'videojuegos', 'reacción', 'reaccion', 'receta', 'recetas', 'cocina', 'mascotas', 'perro', 'perros', 'gato', 'gatos', 'bebé', 'bebe', 'niños', 'ninos', 'infantil', 'deportes', 'fútbol', 'futbol', 'noticias', 'viralvideo', 'viralvideos', 'shortsvideo', 'trendingshorts', 'funnyvideo', 'funnyvideos', 'comedyvideo', 'funnyshorts', 'statusvideo', 'whatsappstatus', 'おもしろ', 'ショート', 'ショート動画', '映画紹介', 'ゲーム実況', 'あるある', 'アニメ', 'ゲーム', '面白い', '搞笑', '短剧', '短视频', '게임', '웃긴', '개그', '영화', '드라마', '쇼츠', '유머', 'мем', 'юмор', 'приколы', 'смешно']);
 /** can the tag be split entirely into descriptor words? (#aianimation → ai + animation) */
 export function isDescriptorTag(tag: string): boolean {
-  const raw = tag.replace(/^#/, '').toLowerCase().trim();
+  const raw = tag.normalize('NFC').replace(/^#/, '').toLowerCase().trim();
   if (DESCRIPTOR.has(raw)) return true;
   const t = raw.replace(/[^a-z0-9]/g, '');
   if (!t) return false;
@@ -48,7 +48,7 @@ export function isDescriptorTag(tag: string): boolean {
   };
   return t.length <= 24 && can(0);
 }
-export const SPORTS_NEWS_RE = /\bballon d'?or\b|\bbal[oó]n de oro\b|\bgoal\b|\bgol\b|\bgoles\b|\bpartido\b|\bchampions\b|\bmundial\b|\bcopa\b|\bderby\b|\bcl[aá]sico\b|\bnba\b|\bnfl\b|\bmlb\b|\bufc\b|\bwwe\b|\bf1\b|\btransfer\b|\bsigns?\b|\bcontract\b|\btrade[ds]?\b|\binjur(y|ed)\b|\bbreaking\b|\bexplosion\b|\battack\b|\bkilled\b|\bdies\b|\bdead\b|\barrested\b|\bpolice\b|\bcourt\b|\bmissile\b|\bearthquake\b|\bcrash\b|\bprotest\b|\bscandal\b|\blawsuit\b|\belection\b|\bresigns?\b|\bfired\b|\bsuspended\b|\bceremony\b|\baward\b|\bwinner\b|\bganador\b|\bworlds\b|\bplayoffs?\b|\bfinals?\b|\bstrikes?\b|\bdrones?\b|\bbombing\b|\bblast\b|\btroops\b|\barmy\b|\bmilitary\b|\bwar\b|\bsanctions\b|\bceasefire\b|\bhostages?\b|\binvasion\b|\bshooting\b|\bverdict\b|\bindicted\b/i;
+export const SPORTS_NEWS_RE = /논란|사건|속보|뉴스|리콜|사고|체포|경찰|결함|ニュース|速報|事故|逮捕|炎上|\bnoticias?\b|\bpol[eé]mica\b|\bescándalo\b|\bdetenid[oa]\b|\bballon d'?or\b|\bbal[oó]n de oro\b|\bgoal\b|\bgol\b|\bgoles\b|\bpartido\b|\bchampions\b|\bmundial\b|\bcopa\b|\bderby\b|\bcl[aá]sico\b|\bnba\b|\bnfl\b|\bmlb\b|\bufc\b|\bwwe\b|\bf1\b|\btransfer\b|\bsigns?\b|\bcontract\b|\btrade[ds]?\b|\binjur(y|ed)\b|\bbreaking\b|\bexplosion\b|\battack\b|\bkilled\b|\bdies\b|\bdead\b|\barrested\b|\bpolice\b|\bcourt\b|\bmissile\b|\bearthquake\b|\bcrash\b|\bprotest\b|\bscandal\b|\blawsuit\b|\belection\b|\bresigns?\b|\bfired\b|\bsuspended\b|\bceremony\b|\baward\b|\bwinner\b|\bganador\b|\bworlds\b|\bplayoffs?\b|\bfinals?\b|\bstrikes?\b|\bdrones?\b|\bbombing\b|\bblast\b|\btroops\b|\barmy\b|\bmilitary\b|\bwar\b|\bsanctions\b|\bceasefire\b|\bhostages?\b|\binvasion\b|\bshooting\b|\bverdict\b|\bindicted\b/i;
 export const LIVE_RE = /\blive\b|live ?stream|\ben vivo\b|\bao vivo\b|🔴|\bstreaming\b|\bpremiere\b/i;
 /** broadcasters, news desks and sports rights-holders: their uploads are coverage, never a creator format */
 export const NEWS_CHANNEL_RE = /\bnews\b|\bnoticias\b|\bnotícias\b|\bbroadcast|\bKBS\b|\bMBC\b|\bSBS\b|\bJTBC\b|\bMTN\b|\bYTN\b|\bNDTV\b|\bAaj ?Tak\b|\bABP\b|\bZee\b|\bTimes Now\b|\bIndia Today\b|\bRepublic\b|\bCNN\b|\bBBC\b|\bNBC\b|\bCBS\b|\bABC\b|\bFox\b|\bSky Sports\b|\bDAZN\b|\bESPN\b|\bbeIN\b|\bTNT Sports\b|\bHotstar\b|\bJioCinema\b|\bSony ?LIV\b|\bSonyLIV\b|\bColors\b|\bStar Sports\b|\bTelemundo\b|\bUnivision\b|\bTV Azteca\b|\bGlobo\b|\bRTVE\b|\bFrance 24\b|\bDW\b|\bAl Jazeera\b|\bReuters\b|\bAP Archive\b|\bPTI\b|\bANI\b|\bNHK\b|\bNippon TV\b|\bTBS\b|\bFuji\b/i;
@@ -84,7 +84,8 @@ export const HOOKS: [string, RegExp][] = [
 /** title-template words in languages without a stop-word list here: "X하면 생기는 일" (what happens when X), "〜した結果", "yang terjadi" */
 const TEMPLATE_TOKENS = new Set(['생기는', '일', '하면', '때', '이유', '방법', '결과', '순간', '모음', '반응', '레전드', '근황', '정리', '있을까요', '될까', '하는', '것', '수', 'あるある', 'とき', '結果', '方法', '理由', '瞬間', 'まとめ', '反応', 'した', 'する', 'yang', 'terjadi', 'ketika', 'saat', 'cara', 'alasan', 'kenapa', 'begini', 'begitu']);
 export function nameShape(name: string, origin?: string): TrendFeatures['nameShape'] {
-  const raw = name.trim();
+  // cluster names come out of NFKD keys (Hangul decomposed into jamo); compare them in composed form
+  const raw = name.trim().normalize('NFC');
   if (CALENDAR.test(raw)) return 'calendar';
   if (/^#?\d[\d.,]*$/.test(raw)) return 'fragment'; // "#2026", "100": a number is not a format
   if (/^#/.test(raw)) return 'hashtag';
@@ -190,7 +191,7 @@ export function classifyOpportunity(t: Trend, f: TrendFeatures): OpportunityClas
   const titles = t.evidence.filter((e) => e.kind === 'video').map((e) => e.title);
   const releaseShare = titles.length ? titles.filter((x) => RELEASE_RE.test(x)).length / titles.length : 0;
   const newsShare = titles.length ? titles.filter((x) => SPORTS_NEWS_RE.test(x)).length / titles.length : 0;
-  const newsy = f.platformCategory === 'Sports' || f.platformCategory === 'News & Politics' || t.category === 'Sports' || t.category === 'News & Politics' || newsShare >= 0.4 || (f.newsChannelShare ?? 0) >= 0.4 || (f.platformCategory === 'Gaming' && releaseShare >= 0.3);
+  const newsy = f.platformCategory === 'Sports' || f.platformCategory === 'News & Politics' || t.category === 'Sports' || t.category === 'News & Politics' || newsShare >= 0.4 || (f.newsChannelShare ?? 0) >= 0.3 || (f.platformCategory === 'Gaming' && releaseShare >= 0.3);
   // a structure must be visible beyond the cluster's own name: at least one shared title word that is not the name
   const nameWords = new Set(tokenize(t.name.replace(/^#/, '')));
   const nameFlat = t.name.replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');

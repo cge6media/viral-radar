@@ -367,7 +367,7 @@ function nextCheckFor(action: DeskAction, t: Trend, f: TrendFeatures, timing: De
 /** 4.0.1: structures visible inside a pool — a word or pair of words shared by ≥3 independent creators' titles */
 export function subFormatsOf(t: Trend, examples: Ev[], max = 3): SubFormat[] {
   const nameToks = new Set(tokenize(t.name.replace(/^#/, '')));
-  const bad = (tok: string) => tok.length < 3 || STOPWORDS.has(tok) || isAnyStopword(tok) || nameToks.has(tok) || isBroadTopicTag(tok) || /^\d+$/.test(tok) || GENERIC_SUB.has(tok) || DESCRIPTOR.has(tok) || SIG_STOP.has(tok) || GENERIC_NAME.has(tok) || isDescriptorTag(tok);
+  const bad = (t0: string) => { const tok = t0.normalize('NFC'); return tok.length < 3 || STOPWORDS.has(tok) || isAnyStopword(tok) || nameToks.has(t0) || isBroadTopicTag(tok) || /^\d+$/.test(tok) || GENERIC_SUB.has(tok) || DESCRIPTOR.has(tok) || SIG_STOP.has(tok) || GENERIC_NAME.has(tok) || isDescriptorTag(tok); };
   const byKey = new Map<string, { creators: Set<string>; ids: Set<string>; views: number }>();
   for (const x of examples) {
     const toks = tokenize(x.r.title || x.e.title).filter((tok) => !bad(tok));
@@ -392,7 +392,7 @@ export function subFormatsOf(t: Trend, examples: Ev[], max = 3): SubFormat[] {
     }
     out.push({ label, creators: new Set(v.creators), ids: new Set(v.ids), views: v.views });
   }
-  return out.sort((a, b) => b.creators.size - a.creators.size || b.views - a.views).slice(0, max).map((o) => ({ label: o.label, creators: o.creators.size, videos: o.ids.size, exampleIds: Array.from(o.ids).slice(0, 8), topViews: o.views || undefined }));
+  return out.sort((a, b) => b.creators.size - a.creators.size || b.views - a.views).slice(0, max).map((o) => ({ label: o.label.normalize('NFC'), creators: o.creators.size, videos: o.ids.size, exampleIds: Array.from(o.ids).slice(0, 8), topViews: o.views || undefined }));
 }
 /** sub-format labels that are calendar tags belong to the calendar item, not to a pool */
 const CAL_LABEL = /halloween|diwali|navratri|dussehra|durga|christmas|xmas|thanksgiving|karwa|chauth|eid|ramadan|easter|holi|valentine|newyear|new year|puja/i;
@@ -482,6 +482,7 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
   // whether or not a pool is a specific opportunity (broad pools are category activity, not one opportunity)
   const LANE = ['ai_video', 'animation', 'animal_comedy', 'puppets', 'comedy_skit', 'short_film', 'music_video', 'cover_song', 'explainer', 'storytime'];
   const lane: LaneEntry[] = [];
+  const subCandidates: { t: Trend; sf: SubFormat; exs: Ev[]; ids: Set<string> }[] = [];
   const obsById = new Map<string, Observation>();
   for (const t of trends) for (const e of t.evidence) if (e.kind === 'video') obsById.set(e.id, e);
   for (const id of LANE) {
@@ -507,8 +508,9 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
         : t.windows['7d'].creators > 80 ? `${t.windows['7d'].creators} creators this week — category-level activity, too broad to be one opportunity${subFormats.length ? '; the sub-formats below are the thing to study' : '; use the signature and the examples'}`
           : clean.length < 3 ? `fewer than 3 clean verified examples this week (${clean.length} clean, ${context.length} smaller)` : skipReason.has(t.id) ? `not on the desk: ${skipReason.get(t.id)}` : 'did not clear the desk gate';
     lane.push({ trendId: t.id, name: t.name, creators: creators.size, videos: all.length, qualified: clean.filter((x) => isQualified(x.r)).length, newCreators48h: new48.size, topViews: ev[0]?.views, signature: t.opportunity?.features.signature.slice(0, 5) || [], evidence: ev, note, subFormats: subFormats.length ? subFormats : undefined });
-    // 4.0.1: a sub-format with real adoption (≥4 independent creators, at least one qualified example, short-form) becomes a
-    // "research" item on the desk — a structure found in titles, not a validated cluster, so never "create today"
+    // 4.0.1/4.0.2: a sub-format with real adoption (≥4 independent creators, at least one qualified example, short-form) is
+    // collected here; after all pools are read the candidates are ranked (creators, then qualified hits) and deduplicated
+    // across pools, so the richer "mbappe / haaland" in the comedy pool wins over the thinner "mbappe" in the animation pool
     if (!onDesk && t.opportunity) {
       for (const sf of subFormats) {
         if (sf.creators < 4) continue;
@@ -516,6 +518,17 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
         const exs = all.filter((x) => ids.has(x.e.id));
         if (!exs.some((x) => isQualified(x.r))) continue;
         if (calendarCountdown(sf.label, now) || CAL_LABEL.test(sf.label) || out.some((o) => o.name.toLowerCase() === sf.label.toLowerCase())) continue;
+        subCandidates.push({ t, sf, exs, ids });
+      }
+    }
+  }
+  subCandidates.sort((a, b) => b.sf.creators - a.sf.creators || b.exs.filter((x) => isQualified(x.r)).length - a.exs.filter((x) => isQualified(x.r)).length);
+  for (const { t, sf, exs, ids } of subCandidates) {
+    {
+      {
+        if (!t.opportunity) continue;
+        // the same structure surfacing from two pools (football parodies in "Comedy skits" and in "Animation shorts") is one item
+        if (out.some((o) => { const have = new Set(o.evidence.map((e) => e.id)); let inter = 0; for (const id of ids) if (have.has(id)) inter++; return inter >= 2 || inter / Math.max(1, Math.min(have.size, ids.size)) >= 0.5; })) continue;
         const fSub = cleanFeatures(t.opportunity.features, exs, t);
         fSub.signature = [sf.label, ...t.opportunity.features.signature.filter((w) => w !== sf.label)].slice(0, 5);
         if (!isShortForm(fSub)) continue;
