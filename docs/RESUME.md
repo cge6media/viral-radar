@@ -9,7 +9,7 @@ computer. A new cloud session should:
 git clone https://github.com/<owner>/viral-radar
 cd viral-radar
 npm install
-npm test                    # expect 29/29
+npm test                    # expect 34/34
 npm run collect:fixtures    # offline smoke run → data/latest.json
 npm run build               # web/dist
 ```

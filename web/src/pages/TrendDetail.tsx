@@ -69,7 +69,7 @@ export default function TrendDetail({ id }: { id: string }) {
         </div>
       </article>
 
-      <Section title="Actual video examples" sub={videos.length ? `${videos.length} relevant example${videos.length === 1 ? '' : 's'} in this window — ${w.directVideos} with platform statistics. Opens the original.` : 'No video examples inside this window.'}>
+      <Section title="Actual video examples" sub={videos.length ? `${w.videos} relevant video${w.videos === 1 ? '' : 's'} in this window — ${w.directVideos} with platform statistics${videos.length < w.videos ? `; showing ${videos.length} (one per creator first)` : ''}. Opens the original.` : 'No video examples inside this window.'}>
         {videos.length ? (
           <>
             <div className="egrid">{shown.map((e) => <EvidenceCard key={e.id} e={e} now={app.now} />)}</div>

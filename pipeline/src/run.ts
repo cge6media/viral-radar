@@ -119,7 +119,8 @@ export async function main(): Promise<Snapshot> {
   // ---- 4. persist + dedupe ----
   const written = await appendObservations(fresh, existing);
   const all = dedupeLatest([...existing, ...fresh]);
-  for (const o of all) if (!o.formats) o.formats = validateObservation(o).formats;
+  // re-validate every observation with the current rules — stored formats are a cache from the rules of the day they were first seen
+  for (const o of all) o.formats = validateObservation(o).formats;
   console.log(`  observations: +${written.full} new, ${written.ticks} ticks, ${all.length} unique in window (${existing.length} loaded from history)`);
 
   // ---- 5. cluster ----
@@ -147,7 +148,7 @@ export async function main(): Promise<Snapshot> {
     const evidence = pickEvidence(c, now);
     const platforms = Array.from(new Set(c.members.map((m) => m.source)));
     const videosAll = uniqByExample(c.members.filter((m) => m.kind === 'video'));
-    const series = [...hist.map((h) => ({ t: h.t, momentum: h.momentum, adoption: h.adoption ?? 0, signal: h.signal })), { t: now, momentum: s7.momentum, adoption: s7.creators, signal: s7.adoption / 100 }].sort((a, b) => a.t.localeCompare(b.t));
+    const series = [...hist.filter((h) => h.adoption != null).map((h) => ({ t: h.t, momentum: h.momentum, adoption: h.adoption!, signal: h.signal })), { t: now, momentum: s7.momentum, adoption: s7.creators, signal: s7.adoption / 100 }].sort((a, b) => a.t.localeCompare(b.t));
     // qualification: evidence grade ≥ early, not news; generic formats only with a measured shift in attention
     const genericShift = s7.growth.basis === 'measured' && (s7.growth.ratio ?? 0) >= 1.5;
     const qualified = s7.grade !== 'insufficient' && !isNewsEvent && (!isGeneric || genericShift) && c.kind !== 'topic' ? true : c.kind === 'topic' && s7.videos >= 2 && s7.grade !== 'insufficient' && !isNewsEvent;
@@ -164,7 +165,7 @@ export async function main(): Promise<Snapshot> {
       summary: summarize(c, s7, windows['24h'], cls.category, isNewsEvent, isGeneric, now),
     };
     trends.push(trend);
-    records.push({ runId, t: now, trendId: c.id, name: c.name, momentum: s7.momentum, confidence: s7.confidence, monetization: trend.monetizationSuitability, creator: s7.creatorOpportunity, signal: s7.adoption / 100, lifecycle: s7.lifecycle, evidenceCount: s7.items, adoption: s7.creators, directVideos: s7.directVideos, grade: s7.grade });
+    records.push({ runId, t: now, trendId: c.id, name: c.name, momentum: s7.momentum, confidence: s7.confidence, monetization: trend.monetizationSuitability, creator: s7.creatorOpportunity, signal: s7.adoption / 100, lifecycle: s7.lifecycle, evidenceCount: s7.items, adoption: s7.creators, creators24: windows['24h'].creators, creators48: windows['48h'].creators, directVideos: s7.directVideos, grade: s7.grade });
   }
   trends.sort((a, b) => Number(b.qualified) - Number(a.qualified) || b.scores.opportunity - a.scores.opportunity || b.scores.momentum - a.scores.momentum);
   await appendScores(records);
@@ -221,7 +222,16 @@ function pickEvidence(c: Cluster, now: string): Observation[] {
       firstPass.push(v);
     }
   }
-  return [...firstPass, ...rest, ...signals].slice(0, 10).map(slim);
+  // up to 10 by strength (one per creator first), then make sure the newest examples are represented so the
+  // 24h/48h views are not empty just because the strongest videos are older; signals fill the remaining slots
+  const picked = [...firstPass, ...rest].slice(0, 10);
+  const have = new Set(picked.map((v) => v.id));
+  const newest = videos.filter((v) => !have.has(v.id)).sort((a, b) => (contentTime(b) || '').localeCompare(contentTime(a) || ''));
+  for (const v of newest) {
+    if (picked.length >= 16) break;
+    if (hoursBetween(contentTime(v) || v.observedAt, now) <= 48) picked.push(v);
+  }
+  return [...picked, ...signals.slice(0, 4)].slice(0, 20).map(slim);
 }
 
 function slim(o: Observation): Observation {
@@ -234,7 +244,7 @@ function summarize(c: Cluster, s7: WindowScores, s24: WindowScores, category: st
   if (c.kind === 'microtrend') parts.push(`${s7.creators} independent creator${s7.creators === 1 ? '' : 's'} posted ${s7.videos} video${s7.videos === 1 ? '' : 's'} around “${name}” in the last 7 days${s24.videos ? ` (${s24.videos} in the last 24h)` : ''}.`);
   else if (c.kind === 'format') parts.push(`${s7.videos} relevance-checked ${name.toLowerCase()} video${s7.videos === 1 ? '' : 's'} from ${s7.creators} creator${s7.creators === 1 ? '' : 's'} in the last 7 days${s24.videos ? `, ${s24.videos} in the last 24h` : ''}.${generic ? ' An evergreen category — only a measured shift makes it a trend.' : ''}`);
   else parts.push(`Audience-interest topic (${c.members.find((m) => m.kind !== 'video' && m.kind !== 'post')?.kind?.replace('_', ' ') || 'signal'})${s7.videos ? ` with ${s7.videos} related video${s7.videos === 1 ? '' : 's'}` : ' with no video examples yet'}.`);
-  if (s7.directVideos) parts.push(`${s7.directVideos} of them carry platform statistics${s7.components.topPerHour ? `; the strongest is gaining ~${Math.round(s7.components.topPerHour)}/hour` : ''}.`);
+  if (s7.directVideos) parts.push(`${s7.directVideos} of them carry platform statistics${(s7.components.topPerHour ?? 0) >= 1 ? `; the strongest averages ~${Math.round(s7.components.topPerHour)} ${s7.components.topIsViews ? 'views' : 'engagements'}/hour since publish` : ''}.`);
   if (s7.growth.basis === 'measured') parts.push(`Measured ${s7.growth.metric}: ${s7.growth.ratio}× over ${s7.growth.windowHours}h.`);
   else parts.push('Growth not yet measured.');
   if (news) parts.push('Flagged as a news/person event, not a repeatable format.');
@@ -259,7 +269,7 @@ function categoryActivity(recent: Observation[], trends: Trend[], now: string): 
     const q = trends.filter((t) => t.qualified && t.category === category);
     out.push({
       category, videos7d: vs.length, videos24h: v24, creators7d: independentCreators(vs), level: round(levels[Math.floor(levels.length / 2)] || 0, 3),
-      change24h: v24 + prev24 >= 4 ? round((v24 + 1) / (prev24 + 1), 2) : null, qualifiedTrends: q.length, topTrendId: q[0]?.id,
+      change24h: v24 + prev24 >= 4 && prev24 >= 2 ? round(v24 / prev24, 2) : null, qualifiedTrends: q.length, topTrendId: q[0]?.id,
     });
   }
   return out.sort((a, b) => b.videos24h - a.videos24h || b.videos7d - a.videos7d);

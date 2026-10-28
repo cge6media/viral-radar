@@ -63,7 +63,7 @@ read & write* for this repo, stored only in your browser). Without a token the b
 npm install
 npm run collect:fixtures   # offline run against captured real responses → data/latest.json
 npm run collect            # live run (needs internet; YOUTUBE_API_KEY optional)
-npm test                   # 29 tests: parsers on real fixtures, dedup/history, clustering, scoring, calculator
+npm test                   # 34 tests: parsers on real fixtures, dedup/history, clustering, scoring, calculator
 npm run build              # web/dist (static)
 npx tsx pipeline/src/gate.ts  # release gate on data/latest.json
 npm run dev                # local dev server for the dashboard

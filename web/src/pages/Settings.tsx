@@ -48,7 +48,6 @@ export default function Settings() {
               {([['early', 'Early — catch trends before they peak'], ['balanced', 'Balanced'], ['proven', 'Proven — breaking out / peaking only']] as const).map(([id, label]) => <button key={id} className={`chip${prefs.appetite === id ? ' on' : ''}`} onClick={() => update({ appetite: id })}>{label}</button>)}
             </div>
             <div className="hr" />
-            <label className="row small" style={{ gap: 10 }}><input type="checkbox" checked={prefs.hideNews} onChange={(e) => update({ hideNews: e.target.checked })} /> Hide news / person events from rankings</label>
             <label className="row small" style={{ gap: 10, marginTop: 8 }}><input type="checkbox" checked={prefs.showGeneric} onChange={(e) => update({ showGeneric: e.target.checked })} /> Let evergreen categories (cooking, cat videos…) count as opportunities without measured growth</label>
           </div>
         </div>
@@ -89,7 +88,7 @@ export default function Settings() {
         <div className="card">
           <h3 style={{ marginBottom: 8 }}>How Viral Radar scores a trend</h3>
           <ul className="explain">
-            <li><b>Evidence grade</b> — Strong: ≥3 verified creators, ≥3 directly measured videos, ≥3 collection runs. Developing: ≥3 verified creators and examples. Early: at least one video with some corroboration. Insufficient: anything less — never recommended.</li>
+            <li><b>Evidence grade</b> — Strong: ≥3 verified creators, ≥3 directly measured videos, seen across ≥3 collection runs spanning ≥6 hours. Developing: ≥3 verified creators and examples. Early: at least one video with some corroboration. Insufficient: anything less — never recommended.</li>
             <li><b>Video performance</b> — views (or engagement) per hour since the video's own publish time, on videos measured at their platform. Not available for unverified shares.</li>
             <li><b>Video momentum</b> — the same videos re-measured across runs: current views/hour vs. lifetime average. Needs ≥2 observations ≥1h apart.</li>
             <li><b>Category adoption</b> — independent creators (channels/authors; a video shared by many accounts counts once) with examples inside the window, plus creators new in the last 48h.</li>

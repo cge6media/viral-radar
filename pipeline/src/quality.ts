@@ -35,7 +35,8 @@ export function runQualityChecks(input: { trends: Trend[]; observations: Observa
   // 3. publication dates: no external share may carry the share time as the video's publish time; no future dates
   let wrongDates = 0;
   for (const o of observations) {
-    if (o.kind === 'video' && o.level === 'indirect' && o.publishedAt && !o.verifiedAt && o.publishedAt === o.postPublishedAt) wrongDates++;
+    // an unverified external video has no trustworthy publish date at all — any value there came from the share
+    if (o.kind === 'video' && o.level === 'indirect' && o.publishedAt && !o.videoPublishedAt) wrongDates++;
     for (const t of [o.publishedAt, o.videoPublishedAt, o.postPublishedAt]) if (t && new Date(t).getTime() > nowMs + 3600e3) wrongDates++;
   }
   checks.push({ name: 'publication dates are not share dates and not in the future', ok: wrongDates === 0, detail: `${wrongDates} suspect timestamps` });

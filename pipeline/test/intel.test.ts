@@ -228,3 +228,76 @@ test('relevance: second-round regression cases from the live audit', () => {
   assert.ok(!f(link('Terry Gilliam - Storytime (1968)')).includes('storytime'));
   assert.ok(f(nativeClip('SCARY STORYTIME: the night my car died in the woods')).includes('storytime'));
 });
+
+// ---------- review round 2 (independent review of the 2.0 logic) ----------
+test('score: creator growth compares a window with the same window at an earlier run, never 24h-now vs 7d-then', () => {
+  // 10 creators over 7 days, 3 of them in the last 24h
+  const members = [
+    ...Array.from({ length: 7 }, (_, i) => ytv(`o${i}`, `Puppet news desk episode ${i}`, `old${i}`, 20_000, 60 + i * 10)),
+    ...Array.from({ length: 3 }, (_, i) => ytv(`n${i}`, `Puppet news desk tonight ${i}`, `new${i}`, 30_000, 4 + i)),
+  ];
+  const cluster = { id: 'm_puppet_news', kind: 'microtrend' as const, name: 'Puppet News Desk', origin: 'phrase' as const, keywords: ['puppet', 'news', 'desk'], members };
+  const rec = { runId: 'r0', t: h(3), trendId: cluster.id, name: 'x', momentum: 40, confidence: 30, monetization: 60, creator: 50, signal: 0.1, lifecycle: 'emerging', evidenceCount: 10 };
+  const base = { cluster, category: 'Comedy', isNewsEvent: false, isGeneric: false, now: NOW, metricHistory: new Map() };
+  // a 1.0-era record (no creator counts) must not be used as a baseline at all
+  const v1 = scoreWindow({ ...base, window: '24h', history: [{ ...rec, signal: 0.976 }] });
+  assert.equal(v1.growth.basis, 'provisional');
+  // a record with 7d creators only: the 7d window is measured, the 24h window is not
+  const h7 = [{ ...rec, adoption: 10 }];
+  assert.equal(scoreWindow({ ...base, window: '7d', history: h7 }).growth.ratio, 1);
+  assert.equal(scoreWindow({ ...base, window: '24h', history: h7 }).growth.basis, 'provisional', '24h creators cannot be compared with 7d creators');
+  // like-for-like: 3 creators in the 24h window, 3 at the earlier run → flat, not −70 %
+  const s24 = scoreWindow({ ...base, window: '24h', history: [{ ...rec, adoption: 10, creators24: 3, creators48: 5 }] });
+  assert.equal(s24.growth.basis, 'measured');
+  assert.equal(s24.growth.ratio, 1);
+  assert.notEqual(s24.lifecycle, 'cooling');
+  const s48 = scoreWindow({ ...base, window: '48h', history: [{ ...rec, adoption: 10, creators24: 3, creators48: 2 }] });
+  assert.equal(s48.growth.ratio, 1.5, '48h: 2 → 3 creators');
+});
+
+test('score: new creators and cluster age come from the whole cluster, so an old trend is not "emerging" in the 48h view', () => {
+  const members = [
+    ...Array.from({ length: 4 }, (_, i) => ytv(`e${i}`, `Dorm cooking hack ${i}`, `early${i}`, 50_000, 100 + i)),
+    ytv('l1', 'Dorm cooking hack: rice cooker ramen', 'late1', 40_000, 10),
+    ytv('l2', 'Dorm cooking hack: kettle pasta', 'late2', 30_000, 12),
+  ];
+  const cluster = { id: 'm_dorm_cooking', kind: 'microtrend' as const, name: 'Dorm Cooking Hack', origin: 'phrase' as const, keywords: ['dorm', 'cooking', 'hack'], members };
+  const base = { cluster, category: 'Food & Cooking', isNewsEvent: false, isGeneric: false, now: NOW, history: [], metricHistory: new Map() };
+  const s48 = scoreWindow({ ...base, window: '48h' });
+  assert.equal(s48.creators, 2);
+  assert.equal(s48.newCreators, 2, 'the two creators whose first video is ≤48h old');
+  assert.notEqual(s48.lifecycle, 'emerging', 'the cluster is ~4 days old even though the 48h window only holds recent videos');
+  const s7 = scoreWindow({ ...base, window: '7d' });
+  assert.equal(s7.newCreators, 2, 'the four early creators are not new');
+  assert.ok(s48.newCreators <= s7.newCreators);
+});
+
+test('score: "strong" needs persistence — three runs five minutes apart are not enough', () => {
+  const members = [ytv('a1', 'Cat lawyer courtroom skit', 'A', 120_000, 24), ytv('b2', 'Dog courtroom skit', 'B', 40_000, 36), ytv('c3', 'Goose judge courtroom skit', 'C', 8_000, 12)];
+  const cluster = { id: 'm_courtroom_skit', kind: 'microtrend' as const, name: 'Courtroom Skit', origin: 'phrase' as const, keywords: ['courtroom', 'skit'], members };
+  const rec = (runId: string, hoursAgo: number) => ({ runId, t: h(hoursAgo), trendId: cluster.id, name: 'x', momentum: 40, confidence: 30, monetization: 60, creator: 50, signal: 0.3, lifecycle: 'emerging', evidenceCount: 3, adoption: 3 });
+  const base = { cluster, category: 'Comedy', isNewsEvent: false, isGeneric: false, now: NOW, window: '7d' as const, metricHistory: new Map() };
+  assert.equal(scoreWindow({ ...base, history: [rec('r0', 0.2), rec('r1', 0.1)] }).grade, 'developing');
+  assert.equal(scoreWindow({ ...base, history: [rec('r0', 7), rec('r1', 3)] }).grade, 'strong');
+});
+
+test('cluster: a topic corroborates a microtrend only when it covers its keywords, not on one shared token', () => {
+  const vids = ['A', 'B', 'C'].map((c, i) => ytv(`ws${i}`, `World Series watch party reaction ${c}`, `chan${c}`, 20_000, 10 + i));
+  const bleach = obs({ title: 'Bleach anime series finale', kind: 'search_interest', source: 'google_trends', metrics: { approxTraffic: 20_000 } });
+  const ws = obs({ title: 'World Series game 3', kind: 'search_interest', source: 'google_trends', metrics: { approxTraffic: 50_000 } });
+  const clusters = buildClusters([...vids, bleach, ws]);
+  const micro = clusters.find((c) => c.kind === 'microtrend' && /world series/i.test(c.name));
+  assert.ok(micro, 'world series microtrend exists');
+  assert.ok(!micro!.members.some((m) => /Bleach/.test(m.title)), '"series" alone is not corroboration');
+  assert.ok(micro!.members.some((m) => m.title === 'World Series game 3'), 'a seed covering both keywords corroborates');
+});
+
+test('quality: any publish date on an unverified external video is flagged, even when it differs from the share time', async () => {
+  const { runQualityChecks } = await import('../src/quality.js');
+  const bad = share('bad1', 'Some video', 'x', 10, 5, { publishedAt: h(9) });
+  const good = share('ok1', 'Some video', 'y', 10, 5);
+  const verified = share('ver1', 'Some video', 'z', 10, 5, { level: 'direct', videoPublishedAt: h(50), publishedAt: h(50), verifiedAt: NOW });
+  const run = (observations: Observation[]) => runQualityChecks({ trends: [], observations, sources: [], now: NOW }).checks.find((c) => /publication dates/.test(c.name))!;
+  assert.equal(run([good, verified]).ok, true);
+  assert.equal(run([bad]).ok, false);
+});

@@ -195,11 +195,18 @@ export function buildClusters(observations: Observation[]): Cluster[] {
     }
   }
   // corroborate microtrends with topic signals that share tokens (adds audience-interest evidence)
+  // a topic corroborates a microtrend only when it covers the microtrend's keywords (≥50% and ≥2 of them, or the
+  // single keyword) — one shared token ("series" in "World Series" vs "anime series finale") is not corroboration
   for (const m of micro) {
-    const kw = new Set(m.keywords);
+    const kw = uniq(m.keywords.map((k) => normalizeKey(k)).filter(Boolean));
+    if (!kw.length) continue;
     for (const t of topics) {
-      const seedToks = t.members.filter((x) => x.kind !== 'video' && x.kind !== 'post').flatMap((x) => tokenize(x.title));
-      if (seedToks.some((x) => kw.has(x)) && seedToks.length <= 4) m.members.push(...t.members.filter((x) => x.kind !== 'video' && x.kind !== 'post'));
+      const seeds = t.members.filter((x) => x.kind !== 'video' && x.kind !== 'post');
+      const seedToks = new Set(seeds.flatMap((x) => tokenize(x.title)));
+      if (seedToks.size === 0 || seedToks.size > 4) continue;
+      const hit = kw.filter((k) => seedToks.has(k)).length;
+      const covered = kw.length === 1 ? hit === 1 : hit >= 2 && hit / kw.length >= 0.5;
+      if (covered) m.members.push(...seeds);
     }
     m.members = uniqBy(m.members, (x) => x.id);
   }

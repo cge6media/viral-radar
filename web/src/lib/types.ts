@@ -32,7 +32,6 @@ export interface Preferences {
   tools: string[];
   platforms: string[];
   appetite: 'early' | 'balanced' | 'proven';
-  hideNews: boolean;
   showGeneric: boolean;
   githubRepo?: string;
 }
@@ -41,7 +40,6 @@ export const DEFAULT_PREFS: Preferences = {
   tools: ['editing', 'animation', 'ai-video', 'image', 'audio'],
   platforms: ['youtube_shorts', 'youtube', 'tiktok'],
   appetite: 'balanced',
-  hideNews: true,
   showGeneric: false,
 };
 

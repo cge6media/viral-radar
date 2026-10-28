@@ -27,17 +27,22 @@ Unverified shares count a *sharer*, which is why they cannot raise the evidence 
   30-minute-old video is not compared to a 30-day-old one on raw counts.
 - **Video momentum** — the same videos re-measured across runs: (views gained per hour over the last ≥1h interval)
   ÷ (lifetime average views per hour). Median ratio → `0.5 + log2(ratio)/4` (1× = 50). Needs ≥2 observations.
-- **Category adoption** — `0.75 · logNorm(independent creators, 1, 12) + 0.25 · min(new creators in 48h / 4, 1)`.
+- **Category adoption** — `0.75 · logNorm(independent creators, 1, 12) + 0.25 · min(new creators / 4, 1)`. A
+  creator is *new* when their first video in the cluster (over the whole cluster, not just the window) is ≤48h old
+  (≤24h in the 24h view) — so an old trend does not look "all new" in a short window.
 - **Audience interest** — strongest indirect signal (search spike `logNorm(traffic, 100, 1e6)`; hashtag uses
   `logNorm(uses, 10, 5000)`; topic rank; post engagement; share engagement) + 15 % of the second + a small
   breadth term.
 - **Confidence** — 25 % `logNorm(videos, 1, 15)` + 25 % `min(direct videos / 4, 1)` + 20 % creators (scaled by the
   verified-creator share) + 15 % independent sources (1 → 0.3, 2 → 0.7, 3+ → 1) + 15 % observation history.
 - **Recency** — 50 % half-life 24h on the latest content time + 50 % half-life 48h on the median content time.
-- **Cluster growth** — measured from score history ≥2h old: independent creators now ÷ then (or the adoption
-  signal), `0.5 + log2(ratio)/4`; a Mastodon 7-day series is used on first sight and blended at 40 % afterwards
-  (last complete day vs. earlier days; today only when ≥8h elapsed and stronger pro-rated). Otherwise 0.5 and
-  *provisional*.
+- **Cluster growth** — measured from score history ≥2h old, **like for like**: the window's independent-creator
+  count now ÷ the same window's count at the earlier run (24h vs 24h, 7d vs 7d; the history stores all three),
+  `0.5 + log2(ratio)/4`. Records without creator counts (1.0 history) are skipped, never substituted. A Mastodon
+  7-day series supplies *daily hashtag use* growth on first sight (last complete day vs. the prior-day average;
+  today only when ≥8h elapsed and stronger pro-rated) and is blended at 40 % afterwards. Otherwise 0.5 and
+  *provisional*. The UI labels which metric and comparison each ratio comes from, and switches from a percentage
+  to "×N" above 5× (a hashtag going from ~0 to 114 uses/day is "×115", not "+11400 %").
 
 ## Composites
 
@@ -54,7 +59,7 @@ Unverified shares count a *sharer*, which is why they cannot raise the evidence 
 
 | grade | rule |
 |---|---|
-| Strong | ≥3 verified creators **and** ≥3 directly measured videos **and** ≥3 collection runs |
+| Strong | ≥3 verified creators **and** ≥3 directly measured videos **and** seen across ≥3 collection runs spanning ≥6 hours |
 | Developing | ≥3 verified creators and ≥3 verified examples |
 | Early | ≥1 video with ≥2 creators or audience interest ≥ 50; or ≥2 signals with interest ≥ 60 and no video |
 | Insufficient | anything else — never recommended |
@@ -74,14 +79,15 @@ measured ≥ 1.5×) **and** (not a bare topic, or it has ≥2 related videos). R
 
 ## Lifecycle
 
-| stage | rule (evaluated top-down) |
+| stage | rule (evaluated top-down; `decideLifecycle` in score.ts) |
 |---|---|
 | Insufficient data | grade insufficient |
 | Cooling | latest content > 72h old; or velocity ≤ 0.6× with no new creators; or measured growth < ~0.8× |
 | Breaking out | momentum ≥ 70, ≥2 sources, and (accelerating or ≥2 new creators) |
 | Accelerating | measured: velocity ≥ 1.3× or creator growth ≥ ~1.32× — never without a measurement |
-| Peaking | evergreen format pools (steady); or performance ≥ 60 / ≥ 6 creators with flat growth |
-| Emerging | first seen ≤ 48h, or ≥2 new creators within 96h |
+| Peaking (format pools) | an evergreen format pool with ≥3 creators is steady, never "emerging" (fewer → cooling) |
+| Emerging | the cluster's first content/detection ≤ 48h ago, or ≥2 new creators within 96h — cluster age, not window age |
+| Peaking | performance ≥ 60 or ≥6 creators with flat growth; otherwise peaking unless the latest content is > 36h old (→ cooling) |
 
 ## Clustering
 

@@ -149,13 +149,17 @@ export function scoreWindow(input: ScoreInput): WindowScores {
   const sources = new Set<Platform>(members.map((m) => m.source));
   const whours = WINDOW_HOURS[window];
 
+  // "new" creators and the cluster's age are properties of the whole cluster, not of the window being viewed —
+  // otherwise every creator looks new and every trend looks emerging in the 24h view
+  const allVideos = uniqByExample(cluster.members.filter((m) => m.kind === 'video'));
   const firstByCreator = new Map<string, string>();
-  for (const v of videos) {
+  for (const v of allVideos) {
     const ck = creatorKey(v);
     const t = contentTime(v) || v.firstSeenAt || v.observedAt;
     if (!firstByCreator.has(ck) || t < firstByCreator.get(ck)!) firstByCreator.set(ck, t);
   }
-  const newCreators = [...firstByCreator.values()].filter((t) => hoursBetween(t, now) <= Math.min(48, whours)).length;
+  const windowCreatorKeys = new Set(videos.map(creatorKey));
+  const newCreators = [...firstByCreator].filter(([ck, t]) => windowCreatorKeys.has(ck) && hoursBetween(t, now) <= Math.min(48, whours)).length;
 
   // --- video performance (direct only, age-normalized) ---
   let videoPerformance: number | null = null;
@@ -165,6 +169,7 @@ export function scoreWindow(input: ScoreInput): WindowScores {
     videoPerformance = round(100 * clamp(0.7 * rs[0] + 0.3 * median(rs), 0, 1), 0);
     const top = rates.reduce((a, b) => (b.perHour > a.perHour ? b : a));
     components.topPerHour = round(top.perHour, 1);
+    components.topIsViews = top.metric === 'views' ? 1 : 0;
     notes.push(`${direct.length} directly measured video${direct.length > 1 ? 's' : ''}; the strongest runs at ${fmt(top.perHour)} ${top.metric === 'views' ? 'views' : 'engagements'}/hour since publish.`);
   }
 
@@ -192,6 +197,8 @@ export function scoreWindow(input: ScoreInput): WindowScores {
 
   // --- confidence ---
   const runsObserved = new Set(history.map((h) => h.runId)).size + 1;
+  const historySpanHours = history.length ? hoursBetween(history.map((h) => h.t).sort()[0], now) : 0;
+  components.historySpanHours = round(historySpanHours, 1);
   const historyPoints = Math.max(0, ...members.map((m) => m.history?.length || 0));
   const verifiedCreators = videos.filter((v) => !!v.creator).length;
   const confidence = round(
@@ -218,14 +225,17 @@ export function scoreWindow(input: ScoreInput): WindowScores {
   // --- growth of the cluster itself (run history ≥2h apart; or source daily series) ---
   let growth: WindowScores['growth'] = { basis: 'provisional' };
   let growthScore = 0.5;
-  const past = history.filter((h) => hoursBetween(h.t, now) >= 2).sort((a, b) => a.t.localeCompare(b.t));
+  // compare this window's creator count with the same window at an earlier run (never 24h-now vs 7d-then);
+  // v1 records carry no creator counts and are skipped — a missing measurement stays provisional
+  const prevCreatorsOf = (h: ScoreRecord): number | undefined => (window === '24h' ? h.creators24 : window === '48h' ? h.creators48 : h.adoption);
+  const past = history.filter((h) => hoursBetween(h.t, now) >= 2 && prevCreatorsOf(h) != null).sort((a, b) => a.t.localeCompare(b.t));
   if (past.length) {
     const prev = past[past.length - 1];
-    const prevCreators = Math.max(1, prev.adoption ?? 1);
-    const ratio = prev.adoption != null ? Math.max(1, creators) / prevCreators : (adoption / 100 + 0.05) / ((prev.signal ?? 0) + 0.05);
-    growth = { basis: 'measured', ratio: round(ratio, 3), windowHours: round(hoursBetween(prev.t, now), 1), metric: prev.adoption != null ? 'independent creators' : 'signal' };
+    const prevCreators = prevCreatorsOf(prev)!;
+    const ratio = Math.max(1, creators) / Math.max(1, prevCreators);
+    growth = { basis: 'measured', ratio: round(ratio, 3), windowHours: round(hoursBetween(prev.t, now), 1), metric: 'independent creators' };
     growthScore = ratioToScore(ratio);
-    notes.push(`Measured: ${growth.metric} ${prev.adoption != null ? `${prev.adoption} → ${creators}` : `${round(prev.signal, 2)} → ${round(adoption / 100, 2)}`} over ${growth.windowHours}h (${round(ratio, 2)}×).`);
+    notes.push(`Measured: independent creators in the ${window} window ${prevCreators} → ${creators} over ${growth.windowHours}h (${round(ratio, 2)}×).`);
   }
   const sh = sourceHistoryGrowth(members, now);
   if (sh) {
@@ -260,7 +270,7 @@ export function scoreWindow(input: ScoreInput): WindowScores {
   // people passing around existing videos is audience interest, not creator adoption
   const sharesOnly = videos.length > 0 && direct.length === 0 && !videos.some((v) => v.videoPublishedAt);
   let grade: EvidenceGrade =
-    verifiedCreatorCount >= 3 && direct.length >= 3 && runsObserved >= 3 ? 'strong'
+    verifiedCreatorCount >= 3 && direct.length >= 3 && runsObserved >= 3 && historySpanHours >= 6 ? 'strong'
       : verifiedCreatorCount >= 3 && verified.length >= 3 ? 'developing'
         : videos.length >= 1 && (creators >= 2 || audienceInterest >= 50) ? 'early'
           : members.length >= 2 && audienceInterest >= 60 && videos.length === 0 ? 'early'
@@ -274,8 +284,8 @@ export function scoreWindow(input: ScoreInput): WindowScores {
   const opportunity = round(clamp((0.4 * momentum + 0.35 * creatorOpportunity + 0.25 * monetization) * (0.3 + 0.7 * (confidence / 100)) * gradeFactor), 0);
 
   // --- lifecycle ---
-  const firstDetected = members.map((m) => m.firstSeenAt || m.observedAt).sort()[0] || now;
-  const earliestContent = times[0] || now;
+  const firstDetected = cluster.members.map((m) => m.firstSeenAt || m.observedAt).sort()[0] || now;
+  const earliestContent = cluster.members.map((m) => contentTime(m) || m.firstSeenAt || m.observedAt).sort()[0] || now;
   const ageHours = Math.max(hoursBetween(firstDetected, now), Math.min(hoursBetween(earliestContent, now), 24 * 14));
   const lifecycle = decideLifecycle({ grade, momentum, videoPerformance, growth: growthScore, growthMeasured: growth.basis === 'measured', velocityRatio: vels.length ? median(vels.map((v) => v.ratio)) : undefined, newCreators, creators, ageHours, hSinceLatest: hoursBetween(latest, now), sources: sources.size, isFormat: cluster.kind === 'format' });
 

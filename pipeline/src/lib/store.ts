@@ -81,6 +81,17 @@ export function migrate(o: Observation): Observation {
       x.creator = undefined;
     }
     x.thumbnail = o.thumbnail || `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`;
+  } else if (o.kind === 'video' && !/^https:\/\/bsky\.app\//.test(o.url) && !/^bsky:/.test(o.key)) {
+    // v1 external video link on another platform (TikTok/Instagram): a share, not a measurement
+    x.level = 'indirect';
+    x.postPublishedAt = o.publishedAt;
+    x.publishedAt = undefined;
+    x.postMetrics = { ...o.metrics, accounts: 1 };
+    x.metrics = {};
+    if (o.creator) {
+      x.sharedBy = o.creator;
+      x.creator = undefined;
+    }
   } else if (o.kind === 'video') {
     x.level = 'direct';
     x.postPublishedAt = o.publishedAt;
@@ -181,14 +192,17 @@ export interface ScoreRecord {
   evidenceCount: number;
   /** v2: independent creators in the 7-day window */
   adoption?: number;
+  /** v2: independent creators in the 24h / 48h windows (like-for-like growth per window) */
+  creators24?: number;
+  creators48?: number;
   /** v2: direct videos in the 7-day window */
   directVideos?: number;
   grade?: string;
 }
-type CompactScore = { r: string; t: string; i: string; n: string; m: number; c: number; $: number; k: number; s: number; l: string; e: number; a?: number; d?: number; g?: string };
-const compact = (x: ScoreRecord): CompactScore => ({ r: x.runId, t: x.t, i: x.trendId, n: x.name, m: x.momentum, c: x.confidence, $: x.monetization, k: x.creator, s: x.signal, l: x.lifecycle, e: x.evidenceCount, a: x.adoption, d: x.directVideos, g: x.grade });
+type CompactScore = { r: string; t: string; i: string; n: string; m: number; c: number; $: number; k: number; s: number; l: string; e: number; a?: number; a1?: number; a2?: number; d?: number; g?: string };
+const compact = (x: ScoreRecord): CompactScore => ({ r: x.runId, t: x.t, i: x.trendId, n: x.name, m: x.momentum, c: x.confidence, $: x.monetization, k: x.creator, s: x.signal, l: x.lifecycle, e: x.evidenceCount, a: x.adoption, a1: x.creators24, a2: x.creators48, d: x.directVideos, g: x.grade });
 const expand = (x: CompactScore | ScoreRecord): ScoreRecord =>
-  'runId' in x ? x : { runId: x.r, t: x.t, trendId: x.i, name: x.n, momentum: x.m, confidence: x.c, monetization: x.$, creator: x.k, signal: x.s, lifecycle: x.l, evidenceCount: x.e, adoption: x.a, directVideos: x.d, grade: x.g };
+  'runId' in x ? x : { runId: x.r, t: x.t, trendId: x.i, name: x.n, momentum: x.m, confidence: x.c, monetization: x.$, creator: x.k, signal: x.s, lifecycle: x.l, evidenceCount: x.e, adoption: x.a, creators24: x.a1, creators48: x.a2, directVideos: x.d, grade: x.g };
 
 export async function appendScores(records: ScoreRecord[]): Promise<void> {
   await ensureDirs();

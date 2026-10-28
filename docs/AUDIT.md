@@ -39,3 +39,27 @@ Bluesky `searchPosts` for a format term returns the 25 "top" posts whether or no
 ## Relevance audit (≥50 matches)
 
 See `docs/RELEVANCE_AUDIT.md` — filled from the first live 2.0 run.
+
+## Independent review of the 2.0 logic (second round, 2026-10-28 02:xx UTC)
+
+A separate reviewer (no part in writing the code) read `score.ts`, `cluster.ts`, `run.ts`, `quality.ts`, `gate.ts`,
+`data.ts`, `money.ts`, `TrendDetail.tsx`, `Discover.tsx` against SCORING.md and probed the live snapshot. Found
+nothing in the money engine, the gate, the evidence labels or the rate/velocity arithmetic. Ten findings, all fixed:
+
+| # | finding (measured on the live snapshot) | fix |
+|---|---|---|
+| 1 | creator growth compared the *window's* creators with the previous run's *7-day* creators: 10 creators/7d, 3 in 24h → "−70 % over 3h", lifecycle *cooling* in the default 48h view; 1.0 records were used as a fallback baseline | history stores creators per window (`a`, `a1`, `a2`); growth compares like with like; records without creator counts are skipped |
+| 2 | "new creators" and cluster age were computed from in-window members, so every creator was new and every trend *emerging* in the 24h/48h views (m_musicchallenge: content since 10-24, "Emerging, 14 new" at 48h) | first video per creator and cluster age come from the whole cluster |
+| 3 | trend page: "10 relevant examples — 34 with platform statistics" (capped evidence list vs window totals) | window totals + "showing N" |
+| 4 | category change was smoothed `(v+1)/(p+1)` but labelled "+X % vs prior 24h" (Film & TV: true +300 %, shown +150 %) | true ratio, only when both days have ≥2 videos and ≥4 together |
+| 5 | Compass "Measured movers" caption claimed creator ratios while all 75 measurements were Mastodon daily series; "+11400 % over 120h" | each row names its metric and comparison; ≥5× shown as "×N"; movers need at least early evidence |
+| 6 | a topic corroborated a microtrend on a single shared token (*World Series* ← "Bleach anime series finale" → interest 86) | the seed must cover the microtrend's keywords (≥50 % and ≥2, or the single keyword) |
+| 7 | summary "the strongest is gaining ~0/hour" (lifetime average, unit-less, rounded) | "averages N views/engagements per hour since publish", omitted below 1 |
+| 8 | "Hide news" preference was a no-op (news is unconditionally excluded from recommendations) | preference removed; the Compass keeps its explicit "show news" toggle |
+| 9 | the publish-date check only caught `publishedAt === postPublishedAt`; merged shares could slip through | any publish date on an unverified external video is flagged |
+| 10 | SCORING.md lifecycle table out of order vs code; "strong" after three runs five minutes apart | table rewritten in evaluation order; *strong* needs ≥3 runs spanning ≥6h |
+
+Also found while re-running the pipeline offline: stored `formats` were a cache from the rules of the day an item was
+first seen — with the fixture sources the check dropped to 108/123 (88 %). Every observation is now re-validated with
+the current rules on every run (12/12 again, 0 stale items). Evidence lists now also carry the newest examples so
+the 24h/48h views are not empty when the strongest videos are older (≤16 videos + 4 signals per trend).

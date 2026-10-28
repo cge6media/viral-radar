@@ -4,12 +4,13 @@ Environment: Anthropic cloud workspace (Ubuntu 24.04, Node 22.23, sandboxed; no 
 GPU or local service). Live verification through GitHub Actions runners and the public GitHub Pages site.
 Date: 2026-10-28 (UTC). The 1.0 results are preserved at the end.
 
-## Automated tests — `npm test` — 29/29 pass
+## Automated tests — `npm test` — 34/34 pass
 
 | file | what it verifies |
 |---|---|
 | `test/collectors.test.ts` | Google Trends parser on real feeds; Bluesky v2 semantics on real captures: native video = direct, published by the post; external YouTube link = indirect, **no publish date**, empty video metrics, post engagement in `postMetrics`, sharer ≠ creator, thumbnail; text-only search results are not evidence; duplicate shares merge with sharer count; adult markers dropped; Mastodon 7-day history; YouTube Data API item → direct record with `videoPublishedAt`, duration, platform category |
 | `test/intel.test.ts` | Stage-1 classification and news detection (incl. sports fixtures and named figures); **relevance regression suite** — "cooking up an album", *Limmie & Family Cookin'*, "keeps cooking them", *Cat Stevens* / *Stray Cats* are not cat videos, political "satisfying" is not satisfying content, a text post is never format evidence, animal-comedy construction; second round from the live audit (Curry Barker, solar panels "fry", level design, `ep 2`, "no one ever explained", speedpaint ≠ gaming, archival "(1968)"); clustering (phrase microtrend across ≥3 creators, shares of one video count once, topic feeds, validated format pools); scoring (separated components, grades, provisional vs measured growth 1→3 creators = 1.5×, velocity 10K views/h, age-normalised rates, shares-only clusters capped at *early*); Mastodon partial-day handling; lifecycle rules (no acceleration without measurement, stale → cooling, format pools never emerging) |
+| `test/intel.test.ts` (review round 2) | like-for-like creator growth per window (24h vs 24h; a 7d-only record leaves 24h provisional; 1.0 records never used as a baseline); new creators / cluster age from the whole cluster (a 4-day-old trend is not *emerging* in the 48h view); *strong* needs ≥6h of history; topic corroboration needs keyword coverage (*World Series* ≠ "anime series finale"); any publish date on an unverified share is flagged |
 | `test/store.test.ts` | compact ticks, latest-state loader with `firstSeenAt`, score history, cache |
 | `test/money.test.ts` | calculator arithmetic incl. break-even by views vs by output, no-cost case, negative-input clamping, presets, monotonic scaling, Instagram has no per-view revenue |
 
@@ -66,6 +67,13 @@ with budget/difficulty → "Save to production queue" → Studio/Watchlist. Veri
 All 1.0 capabilities remain: five sources, watchlist statuses + actual tracking, earnings calculator and example
 scenarios, platform comparison, preferences, compass, scheduled collection, Pages publishing, continuity docs.
 v1 history records load through `migrate()`.
+
+## Independent review (round 2)
+
+Ten findings on the 2.0 logic (growth baselines, window-relative "new" creators, evidence counts, category deltas,
+movers captions, corroboration, summaries, a dead preference, a weak date check, docs/code drift) — all fixed with
+regression tests; details in `docs/AUDIT.md`. Offline re-run of the fixed pipeline on the live history: 196 trends,
+9 qualified, 12/12 checks, 0 stale relevance labels.
 
 ## Live deployment
 

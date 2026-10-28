@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../App';
 import { usePrefs } from '../lib/store';
 import { STAGE, STAGE_ORDER, WINDOW_LABEL } from '../lib/types';
-import { bestThumb, categoryLabelDelta, fmtAgo, isQualified } from '../lib/data';
+import { bestThumb, categoryLabelDelta, fmtAgo, isQualified, growthMetricLabel, fmtRatio } from '../lib/data';
 import { GradePill, Section, StagePill, Thumb, TrendRow, WindowSwitch } from '../components/ui';
 import { HBarChart } from '../components/charts';
 
@@ -20,7 +20,8 @@ export default function Compass() {
     list.forEach((v) => (m[v.w.lifecycle] ||= []).push(v));
     return m;
   }, [list]);
-  const movers = useMemo(() => list.filter((v) => v.w.growth.basis === 'measured' || v.w.velocity?.videosMeasured).sort((a, b) => (b.w.growth.ratio ?? 1) - (a.w.growth.ratio ?? 1)), [list]);
+  // movers need a measurement *and* some evidence: a bare hashtag with no videos can jump ×200 from a tiny base
+  const movers = useMemo(() => list.filter((v) => v.w.grade !== 'insufficient' && (v.w.growth.basis === 'measured' || v.w.velocity?.videosMeasured)).sort((a, b) => (b.w.growth.ratio ?? 1) - (a.w.growth.ratio ?? 1)), [list]);
   const categories = snapshot.categories;
 
   return (
@@ -64,13 +65,16 @@ export default function Compass() {
       <div className="grid cols-2 section">
         <div className="card">
           <h3 style={{ marginBottom: 4 }}>Measured movers</h3>
-          <div className="small muted" style={{ marginBottom: 8 }}>Only trends with two or more measurements. Ratio = independent creators now ÷ at the previous measurement (or video velocity vs. lifetime average).</div>
-          {movers.length === 0 ? <div className="empty">No measured growth yet in this window — movers appear once a trend has been observed twice ≥2h apart.</div> : movers.slice(0, 10).map((v) => (
-            <a key={v.id} href={`#/trend/${encodeURIComponent(v.id)}`} className="row between" style={{ padding: '8px 0', borderTop: '1px solid var(--line)' }}>
-              <span className="truncate" style={{ minWidth: 0, fontWeight: 700 }}>{v.name} <span className="small muted" style={{ fontWeight: 600 }}>· {v.category}</span></span>
-              <span className="row" style={{ whiteSpace: 'nowrap' }}>
+          <div className="small muted" style={{ marginBottom: 8 }}>Trends with at least early evidence and two or more measurements. Each row says what was measured: independent creators in this window vs. an earlier run, daily hashtag use vs. the prior-day average, or video velocity vs. the lifetime average.</div>
+          {movers.length === 0 ? <div className="empty">No measured growth yet in this window — movers appear once a trend with video evidence has been observed twice ≥2h apart.</div> : movers.slice(0, 10).map((v) => (
+            <a key={v.id} href={`#/trend/${encodeURIComponent(v.id)}`} className="row between" style={{ padding: '8px 0', borderTop: '1px solid var(--line)', alignItems: 'flex-start' }}>
+              <span style={{ minWidth: 0, display: 'block' }}>
+                <span className="truncate" style={{ display: 'block', fontWeight: 700 }}>{v.name} <span className="small muted" style={{ fontWeight: 600 }}>· {v.category}</span></span>
+                <span className="tiny dim" style={{ display: 'block', fontWeight: 500, whiteSpace: 'normal' }}>{v.w.growth.basis === 'measured' ? growthMetricLabel(v.w) : 'video velocity vs. lifetime average'}</span>
+              </span>
+              <span className="row" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                 <GradePill grade={v.w.grade} />
-                <b className="num" style={{ color: (v.w.growth.ratio ?? 1) >= 1 ? 'var(--money-ink)' : 'var(--ink-3)' }}>{v.w.growth.basis === 'measured' ? `${(v.w.growth.ratio ?? 1) >= 1 ? '+' : ''}${Math.round(((v.w.growth.ratio ?? 1) - 1) * 100)}%` : `vel ${v.w.videoMomentum}`}</b>
+                <b className="num" style={{ color: (v.w.growth.ratio ?? 1) >= 1 ? 'var(--money-ink)' : 'var(--ink-3)' }}>{v.w.growth.basis === 'measured' ? fmtRatio(v.w.growth.ratio ?? 1) : `vel ${v.w.videoMomentum}`}</b>
               </span>
             </a>
           ))}

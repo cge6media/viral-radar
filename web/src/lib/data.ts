@@ -67,8 +67,7 @@ export function personalize(v: ViewTrend, p: Preferences): ViewTrend {
 
 export function isQualified(v: ViewTrend, p: Preferences): boolean {
   if (v.w.grade === 'insufficient') return false;
-  if (v.isNewsEvent && p.hideNews) return false;
-  if (v.isNewsEvent) return false;
+  if (v.isNewsEvent) return false; // news/person events are never recommendations (the Compass can still show them)
   if (v.kind === 'topic' && v.w.videos < 2) return false;
   if (v.isGeneric) return p.showGeneric || (v.w.growth.basis === 'measured' && (v.w.growth.ratio ?? 0) >= 1.5);
   return true;
@@ -116,12 +115,31 @@ export function growthLabel(w: WindowScores): { label: string; dir: 'up' | 'flat
     return { label: 'Video velocity steady', dir: 'flat' };
   }
   if (w.growth.basis === 'measured' && w.growth.ratio != null) {
-    const pct = Math.round((w.growth.ratio - 1) * 100);
-    if (w.growth.ratio >= 1.15) return { label: `${w.growth.metric}: +${pct}% over ${Math.round(w.growth.windowHours!)}h`, dir: 'up' };
-    if (w.growth.ratio <= 0.85) return { label: `${w.growth.metric}: ${pct}% over ${Math.round(w.growth.windowHours!)}h`, dir: 'down' };
-    return { label: `${w.growth.metric}: flat over ${Math.round(w.growth.windowHours!)}h`, dir: 'flat' };
+    const r = w.growth.ratio;
+    const basis = growthBasisLabel(w);
+    if (r >= 1.15) return { label: `${w.growth.metric}: ${fmtRatio(r)} ${basis}`, dir: 'up' };
+    if (r <= 0.85) return { label: `${w.growth.metric}: ${fmtRatio(r)} ${basis}`, dir: 'down' };
+    return { label: `${w.growth.metric}: flat ${basis}`, dir: 'flat' };
   }
   return { label: 'Growth not yet measured', dir: 'unknown' };
+}
+
+/** "+35%" for ordinary ratios, "×12" once a percentage would stop meaning anything (e.g. a hashtag going from ~0 to 114/day). */
+export function fmtRatio(r: number): string {
+  if (r >= 5) return `×${r >= 20 ? Math.round(r) : r.toFixed(1)}`;
+  const pct = Math.round((r - 1) * 100);
+  return `${pct >= 0 ? '+' : ''}${pct}%`;
+}
+
+/** What the growth ratio compares, in words that match how it was computed. */
+export function growthBasisLabel(w: WindowScores): string {
+  if (w.growth.metric === 'daily hashtag use') return 'last full day vs. the prior-day average';
+  if (w.growth.metric === 'independent creators') return `vs. ${Math.round(w.growth.windowHours ?? 0)}h earlier (same window)`;
+  return `over ${Math.round(w.growth.windowHours ?? 0)}h`;
+}
+
+export function growthMetricLabel(w: WindowScores): string {
+  return `${w.growth.metric ?? 'growth'} · ${growthBasisLabel(w)}`;
 }
 
 export function difficultyFor(category: string, prefs: Preferences): { label: 'Low' | 'Medium' | 'High'; why: string } {
