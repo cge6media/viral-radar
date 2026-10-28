@@ -3,15 +3,18 @@
 # checks the release gate, and publishes the dashboard to GitHub Pages. Nothing runs on any personal machine.
 #
 # Reliability (4.0): GitHub drops or delays scheduled runs under load (measured 2026-10-28: 53 % of 30-minute slots
-# started, 8–23 min late). The schedule therefore offers four slots an hour and every scheduled run first checks how
-# old the published data is — younger than 22 minutes → it exits without collecting, so the quota ledger never
-# sees overlapping collectors and the effective cadence stays ~30 minutes whichever slots GitHub honours.
+# started, 8–23 min late, and in practice at most ONE scheduled run per workflow per hour). Four sibling workflows
+# (this one + collect-b/c/d.yml, staggered every ~8 minutes) therefore each carry their own schedule and call this
+# one; every scheduled run first checks how old the published data is — younger than 22 minutes → it exits without
+# collecting — so collectors never overlap, the quota ledger stays consistent, and the effective cadence approaches
+# 30 minutes whichever slots GitHub honours.
 name: Collect trends
 
 on:
   schedule:
-    - cron: '3,18,33,48 * * * *'
+    - cron: '3,33 * * * *'
   workflow_dispatch: {}      # manual refresh from the Actions tab (never skipped by the freshness gate)
+  workflow_call: {}          # the sibling workflows collect-b/c/d.yml call this one on their own schedules
 
 concurrency:
   group: collect
@@ -78,7 +81,7 @@ jobs:
           VR_BSKY_QUERIES: ${{ vars.VR_BSKY_QUERIES }}
           VR_TIKTOK: ${{ vars.VR_TIKTOK || '0' }}
           VR_MASTODON_INSTANCES: ${{ vars.VR_MASTODON_INSTANCES || 'mastodon.social' }}
-          VR_SCHEDULE: '3,18,33,48 * * * * (gated to ~30 min)'
+          VR_SCHEDULE: '4 schedules × 2 slots/hour (3,33 · 18,48 · 11,41 · 26,56), gated to ≥22 min'
           VR_TARGET_COLLECTIONS_PER_DAY: '48'
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: npm run collect

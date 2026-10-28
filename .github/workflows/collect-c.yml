@@ -1,0 +1,18 @@
+# Sibling schedule C for the collector (see collect.yml for why several schedules exist). It only calls the
+# main workflow; the freshness gate inside it skips the run when the data is younger than 22 minutes.
+name: Collect trends (C)
+
+on:
+  schedule:
+    - cron: '11,41 * * * *'
+
+permissions:
+  contents: write
+  actions: read
+  pages: write
+  id-token: write
+
+jobs:
+  call:
+    uses: ./.github/workflows/collect.yml
+    secrets: inherit
