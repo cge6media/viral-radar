@@ -128,8 +128,11 @@ test('4.0 crossings: a video that crossed the hit floor while observable counts 
   assert.equal(cross.length, 1);
   assert.equal(cross[0].crossedAt, at(T0, 26));
   assert.equal(cross[0].leadHours, 24);
-  const none = detectCrossings(records, hist, [], new Set(), now, 'run');
+  const other: PredictionRecord = { ...pred, id: 'q', videoId: 'youtube:video:other', platformId: 'other', predictedAt: at(T0, -1) };
+  const none = detectCrossings(records, hist, [other], new Set(), now, 'run');
   assert.equal(none[0].predictedAt, undefined, 'a crossing without a prior prediction is a miss');
+  assert.equal(detectCrossings(records, hist, [], new Set(), now, 'run').length, 0, 'before any prediction exists nothing can be missed');
+  assert.equal(detectCrossings(records, hist, [{ ...other, predictedAt: at(T0, 27) }], new Set(), now, 'run').length, 0, 'crossings before the first prediction are not counted');
   const card = buildScorecard([pred], [] as OutcomeRecord[], cross, now);
   assert.equal(card.crossings.observed, 1);
   assert.equal(card.crossings.recall, null, 'recall is not claimed from one crossing');

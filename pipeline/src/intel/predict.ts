@@ -190,6 +190,9 @@ export function evaluatePredictions(input: EvalInput): OutcomeRecord[] {
 export function detectCrossings(records: VideoRecord[], metricHistory: Map<string, MetricPoint[]>, predictions: PredictionRecord[], known: Set<string>, now: string, runId: string): CrossingRecord[] {
   const radarByVideo = new Map<string, PredictionRecord[]>();
   for (const p of predictions) if (p.strategy === 'radar') (radarByVideo.get(p.videoId) || radarByVideo.set(p.videoId, []).get(p.videoId)!).push(p);
+  // only crossings that happened once predictions existed can be "missed" — earlier ones were not predictable
+  const since = predictions.map((p) => p.predictedAt).sort()[0];
+  if (!since) return [];
   const out: CrossingRecord[] = [];
   for (const r of records) {
     if (!VIEW_PLATFORMS.has(r.platform) || r.state !== 'verified_hit' || known.has(r.id) || r.publishedAt == null) continue;
@@ -203,6 +206,7 @@ export function detectCrossings(records: VideoRecord[], metricHistory: Map<strin
     }
     if (!crossed || !lastBelow) continue;
     const firstBelow = pts[0];
+    if (crossed.t < since) continue;
     if (hoursBetween(firstBelow.t, crossed.t) < 6) continue; // not observable long enough before crossing
     const preds = (radarByVideo.get(r.id) || []).filter((p) => p.predictedAt < crossed!.t).sort((a, b) => a.predictedAt.localeCompare(b.predictedAt));
     const first = preds[0];
