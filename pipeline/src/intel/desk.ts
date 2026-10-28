@@ -19,7 +19,7 @@
 import type { DeskAction, DeskEvidence, DeskOpportunity, DeskReport, DeskTiming, LaneEntry, Observation, SubFormat, Trend, TrendFeatures, VideoRecord } from '../types.js';
 import { creatorKey, exampleKey, isBroadTopicTag } from './cluster.js';
 import { profileFor } from './taxonomy.js';
-import { DESCRIPTOR, GENERIC_NAME, HOOKS, LIVE_RE, SIG_STOP, SPORTS_NEWS_RE, isDescriptorTag, titleCarries, titleMatchesFormat } from './formats.js';
+import { DESCRIPTOR, GENERIC_NAME, HOOKS, LIVE_RE, NEWS_CHANNEL_RE, SIG_STOP, SPORTS_NEWS_RE, isDescriptorTag, titleCarries, titleMatchesFormat } from './formats.js';
 import { isAnyStopword } from './language.js';
 import { STOPWORDS, clamp, hoursBetween, round, tokenize } from '../lib/util.js';
 
@@ -101,12 +101,17 @@ export function timingOf(t: Trend, f: TrendFeatures, now: string): { timing: Des
     if (cal.days <= 21) return { timing: 'emerging', why: `${cal.days} days to the date (${cal.date}); early entries are being published now.`, score: 60 };
     return { timing: 'emerging', why: `${cal.days} days to the date (${cal.date}) — too early for a one-off piece.`, score: 30 };
   }
-  // 4.0.1: when the cluster is too young for a measured growth, read the examples' own measured rates
+  // 4.0.1/4.0.2: when the cluster is too young for a measured growth, read the content — the flow of new qualified hits
+  // from different creators (the real freshness signal) first, the examples' own measured rates second
   const measuredMix = f.coolingShare != null && f.acceleratingShare != null ? `${Math.round(f.coolingShare * 100)}% of the measured examples are past their peak, ${Math.round(f.acceleratingShare * 100)}% still accelerating` : undefined;
+  const fresh = f.freshQualified ?? 0;
   if (historyHours < 24) {
-    if (f.coolingShare != null && f.coolingShare >= 0.5 && (f.acceleratingShare ?? 0) < 0.3) return { timing: 'cooling', why: `First seen ${Math.round(historyHours)}h ago; ${measuredMix} — the examples that carried this are slowing.`, score: 25 };
-    if (f.acceleratingShare != null && f.acceleratingShare >= 0.5) return { timing: 'accelerating', why: `First seen ${Math.round(historyHours)}h ago; ${measuredMix}; ${w.creators} independent creators so far (cluster growth itself needs 24h of history).`, score: 75 };
-    return { timing: w.lifecycle === 'cooling' ? 'cooling' : 'emerging', why: `First seen ${Math.round(historyHours)}h ago — cluster growth is not measurable until it has 24h of history${measuredMix ? `; ${measuredMix}` : ''}; ${w.creators} independent creators so far.`, score: 50 };
+    const seen = `the radar first saw this cluster ${Math.round(historyHours)}h ago, so cluster growth is not measurable yet`;
+    if (fresh >= 2) return { timing: 'accelerating', why: `${fresh} qualified hits younger than 72h from different creators${measuredMix ? ` (${measuredMix})` : ''}; ${f.creators} independent creators in the clean evidence — ${seen}.`, score: 75 };
+    if (f.coolingShare != null && f.coolingShare >= 0.5 && (f.acceleratingShare ?? 0) < 0.3) return { timing: 'cooling', why: `No qualified hit younger than 72h; ${measuredMix} — the examples that carried this are slowing (${seen}).`, score: 25 };
+    if (fresh === 1) return { timing: 'emerging', why: `One qualified hit younger than 72h${measuredMix ? `; ${measuredMix}` : ''}; ${f.creators} independent creators in the clean evidence — ${seen}.`, score: 55 };
+    if (f.acceleratingShare != null && f.acceleratingShare >= 0.5) return { timing: 'accelerating', why: `${measuredMix}; ${f.creators} independent creators in the clean evidence — ${seen}.`, score: 70 };
+    return { timing: 'peaking', why: `No qualified hit younger than 72h and no measured acceleration — attention exists but is not fresh${measuredMix ? ` (${measuredMix})` : ''}; ${f.creators} independent creators — ${seen}.`, score: 35 };
   }
   if (ageDays >= 7 && g != null && g >= 1.5) return { timing: 'resurfacing', why: `First seen ${Math.round(ageDays)} days ago and ${gTxt} — attention is coming back.`, score: 65 };
   const tail = measuredMix ? ` ${measuredMix}.` : '';
@@ -144,7 +149,7 @@ export function fitScore(t: Trend, f: TrendFeatures, category: string): { fit: n
   const latinShare = Object.entries(langs).filter(([k]) => LATIN.has(k)).reduce((a, [, v]) => a + v, 0) / totalLang;
   const langFit = enEs >= 0.5 ? 1 : latinShare >= 0.5 ? 0.7 : 0.35;
   const typeFit = t.opportunity?.type === 'format' ? 1 : t.opportunity?.type === 'meme' ? 0.8 : t.opportunity?.type === 'event' ? 0.3 : 0.4;
-  const shortForm = f.shortsShare >= 0.5 || (f.medianDurationSec ?? 61) <= 60;
+  const shortForm = isShortForm(f);
   const feasible = cat >= 0.35 && !['Sports', 'News & Politics', 'Travel'].includes(category) && (shortForm || cat >= 0.7);
   const effort: [number, number] = shortForm ? [0.5, 2] : [1.5, 4];
   const fit = round(100 * clamp(0.35 * cat + 0.25 * clamp(tool, 0, 1) + 0.2 * langFit + 0.2 * typeFit, 0, 1), 0);
@@ -155,19 +160,27 @@ export function fitScore(t: Trend, f: TrendFeatures, category: string): { fit: n
   return { fit, approach, feasible, why, effort };
 }
 
+/** short-form = the examples' median length is ≤3 min when known, else most of them are Shorts */
+export function isShortForm(f: TrendFeatures): boolean { return f.medianDurationSec != null ? f.medianDurationSec <= 180 : f.shortsShare >= 0.5; }
+
 export function monetizationFor(t: Trend, f: TrendFeatures, category: string): DeskOpportunity['monetization'] {
   const p = profileFor(category);
-  const shortForm = f.shortsShare >= 0.5 || (f.medianDurationSec ?? 61) <= 60;
+  const shortForm = isShortForm(f);
   const platforms = shortForm ? ['YouTube Shorts', 'TikTok', 'Instagram Reels'] : ['YouTube', 'Facebook'];
+  const under60 = shortForm && (f.medianDurationSec ?? 45) < 60;
   const mechanisms = shortForm
-    ? ['YouTube Shorts ad-revenue share (Partner Program)', 'TikTok Creator Rewards (videos ≥ 1 min)', 'Facebook/Instagram content monetization']
+    ? ['YouTube Shorts ad-revenue share (Partner Program)', under60 ? 'TikTok Creator Rewards only for videos ≥ 1 min — post a ≥1-min cut on TikTok if you want that programme' : 'TikTok Creator Rewards (videos ≥ 1 min)', 'Facebook content monetization (Reels/in-stream ads); Instagram has no general ad-revenue share for Reels — brand deals, gifts and subscriptions only']
     : ['YouTube watch-page ads (Partner Program)', 'Facebook in-stream ads'];
-  if (category === 'Music' || (f.hooks.music || 0) >= Math.max(2, f.videos * 0.3)) mechanisms.push('streams of the original track (distribution to Spotify/Apple), Content ID on re-uses');
+  if (category === 'Music' || (f.hooks.music || 0) >= Math.max(2, f.videos * 0.5)) mechanisms.push('streams of the original track (distribution to Spotify/Apple), Content ID on re-uses');
   if (p.sponsorship >= 0.6) mechanisms.push('brand integrations once the format has an audience');
   if (p.affiliate >= 0.5) mechanisms.push('affiliate links in the description');
-  const eligibility = [
+  const eligibility = shortForm ? [
     'YouTube Partner Program: 1,000 subscribers + 10M public Shorts views in 90 days (or 4,000 watch hours) — Shorts RPM is far below long-form',
     'TikTok Creator Rewards: 10,000 followers, 100,000 views in 30 days, original videos over one minute',
+    'Reused or AI-mass-produced content can be ineligible under YouTube\'s "inauthentic content" policy — the execution must be original',
+  ] : [
+    'YouTube Partner Program: 1,000 subscribers + 4,000 public watch hours in 12 months; long-form RPM depends on the category and advertiser-friendliness',
+    'Facebook in-stream ads: 5,000 followers and 60,000 minutes viewed in 60 days (programme terms change — check the current ones)',
     'Reused or AI-mass-produced content can be ineligible under YouTube\'s "inauthentic content" policy — the execution must be original',
   ];
   return { platforms, mechanisms, eligibility, suitability: t.monetizationSuitability };
@@ -195,7 +208,7 @@ export function isStrongMidSize(r: VideoRecord): boolean {
 export function isUsableExample(r: VideoRecord): boolean {
   if (LIVE_RE.test(r.title || '')) return false;
   if (r.durationSec != null && r.durationSec >= LONG_RECORDING_SEC) return false;
-  if (r.platformCategory === 'News & Politics' || SPORTS_NEWS_RE.test(r.title || '')) return false;
+  if (r.platformCategory === 'News & Politics' || SPORTS_NEWS_RE.test(r.title || '') || NEWS_CHANNEL_RE.test(r.creator?.name || '')) return false;
   if (r.platform === 'bluesky' && !(r.metrics.likes != null && r.metrics.likes >= 100)) return false;
   return true;
 }
@@ -242,7 +255,7 @@ function evidenceSets(t: Trend, byObs: Map<string, VideoRecord>): { clean: Ev[];
 function toEvidence(x: Ev): DeskEvidence {
   const { e, r } = x;
   const v = r.velocity?.[0];
-  return { id: e.id, platform: r.platform, url: r.url, title: r.title.slice(0, 110), creator: r.creator?.name, thumbnail: r.thumbnail || e.thumbnail, publishedAt: r.publishedAt, ageHours: r.ageHours, views: r.metrics.views, likes: r.metrics.likes, velocityPerHour: v?.perHour, velocityHours: v?.hours, velocityRatio: r.velocityRatio, state: r.state, kind: r.kind, verified: r.verified, durationSec: r.durationSec, language: r.language, matched: x.matched };
+  return { id: e.id, platform: r.platform, url: r.url, title: r.title.slice(0, 110), creator: r.creator?.name, subscribers: r.creator?.subscribers, thumbnail: r.thumbnail || e.thumbnail, publishedAt: r.publishedAt, ageHours: r.ageHours, views: r.metrics.views, likes: r.metrics.likes, velocityPerHour: v?.perHour, velocityHours: v?.hours, velocityRatio: r.velocityRatio, state: r.state, kind: r.kind, verified: r.verified, durationSec: r.durationSec, language: r.language, matched: x.matched };
 }
 
 /** evidence ordered: title carries the name/signature first, then by size */
@@ -252,11 +265,22 @@ function evidenceFor(clean: Ev[], limit = 6): DeskEvidence[] {
 }
 
 /** facts recomputed on the clean evidence (the cluster-level numbers include unverified, rejected and off-format videos) */
-function cleanFeatures(f: TrendFeatures, clean: Ev[]): TrendFeatures {
-  const creators = new Set(clean.map((x) => creatorKey(x.e)));
+/** 4.0.2: the subject's own channels ("Upin & Ipin Animation" + "Upin & Ipin Indonesia" for "Upin Ipin") are one brand, not independent creators */
+function creatorOf(t: Trend | undefined, x: Ev): string {
+  if (t && t.kind !== 'format') {
+    const flat = t.name.replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    const ch = (x.r.creator?.name || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    if (flat.length >= 5 && ch.includes(flat)) return `brand:${flat}`;
+  }
+  return creatorKey(x.e);
+}
+function cleanFeatures(f: TrendFeatures, clean: Ev[], t?: Trend): TrendFeatures {
+  const key = (x: Ev) => creatorOf(t, x);
+  const creators = new Set(clean.map(key));
   const byCreator = new Map<string, number>();
-  for (const x of clean) byCreator.set(creatorKey(x.e), (byCreator.get(creatorKey(x.e)) || 0) + 1);
-  const new48 = new Set(clean.filter((x) => x.r.ageHours != null && x.r.ageHours <= 48).map((x) => creatorKey(x.e)));
+  for (const x of clean) byCreator.set(key(x), (byCreator.get(key(x)) || 0) + 1);
+  const new48 = new Set(clean.filter((x) => x.r.ageHours != null && x.r.ageHours <= 48).map(key));
+  const freshQualified = new Set(clean.filter((x) => isQualified(x.r) && x.r.ageHours != null && x.r.ageHours <= 72).map(key)).size;
   const views = clean.map((x) => x.r.metrics.views || 0);
   const total = views.reduce((a, b) => a + b, 0);
   const durations = clean.map((x) => x.r.durationSec).filter((d): d is number => d != null && d > 0).sort((a, b) => a - b);
@@ -277,6 +301,7 @@ function cleanFeatures(f: TrendFeatures, clean: Ev[]): TrendFeatures {
     languages: langs,
     coolingShare: measured.length >= 2 ? round(measured.filter((x) => x.r.velocityRatio! < 0.8).length / measured.length, 2) : undefined,
     acceleratingShare: measured.length >= 2 ? round(measured.filter((x) => x.r.velocityRatio! >= 1.2).length / measured.length, 2) : undefined,
+    freshQualified,
   };
 }
 
@@ -354,17 +379,19 @@ export function subFormatsOf(t: Trend, examples: Ev[], max = 3): SubFormat[] {
   }
   const ranked = Array.from(byKey.entries()).filter(([, v]) => v.creators.size >= 3)
     .sort((a, b) => b[1].creators.size - a[1].creators.size || b[0].split(' ').length - a[0].split(' ').length || b[1].views - a[1].views);
-  const out: SubFormat[] = [];
-  const pickedIds: Set<string>[] = [];
+  const out: { label: string; creators: Set<string>; ids: Set<string>; views: number }[] = [];
   for (const [label, v] of ranked) {
-    // the same examples under another label (a pair and one of its words, "indian theft" / "theft auto") are one sub-format
-    const dup = pickedIds.some((ids) => { let inter = 0; for (const id of v.ids) if (ids.has(id)) inter++; return inter / Math.min(ids.size, v.ids.size) >= 0.6; });
-    if (dup) continue;
-    pickedIds.push(v.ids);
-    out.push({ label, creators: v.creators.size, videos: v.ids.size, exampleIds: Array.from(v.ids).slice(0, 8), topViews: v.views || undefined });
-    if (out.length >= max) break;
+    // the same examples under another label (a pair and one of its words, "indian theft" / "theft auto"; two stars of one
+    // parody format, "mbappe" / "haaland") are one sub-format: merge when ≥40 % of the smaller set or ≥2 examples overlap
+    const hit = out.find((o) => { let inter = 0; for (const id of v.ids) if (o.ids.has(id)) inter++; return inter >= 2 || inter / Math.min(o.ids.size, v.ids.size) >= 0.4; });
+    if (hit) {
+      if (!hit.label.split(' / ').includes(label) && !hit.label.includes(label) && !label.includes(hit.label) && hit.label.split(' / ').length < 3) hit.label = `${hit.label} / ${label}`;
+      for (const id of v.ids) hit.ids.add(id); for (const c of v.creators) hit.creators.add(c); hit.views = Math.max(hit.views, v.views);
+      continue;
+    }
+    out.push({ label, creators: new Set(v.creators), ids: new Set(v.ids), views: v.views });
   }
-  return out;
+  return out.sort((a, b) => b.creators.size - a.creators.size || b.views - a.views).slice(0, max).map((o) => ({ label: o.label, creators: o.creators.size, videos: o.ids.size, exampleIds: Array.from(o.ids).slice(0, 8), topViews: o.views || undefined }));
 }
 /** sub-format labels that are calendar tags belong to the calendar item, not to a pool */
 const CAL_LABEL = /halloween|diwali|navratri|dussehra|durga|christmas|xmas|thanksgiving|karwa|chauth|eid|ramadan|easter|holi|valentine|newyear|new year|puja/i;
@@ -375,13 +402,16 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
   const excluded: Record<string, number> = {};
   const debug = process.env.VR_DESK_DEBUG === '1';
   let current = '';
-  const skip = (why: string) => { excluded[why] = (excluded[why] || 0) + 1; if (debug) console.log(`  desk skip: ${current} — ${why}`); };
+  const skipReason = new Map<string, string>();
+  let currentId = '';
+  const skip = (why: string) => { excluded[why] = (excluded[why] || 0) + 1; if (currentId) skipReason.set(currentId, why); if (debug) console.log(`  desk skip: ${current} — ${why}`); };
   const out: DeskOpportunity[] = [];
   let considered = 0;
   for (const t of trends) {
     if (t.kind === 'topic') continue;
     considered++;
     current = `${t.kind} ${t.name}`;
+    currentId = t.id;
     const op = t.opportunity;
     const w = t.windows['7d'];
     if (!op) { skip('not classified'); continue; }
@@ -396,7 +426,8 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
     if (evergreen && w.creators > 80) { skip('category-level activity (too broad to be one opportunity)'); continue; }
     const { clean } = evidenceSets(t, byObs);
     if (clean.length < 3) { skip('fewer than 3 clean verified examples (hits, breakouts or ≥100K-view successes inside ten days; streams, long recordings, news clips, text posts and smaller videos excluded)'); continue; }
-    const fClean = cleanFeatures(op.features, clean);
+    const fClean = cleanFeatures(op.features, clean, t);
+    if (fClean.creators < 3) { skip('fewer than 3 independent creators once the subject\'s own channels count as one'); continue; }
     const { category, basis: categoryBasis } = categoryFromEvidence(t, clean);
     if (category === 'News & Politics' || category === 'Sports') { skip(`the verified examples are ${category} content`); continue; }
     const timing = timingOf(t, fClean, now);
@@ -473,7 +504,7 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
     const note = onDesk ? `on the desk: ${onDesk.action.replace('_', ' ')}`
       : t.opportunity?.type === 'uncertain' && t.kind === 'format' ? `${creators.size} creators with verified examples this week, but no shared structure beyond the category in the cluster's titles${subFormats.length ? ' — the sub-formats below are the thing to study' : ''}`
         : t.windows['7d'].creators > 80 ? `${t.windows['7d'].creators} creators this week — category-level activity, too broad to be one opportunity${subFormats.length ? '; the sub-formats below are the thing to study' : '; use the signature and the examples'}`
-          : clean.length < 3 ? `fewer than 3 clean verified examples this week (${clean.length} clean, ${context.length} smaller)` : 'did not clear the desk gate (see the excluded reasons)';
+          : clean.length < 3 ? `fewer than 3 clean verified examples this week (${clean.length} clean, ${context.length} smaller)` : skipReason.has(t.id) ? `not on the desk: ${skipReason.get(t.id)}` : 'did not clear the desk gate';
     lane.push({ trendId: t.id, name: t.name, creators: creators.size, videos: all.length, qualified: clean.filter((x) => isQualified(x.r)).length, newCreators48h: new48.size, topViews: ev[0]?.views, signature: t.opportunity?.features.signature.slice(0, 5) || [], evidence: ev, note, subFormats: subFormats.length ? subFormats : undefined });
     // 4.0.1: a sub-format with real adoption (≥4 independent creators, at least one qualified example, short-form) becomes a
     // "research" item on the desk — a structure found in titles, not a validated cluster, so never "create today"
@@ -484,14 +515,18 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
         const exs = all.filter((x) => ids.has(x.e.id));
         if (!exs.some((x) => isQualified(x.r))) continue;
         if (calendarCountdown(sf.label, now) || CAL_LABEL.test(sf.label) || out.some((o) => o.name.toLowerCase() === sf.label.toLowerCase())) continue;
-        const fSub = cleanFeatures(t.opportunity.features, exs);
+        const fSub = cleanFeatures(t.opportunity.features, exs, t);
         fSub.signature = [sf.label, ...t.opportunity.features.signature.filter((w) => w !== sf.label)].slice(0, 5);
-        const short = fSub.shortsShare >= 0.5 || (fSub.medianDurationSec ?? 61) <= 60;
-        if (!short) continue;
-        const { category, basis: categoryBasis } = categoryFromEvidence({ ...t, kind: 'microtrend' } as Trend, exs);
-        if (category === 'News & Politics' || category === 'Sports') continue;
+        if (!isShortForm(fSub)) continue;
+        // the pool's rules already keep news/sports coverage out; a parody of footballers inside the animation pool is an
+        // animation format whose videos YouTube files under "Sports" — the pool's editorial category applies
+        const evCat = categoryFromEvidence({ ...t, kind: 'microtrend' } as Trend, exs);
+        if (evCat.category === 'News & Politics') continue;
+        const category = evCat.category === 'Sports' ? t.category : evCat.category;
+        const categoryBasis = category === t.category ? 'cluster' as const : evCat.basis;
+        // timing by the flow of new independent hits (a format whose members each slow down after their own peak is not "cooling")
         const timing = timingOf(t, fSub, now);
-        if (timing.timing === 'cooling') continue;
+        if (timing.timing === 'cooling' && (fSub.freshQualified ?? 0) === 0) continue;
         const fit = fitScore(t, fSub, category);
         const evidence = evidenceFor(exs);
         const largest = [...evidence].sort((a, b) => (b.views ?? 0) - (a.views ?? 0))[0];
@@ -499,6 +534,9 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
         const langs = fSub.languages;
         const enEs = ((langs.en || 0) + (langs.es || 0)) / Math.max(1, exs.length);
         const evidenceScore = round(clamp(0.25 * Math.min(100, 12 * fSub.creators) + 0.35 * Math.min(100, 25 * qualified) + 0.4 * 55, 0, 100), 0);
+        // 4.0.2: a strong sub-format — ≥4 creators, ≥2 qualified hits younger than 72h from different creators, mostly
+        // English/Spanish, short-form and feasible in ≤2h — is worth making today; everything else is "research"
+        const strong = fSub.creators >= 4 && (fSub.freshQualified ?? 0) >= 2 && enEs >= 0.5 && fit.feasible && fit.effort[1] <= 2;
         const why = [
           `A structure visible inside the “${t.name}” pool, not a validated cluster: ${fSub.creators} independent creators share “${sf.label}” in their titles (${exs.length} verified examples, ${qualified} qualified hit${qualified === 1 ? '' : 's'}/breakout${qualified === 1 ? '' : 's'}).`,
           largest?.views ? `Largest example: ${fmt(largest.views)} views${largest.ageHours != null ? ` in ${largest.ageHours < 48 ? Math.round(largest.ageHours) + 'h' : Math.round(largest.ageHours / 24) + ' days'}` : ''}${largest.velocityPerHour ? `, +${fmt(largest.velocityPerHour)}/h measured${largest.velocityRatio != null ? ` (${largest.velocityRatio}× its lifetime average)` : ''}` : ''}.` : '',
@@ -512,7 +550,10 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
           features: fSub,
           production: { feasibleIn2h: fit.feasible && fit.effort[1] <= 2, approach: fit.approach, why: fit.why, effortHours: fit.effort },
           monetization: monetizationFor(t, fSub, category),
-          action: 'research', actionWhy: `Found by shared title words, not by a validated cluster: ${fSub.creators} creators, short-form, in your lane — open the examples and judge the mechanism before committing production time.`,
+          action: strong ? 'create_today' : 'research',
+          actionWhy: strong
+            ? `${fSub.creators} independent creators share this structure, ${fSub.freshQualified} of them with a qualified hit in the last 72h, ${Math.round(100 * enEs)}% in English/Spanish, short-form, and it fits ${fit.effort[0]}–${fit.effort[1]}h of AI/animation production — found by shared title words inside your “${t.name}” pool, so open the examples first, then make your own variation today.`
+            : `Found by shared title words, not by a validated cluster: ${fSub.creators} creators, short-form, in your lane — open the examples and judge the mechanism before committing production time.`,
           fit: fit.fit, evidenceScore, timingScore: timing.score, score: round(0.4 * evidenceScore + 0.3 * timing.score + 0.3 * fit.fit, 0),
           caution: `“${sf.label}” is a keyword the titles share; the videos may share it for different reasons — the thumbnails and the examples decide whether this is one format.`,
         });
@@ -527,10 +568,10 @@ export function buildDesk(trends: Trend[], records: VideoRecord[], now: string):
   const picked: DeskOpportunity[] = [];
   for (const o of out) {
     const n = perCat.get(o.category) || 0;
-    if (n >= 2) continue;
+    if (n >= 2) { excluded['beyond the per-category limit (two per category)'] = (excluded['beyond the per-category limit (two per category)'] || 0) + 1; continue; }
+    if (picked.length >= 8) { excluded['beyond the desk limit (eight)'] = (excluded['beyond the desk limit (eight)'] || 0) + 1; continue; }
     perCat.set(o.category, n + 1);
     picked.push(o);
-    if (picked.length >= 8) break;
   }
   return { generatedAt: now, opportunities: picked, lane, considered, excluded, profile: CREATOR_PROFILE };
 }

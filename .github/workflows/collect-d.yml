@@ -18,10 +18,6 @@ on:
   schedule:
     - cron: '26,56 * * * *'
 
-concurrency:
-  group: collect
-  cancel-in-progress: false
-
 permissions:
   contents: write
   actions: read
@@ -30,6 +26,10 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # job-level, not workflow-level: the sleeping keeper job must not hold the group and delay a scheduled collection
+    concurrency:
+      group: collect
+      cancel-in-progress: false
     outputs:
       publish: ${{ steps.gate.outputs.publish }}
       skipped: ${{ steps.fresh.outputs.skip }}

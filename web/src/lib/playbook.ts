@@ -28,7 +28,8 @@ export interface Brief {
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const dominant = (hooks: Record<string, number>, n: number) => Object.entries(hooks).filter(([k]) => !['emoji', 'caps', 'second_person'].includes(k)).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= Math.max(1, n * 0.15)).map(([k]) => k);
+// a hook is "what the examples do" only when at least two of them and a quarter of them carry it (one title is an anecdote)
+const dominant = (hooks: Record<string, number>, n: number) => Object.entries(hooks).filter(([k]) => !['emoji', 'caps', 'second_person'].includes(k)).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= Math.max(2, n * 0.25)).map(([k]) => k);
 
 const HOOK_TEXT: Record<string, string> = {
   question: 'opens on a question the viewer wants answered',
@@ -133,7 +134,7 @@ function platformLine(o: DeskOpportunity): string {
 }
 
 function baseSteps(o: DeskOpportunity, extra: string[]): string[] {
-  const shortForm = o.features.shortsShare >= 0.5 || (o.features.medianDurationSec ?? 61) <= 60;
+  const shortForm = o.features.medianDurationSec != null ? o.features.medianDurationSec <= 180 : o.features.shortsShare >= 0.5;
   return [
     `Watch the top ${Math.min(3, o.evidence.length)} examples once with sound, once muted; write down the exact second the payoff lands.`,
     'Write the script as 6–10 lines: hook (≤2 s), setup, two escalations, payoff, loop-back line.',
@@ -146,7 +147,7 @@ function baseSteps(o: DeskOpportunity, extra: string[]): string[] {
 }
 
 function evidenceLines(o: DeskOpportunity): string[] {
-  return o.evidence.slice(0, 4).map((e) => `“${e.title}” — ${e.creator || 'unknown creator'}, ${e.views != null ? fmtNum(e.views) + ' views' : e.likes != null ? fmtNum(e.likes) + ' likes' : 'no statistics'}${e.ageHours != null ? `, ${e.ageHours < 48 ? Math.round(e.ageHours) + 'h' : Math.round(e.ageHours / 24) + 'd'} old` : ''}${e.velocityPerHour ? `, +${fmtNum(e.velocityPerHour)}/h measured${e.velocityRatio != null ? ` (${e.velocityRatio}× its lifetime average${e.velocityRatio < 0.8 ? ', past its peak' : e.velocityRatio >= 1.2 ? ', accelerating' : ''})` : ''}` : ''}${e.state === 'rejected' ? ' [mid-size: below the viral floor for its age]' : ''} (${e.url})`);
+  return o.evidence.slice(0, 4).map((e) => `“${e.title}” — ${e.creator || 'unknown creator'}${e.subscribers ? ` (${fmtNum(e.subscribers)} subscribers)` : ''}, ${e.views != null ? fmtNum(e.views) + ' views' : e.likes != null ? fmtNum(e.likes) + ' likes' : 'no statistics'}${e.ageHours != null ? `, ${e.ageHours < 48 ? Math.round(e.ageHours) + 'h' : Math.round(e.ageHours / 24) + 'd'} old` : ''}${e.velocityPerHour ? `, +${fmtNum(e.velocityPerHour)}/h measured${e.velocityRatio != null ? ` (${e.velocityRatio}× its lifetime average${e.velocityRatio < 0.8 ? ', past its peak' : e.velocityRatio >= 1.2 ? ', accelerating' : ''})` : ''}` : ''}${e.state === 'rejected' ? ' [mid-size: below the viral floor for its age]' : ''} (${e.url})`);
 }
 
 function uncertaintyLines(o: DeskOpportunity): string[] {
@@ -183,7 +184,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
   const hookStyle = hooks.find((h) => HOOK_TEXT[h] && !['animated', 'ai', 'character', 'music'].includes(h));
   const hookDesc = hookStyle ? HOOK_TEXT[hookStyle] : 'a visual surprise in the first frame';
   const animated = hooks.includes('animated') || hooks.includes('ai') || o.category === 'Animation & Art';
-  const shortForm = f.shortsShare >= 0.5 || (f.medianDurationSec ?? 61) <= 60;
+  const shortForm = f.medianDurationSec != null ? f.medianDurationSec <= 180 : f.shortsShare >= 0.5;
   const effortBase = o.production.effortHours;
   const nameTag = POOL_TAG[o.trendId.replace(/^f_/, '')] || o.name.replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
   const hashtags = Array.from(new Set([nameTag, ...f.signature.filter((x) => latin(x) && x.length >= 4 && !nameTag.includes(x.toLowerCase())).slice(0, 3)])).filter((x) => x.length > 2).slice(0, 4).map((x) => '#' + x);
@@ -214,7 +215,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
   if (hooks.includes('series') || hooks.includes('escalation') || hooks.includes('challenge') || hooks.includes('numbered')) {
     briefs.push({
       variation: 'Escalating series',
-      variationWhy: `The examples use ${hooks.includes('series') ? 'episodic "part N" titles' : hooks.includes('escalation') ? 'level-by-level escalation' : 'challenge/number framing'} — a built-in reason to return.`,
+      variationWhy: `${Math.round(100 * ((f.hooks.series || f.hooks.escalation || f.hooks.challenge || f.hooks.numbered || 0) / n))}% of the examples use ${hooks.includes('series') ? 'episodic "part N" titles' : hooks.includes('escalation') ? 'level-by-level escalation' : 'challenge/number framing'} — a built-in reason to return.`,
       title: `${cap(nounPhrase)}, levels 1 to 5`,
       concept: `One video = one ladder. The same ${subj} situation is attempted at five escalating levels (easy → absurd); each level is a 4–6 s scene; the fifth breaks the rules of the format itself.`,
       hook: 'Text in the first frame: “Level 1” over the simplest version; viewers stay to see how far it goes.',
@@ -244,7 +245,7 @@ export function buildBriefs(o: DeskOpportunity): Brief[] {
   }
 
   // 3 — mashup / music / explainer depending on what the format rewards
-  if (hooks.includes('music') || o.category === 'Music') {
+  if ((f.hooks.music || 0) >= Math.max(2, n * 0.5) || o.category === 'Music') {
     briefs.push({
       variation: 'Original track',
       variationWhy: 'Music-led examples: an original song or parody adds streaming revenue and Content ID on re-uses.',

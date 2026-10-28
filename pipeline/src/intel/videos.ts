@@ -305,12 +305,19 @@ export function decideVideo(r: VideoRecord): void {
   const isHit = views >= floor || (views >= T.hitViewsWithRate && ((V ?? 0) >= T.hitRate || L >= T.hitRate));
   // a big channel's ordinary clip gaining fast is that channel's normal, not a breakout — when the creator's range is
   // known, measured growth must at least reach it (looser than the young-video rule, which has no measurement)
-  const notBelowNormal = r.baselineRatio != null ? r.baselineRatio >= 1.2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.2 : true;
+  const notBelowNormal = r.baselineRatio != null ? r.baselineRatio >= 1.2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.35 : true;
   const recent = age <= 168; // the "early" window: a week
   // 4.0.1: past the first two days a high absolute rate only counts as "early" while the video holds or beats its own
   // lifetime pace — a 4-day-old clip decelerating at 0.9× its average is steady, not breaking out
-  const holdingPace = age <= 48 || (r.velocityRatio ?? 1) >= 1;
-  const breakoutMeasured = recent && V != null && notBelowNormal && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews && holdingPace) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
+  // (a young video slowing on both measures — below 0.8× its average AND below 0.8× the previous interval — is not breaking out either)
+  const holdingPace = age <= 48 ? !((r.velocityRatio ?? 1) < 0.8 && (A ?? 1) < 0.8) : (r.velocityRatio ?? 1) >= 1;
+  // 4.0.2: an acceleration ratio computed from a small previous interval is noisy; it only counts while the video also holds
+  // ≥0.9× its own pace or sits in the top 20 % of tracked videos of its age
+  const accelCredible = (r.velocityRatio ?? 1) >= 0.9 || (r.agePercentile ?? 0) >= 0.8;
+  // 4.0.2: long-form uploads with comments switched off (autoplay / kids-compilation pattern) and broadcast recordings are not breakout signals
+  const autoplayPattern = (r.durationSec ?? 0) >= 600 && (r.metrics.comments ?? 0) === 0;
+  const broadcast = ((r.platformCategory === 'Sports' && (r.durationSec ?? 0) >= 1800) || (r.platformCategory === 'News & Politics' && (r.durationSec ?? 0) >= 1200));
+  const breakoutMeasured = recent && V != null && notBelowNormal && !autoplayPattern && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews && holdingPace) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews && accelCredible));
   // a big channel's ordinary upload is not a breakout: when the creator's normal range is known, the video must exceed it
   const aboveNormal = r.baselineRatio != null ? r.baselineRatio >= 2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.5 : true;
   const breakoutYoung = V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && aboveNormal;
@@ -320,6 +327,8 @@ export function decideVideo(r: VideoRecord): void {
 
   if (age > T.maxAgeHours && !resurging) {
     rejectedBy = 'older than 30 days without measured resurgence';
+  } else if (broadcast) {
+    rejectedBy = `broadcast recording (${r.platformCategory}, ${Math.round((r.durationSec || 0) / 60)} min) — coverage, not a creator video`;
   } else if (isHit && !cooling) {
     state = 'verified_hit';
     r.kind = 'established';
@@ -335,7 +344,7 @@ export function decideVideo(r: VideoRecord): void {
     state = 'early_breakout';
     r.kind = 'early';
     reasons.push(`Early breakout: ${fmt(views)} views is below the ${fmt(floor)} hit floor for its age; measured +${fmt(V!)}/h is ${r.velocityRatio != null ? `${r.velocityRatio}× its lifetime average (${(r.velocityRatio >= 1.2 ? 'accelerating' : r.velocityRatio >= 1 ? 'holding its pace' : 'a very young video still finding its pace')})` : 'far above typical rates for its age'}.`);
-  } else if (breakoutYoung) {
+  } else if (breakoutYoung && !autoplayPattern) {
     state = 'early_breakout';
     r.kind = 'early';
     reasons.push('Young video with an exceptional average rate — provisional until a second measurement confirms it.');
@@ -351,6 +360,8 @@ export function decideVideo(r: VideoRecord): void {
     rejectedBy = 'cooling and below hit threshold';
   } else if (V != null && !recent) {
     rejectedBy = `older than a week without measured resurgence (${fmt(V)}/h, ${r.velocityRatio}× lifetime)`;
+  } else if (autoplayPattern && V != null && V >= T.accelVelocity) {
+    rejectedBy = `long-form upload with comments switched off (${Math.round((r.durationSec || 0) / 60)} min) — an autoplay/compilation pattern, not a breakout signal`;
   } else if (V != null && !holdingPace && V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) {
     rejectedBy = `past its peak: measured ${fmt(V)}/h is ${r.velocityRatio}× its lifetime average (steady or slowing, not breaking out)`;
   } else if (V != null) {

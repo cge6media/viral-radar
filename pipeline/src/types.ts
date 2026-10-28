@@ -525,6 +525,10 @@ export interface TrendFeatures {
   coolingShare?: number;
   /** 4.0.1: share of measured examples whose current rate is ≥1.2× their lifetime average (still accelerating) */
   acceleratingShare?: number;
+  /** 4.0.2: share of examples uploaded by broadcasters / news channels (coverage, not creator formats) */
+  newsChannelShare?: number;
+  /** 4.0.2: qualified clean examples younger than 72h from distinct creators — the flow of new hits, the real freshness signal */
+  freshQualified?: number;
 }
 
 export type DeskAction = 'create_today' | 'research' | 'monitor' | 'participate' | 'skip';
@@ -552,6 +556,8 @@ export interface DeskEvidence {
   language?: string;
   /** 4.0.1: the term of the cluster's name/signature found in this title (what made it evidence) */
   matched?: string;
+  /** 4.0.2: channel size when known (a 14M-subscriber channel's hit says less about the format than a 20K one's) */
+  subscribers?: number;
 }
 
 export interface DeskOpportunity {
