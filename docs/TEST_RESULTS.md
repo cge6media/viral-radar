@@ -1,3 +1,64 @@
+# Test results — Viral Radar 3.0 (2026-10-28)
+
+Environment: Anthropic cloud workspace (no personal machine involved); live verification on GitHub Actions runners
+and the public GitHub Pages site. The 2.0 and 1.0 results follow below.
+
+## Automated tests — `npm test` — 42/42 pass
+
+New in 3.0 (`test/videos.test.ts`, `test/collectors.test.ts`, `test/intel.test.ts`): evidence classes follow
+absolute + relative thresholds (4 → 8 likes is never a breakout; a 12M-view Short is a hit; a 6h-old 400K-view
+video is a *provisional* breakout labelled as such; share likes never become video statistics); velocity only
+between real observations ≥1h apart, acceleration from three points, windowed gains; measured growth beats the
+lifetime average; cooling; delayed breakouts survive the 30-day rule; creator outliers with a baseline; live
+streams and duplicates excluded; Bluesky never ranks among view-count platforms; a big channel's ordinary clip is
+not a breakout even when it gains fast; "- Topic" channels carry no outlier ratios; paid-reach patterns are
+rejected and hidden like counts are not evidence; the quota day follows Pacific time; corporate news is a news
+event.
+
+## Live collection (YouTube Data API)
+
+First keyed run 03:52 UTC: 906 verified video records (titles, publish dates, views, likes, comments, durations,
+channels, thumbnails on i.ytimg.com), 25 units + 18 searches. By 07:40 UTC after 28 runs: 4,484 unique videos in
+the 30-day index (4,444 with verified statistics), 1,047 with measured velocity, 36 with acceleration; the day's
+quota use was 1,133 units and 76 searches (limits 10,000 / 100; the ledger caps at 9,000 / 90). No key appears in
+logs, data, code or the site (GitHub masks the secret; collector errors are redacted; the ledger stores no URLs).
+
+## Discovery benchmark (docs/BENCHMARK.md)
+
+| cycle | reference set | discovered | precision@10/@20 | negatives leaked |
+|---|---|---|---|---|
+| 1 baseline | ChartsList US + ShortsMonkey (98) | 4.1 % | 100 % | 0 |
+| 1 after the collection fix | same | 40.8 % → 49.0 % | 100 % | 0 |
+| 2 final | same | 49.0 % (80 % of videos ≥10M views) | 100 % | 0 |
+| 3 unseen holdout | ChartsList Worldwide + MX + GB (82) | **65.9 %** (87 % of videos ≤7 days old) | 100 % | 0 |
+
+Classification agreement with the uploader's specific YouTube category: 96–97 % (36 % before the platform prior).
+Playback: 100/100 featured videos embeddable and 100/100 thumbnails reachable from the runner.
+
+## Case video (IjQwPjLMbxI)
+
+API-verified: "Angry grandpa kicks me out my fishing spot 😂" by Bird28thegr8, published 2025-08-21, 2.19M views,
+59K likes (2.7 %), 2,285 comments, 71 s. ×440 the channel's median upload (4,971 views; 42.6K subscribers).
+Diagnostic tracking 04:18–05:46 UTC: +2,520 views in 1.47 h = ~1,700 views/hour ≈ 8× its lifetime average — a
+modest resurgence of a 14-month-old Short, below the 5K/hour delayed-breakout floor; it is a creator-outlier case,
+not a current major hit. It was never injected into the feed.
+
+## UI (real browser screenshots, Chromium)
+
+1440 / 768 / 390 px: Discover, Viral Now, Early Radar, Trends, Hall of Fame, Diagnostics (coverage, funnel),
+Studio, Money, Watchlist, a trend page, and the modal player (iframe present at every width). No horizontal overflow
+after fixes (uniform 4:5 cards, 2-column grids on tablets, wrapping pills). Thumbnails and fonts are blocked in the
+sandbox, so screenshots show the gradient fallback covers; the live site loads i.ytimg.com thumbnails (verified by
+HEAD from the runner).
+
+## Quality checks — 16 per run, 6 critical ones gate publishing
+
+Every 3.0 run so far: 16/16 (relevance 100 %, 0 share-dates-as-publish-dates, 0 misattributed engagement,
+0 featured videos without verified statistics, 0 unsupported breakouts, 0 tiny-sample videos featured, 0 stale
+featured statistics).
+
+---
+
 # Test results — Viral Radar 2.0
 
 Environment: Anthropic cloud workspace (Ubuntu 24.04, Node 22.23, sandboxed; no access to any personal machine,

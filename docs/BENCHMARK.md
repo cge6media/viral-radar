@@ -66,12 +66,51 @@ likes, e.g. an 11M-view TV ad with 16 likes); growth baselines restricted to run
 signature (switching YouTube on had read as ×51 "growth"); ≤2 videos per creator in ranked lists; stream
 recordings excluded.
 
-Results: see the table appended below after the cycle-2 run.
+Results (dev set, 2026-10-28 07:41 UTC, after 17 further collections with the rolling schedule):
 
-## Cycle 3 — unseen holdout
+| metric | value |
+|---|---|
+| discovered | **48/98 (49.0 %)** — ChartsList US 38/48, ShortsMonkey 10/50 |
+| discovered, videos ≥10M views | 39/49 (80 %) |
+| discovered, videos <10M views | 9/49 (18 %) |
+| qualified as hit/breakout | 45/98 (3 verified-but-rejected: 1 paid-reach pattern, 2 below age thresholds) |
+| in the top-40 lists | 7/98 (38 more are verified hits reachable on the Viral Now page by window) |
+| precision@10 / @20 (Viral Now 72h, 7d, Early Radar) | 100 % / 100 % on all three |
+| negative controls leaked | 0 of 121 low-engagement Bluesky, 0/10 duplicates, 0/103 streams, 0/177 unverified links, 0/139 sub-10K |
+| classification agreement (specific YouTube categories) | 2,057/2,126 = **96.8 %** (36 % before the prior) |
+| playback | 100/100 featured videos embeddable, 100/100 thumbnails reachable |
 
-Configuration frozen before the run; references never used before (Worldwide, Mexico, United Kingdom charts).
-Results appended below.
+The remaining dev misses are ShortsMonkey's mid-size outliers (median 3.9M views): the top-50-by-views probes, even
+day-sliced, are filled by larger videos. Reaching them needs more candidate throughput (pages 2–4 per day/region),
+which the 100-searches/day quota does not allow; this is a quota ceiling, reported as such.
+
+## Cycle 3 — unseen holdout (configuration frozen; references never used before)
+
+ChartsList **Worldwide, Mexico and United Kingdom** Shorts charts, 2026-10-28 07:44 UTC: 82 unique videos, all
+eligible.
+
+| metric | value |
+|---|---|
+| discovered | **54/82 (65.9 %)** — Worldwide 25/48, GB 39/48, MX 38/48 (every entry ≥10M views) |
+| discovered, published ≤7 days ago | **20/23 (87 %)** |
+| discovered, 7–14 days old | 21 of the 28 misses sit here (median 27.8M views): worldwide kids'/international Shorts absent from every *regional* probe (the World #1, 166M views, 8.6 days old, among them) |
+| qualified | 53/82 (1 paid-reach pattern rejected) |
+| in the top-40 lists | 11/82 (42 more are verified hits reachable by window) |
+| precision@10 / @20 | 100 % / 100 % on all three lists |
+| negative controls leaked | 0 of 128 low-engagement Bluesky, 0/14 duplicates, 0/103 streams, 0/188 unverified links, 0/135 sub-10K |
+| classification agreement | 2,322/2,420 = 96.0 % |
+| playback | 100/100 embeddable, 100/100 thumbnails |
+| detection delay, videos published after the index started | only 2 such videos discovered in the first 4 hours (1.7h median after publish) — the 24h top-50 is filled by 10–24h-old videos, so brand-new videos are rarely seen in their first hours |
+
+**Measured improvement, baseline → holdout:** discovery of independently listed viral Shorts rose from 4.1 % to
+49 % (dev) and 66 % (unseen holdout; 87 % for videos ≤7 days old), with precision and negative controls unchanged
+at 100 % / 0 leaks.
+
+**Identified weaknesses and the next practical improvements** (the first two were added to the schedule *after*
+the holdout and are not yet benchmarked): global (no-region) 7-day and 21-day probes for worldwide giants; a 6-hour
+fresh probe so videos are seen in their first hours; beyond that, candidate throughput is bounded by the
+100-searches/day quota (a quota extension request or a second key per the API terms would raise the ceiling);
+TikTok/Instagram/Facebook recall cannot be measured until a statistics source exists.
 
 ## Honest limits
 

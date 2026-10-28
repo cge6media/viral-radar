@@ -63,6 +63,10 @@ export function buildSchedule(opts: { topicTerms?: string[]; trendTerms?: string
   const windows: Probe[] = [
     { hours: 72, duration: 'short', region: US, pages: 2 }, { hours: 24 * 7, duration: 'short', region: US, pages: 2 }, ...days,
     { hours: 24 * 21, duration: 'short', region: US }, { hours: 72, region: US }, { hours: 24 * 7, region: US }, { hours: 24 * 7, duration: 'medium', region: US },
+    // added after the cycle-3 holdout (not yet benchmarked): global (no region) windows — the holdout's biggest misses
+    // were 7–14-day-old worldwide kids'/international Shorts absent from every regional list — and a 6h probe so a
+    // video can be seen in its first hours instead of only once it reaches a 24h top-50
+    { hours: 24 * 7, duration: 'short', pages: 2 }, { hours: 24 * 21, duration: 'short' }, { hours: 6, duration: 'short', region: US },
   ];
   // interleave so the fresh probe recurs every ~4 slots (~2h) and every family appears each cycle
   const pool = [...windows, ...cats, ...regions, ...keywords];
