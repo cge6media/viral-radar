@@ -225,6 +225,9 @@ export function decideVideo(r: VideoRecord): void {
   const L = r.lifetimeRate || 0;
   const V = measured?.perHour;
   const A = r.acceleration;
+  // auto-generated "<Artist> - Topic" channels have no real subscriber base; their ratios mean nothing
+  const topicChannel = /\s-\sTopic$/.test(r.creator?.name || '');
+  if (topicChannel) { r.baselineRatio = undefined; r.subscriberRatio = undefined; r.outlierScore = 0; }
   const base = r.baselineRatio ?? r.subscriberRatio;
 
   // facts first — the same wording everywhere, so the UI never has to invent a sentence
@@ -259,7 +262,10 @@ export function decideVideo(r: VideoRecord): void {
     return;
   }
   const isHit = views >= T.hitViews || (views >= T.hitViewsWithRate && ((V ?? 0) >= T.hitRate || L >= T.hitRate));
-  const breakoutMeasured = V != null && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
+  // a big channel's ordinary clip gaining fast is that channel's normal, not a breakout — when the creator's range is
+  // known, measured growth must at least reach it (looser than the young-video rule, which has no measurement)
+  const notBelowNormal = r.baselineRatio != null ? r.baselineRatio >= 1.2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.2 : true;
+  const breakoutMeasured = V != null && notBelowNormal && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
   // a big channel's ordinary upload is not a breakout: when the creator's normal range is known, the video must exceed it
   const aboveNormal = r.baselineRatio != null ? r.baselineRatio >= 2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.5 : true;
   const breakoutYoung = V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && aboveNormal;
@@ -286,7 +292,7 @@ export function decideVideo(r: VideoRecord): void {
     reasons.push('Creator outlier: performing far above this channel\'s normal range.');
   } else if (views < T.candidateViews) {
     rejectedBy = `below candidate floor (${fmt(T.candidateViews)} views)`;
-  } else if (V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && !aboveNormal) {
+  } else if ((V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && !aboveNormal) || (V != null && !notBelowNormal && V >= T.accelVelocity)) {
     rejectedBy = `within the creator's normal range (${r.baselineRatio != null ? `${r.baselineRatio}× median upload` : `${r.subscriberRatio}× subscribers`})`;
   } else if (cooling) {
     rejectedBy = 'cooling and below hit threshold';

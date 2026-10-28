@@ -115,3 +115,18 @@ test('videos: a paid-reach pattern (millions of views, near-zero engagement) is 
   assert.match(by.ad1.rejectedBy!, /paid promotion/);
   assert.equal(by.hid.state, 'verified_hit');
 });
+
+test('videos: a big channel\'s ordinary clip is not a breakout even when it gains fast; "- Topic" channels have no outlier ratios', () => {
+  const channels = new Map([['UCbig', { subscribers: 12_000_000, medianRecentViews: 900_000 }], ['UCtopic', { subscribers: 1_000 }]]);
+  const clip = yt('clip', 'Nightly show segment', 450_000, 3, {}, 'big');
+  const hist = new Map([[clip.id, [{ t: h(2), metrics: { views: 50_000 } }, { t: h(0), metrics: { views: 450_000 } }]]]);
+  const topic = yt('tp', 'New single', 1_061_053, 44, {}, 'topic');
+  topic.creator = { name: 'SLAY - Topic', url: 'https://www.youtube.com/channel/UCtopic' };
+  const recs = buildVideoRecords({ observations: [clip, topic], metricHistory: hist, channels, now: NOW });
+  const by = Object.fromEntries(recs.map((r) => [r.platformId, r]));
+  assert.equal(by.clip.velocity![0].perHour, 200_000);
+  assert.equal(by.clip.state, 'rejected', '0.5× the channel median is the channel\'s normal, not abnormal momentum');
+  assert.match(by.clip.rejectedBy!, /normal range/);
+  assert.equal(by.tp.subscriberRatio, undefined);
+  assert.equal(by.tp.outlierScore, 0);
+});
