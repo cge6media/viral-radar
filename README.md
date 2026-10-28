@@ -54,8 +54,14 @@ Google Trends trending-searches RSS · Bluesky public API (trending topics, topi
 5. Optional repository *variables*: `VR_GT_REGIONS` (default `US,GB,CA,AU`), `VR_YT_REGIONS`, `VR_YT_QUERIES`,
    `VR_MASTODON_INSTANCES`, `VR_TIKTOK=1` to try the TikTok Creative Center collector.
 
-Manual refresh from the dashboard: Settings → "Run collection now" (needs a fine-grained GitHub token with *Actions:
-read & write* for this repo, stored only in your browser). Without a token the button links to the Actions page.
+Manual refresh: Settings → "Run collection now ↗" opens the workflow's Actions page, where **Run workflow** starts a
+collection (2.0 no longer stores a GitHub token in the browser — see docs/SAAS_ARCHITECTURE.md for the server-side
+trigger planned for the hosted product).
+
+Releases: the collector's publish job and the code deploy share one Pages queue; whichever finishes last wins, and
+both build the *current* `main`, so a code push that lands while a collection is publishing is live by the next
+collection at the latest (≤30 min). A collection whose release gate fails commits its data but does not publish, so
+the previous release stays up.
 
 ## Develop (cloud workspace or any machine you choose)
 
