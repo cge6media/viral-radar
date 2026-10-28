@@ -31,6 +31,11 @@ precision 100 %, 0 leaks of 728 controls. Full tables in `data/benchmark/4.0-cyc
 
 ## Browser QA (real Chromium on the GitHub runner, live site)
 
+**4.0.2 re-run (14:18 UTC, run `202610281407` live):** desk → playbook → export passes at 1440/768/390, Discover
+loads in 2.2–2.3 s, 14/15 embeds, media delivered 4/15 (bot wall 10); one overflow at desk@390 — the new sub-format
+chips did not wrap — fixed in `web/src/styles.css` (`.pill.subchip`) and verified locally with Playwright at 390 px
+(0 overflowing elements) before the push.
+
 **4.0.1 re-run (13:17 UTC, run `202610281313` live):** 0 pages with horizontal overflow at 1440/768/390 (36
 screenshots), Discover loads in 3.0 s / 2.3 s / 2.5 s, the desk → playbook → export flow passes at all three widths,
 14/15 player embeds load; media was delivered in 2/15 because YouTube's datacenter anti-bot wall answered 12 (see
