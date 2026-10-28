@@ -9,7 +9,7 @@
 import { collectGoogleTrends } from './collectors/googleTrends.js';
 import { collectBluesky } from './collectors/bluesky.js';
 import { collectMastodon } from './collectors/mastodon.js';
-import { collectYouTube, enrichYouTubeLinks } from './collectors/youtube.js';
+import { collectYouTube, enrichYouTubeLinks, quotaDay } from './collectors/youtube.js';
 import { collectTikTok } from './collectors/tiktok.js';
 import { buildClusters, independentCreators, type Cluster } from './intel/cluster.js';
 import { classify, decideNewsEvent, profileFor } from './intel/taxonomy.js';
@@ -189,7 +189,7 @@ export async function main(): Promise<Snapshot> {
       qualifiedTrends: trends.filter((t) => t.qualified).length,
       newTrends24h: trends.filter((t) => t.qualified && hoursBetween(t.firstDetected, now) <= 24).length,
       historyDays: earliest ? Math.ceil(hoursBetween(earliest, now) / 24) : 0, earliestObservation: earliest,
-      youtube: ledger && ledger.day === now.slice(0, 10) ? { quotaUnitsToday: ledger.units, searchCallsToday: ledger.searchCalls, trackedVideos: knownYt.size } : { quotaUnitsToday: 0, searchCallsToday: 0, trackedVideos: knownYt.size },
+      youtube: ledger && ledger.day === quotaDay(now) ? { quotaUnitsToday: ledger.units, searchCallsToday: ledger.searchCalls, trackedVideos: knownYt.size } : { quotaUnitsToday: 0, searchCallsToday: 0, trackedVideos: knownYt.size },
     },
   };
   await writeJson('latest.json', snapshot);

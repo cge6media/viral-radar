@@ -127,3 +127,12 @@ test('YouTube: documented videos.list item → video observation (Shorts detecti
   assert.equal(o.video?.durationSec, 45);
   assert.equal(isoDurationSeconds('PT1H2M3S'), 3723);
 });
+
+test('youtube quota: search.list draws from its own 100/day bucket; the ledger day follows Pacific time', async () => {
+  const { quotaDay } = await import('../src/collectors/youtube.js');
+  // 2026-10-28T05:00Z is still 2026-10-27 in Los Angeles (PDT, UTC−7); 08:00Z is 2026-10-28 01:00 PDT
+  assert.equal(quotaDay('2026-10-28T05:00:00.000Z'), '2026-10-27');
+  assert.equal(quotaDay('2026-10-28T08:00:00.000Z'), '2026-10-28');
+  // 2026-11-02T07:30Z: PST (UTC−8) from 1 Nov 2026 → 2026-11-01 23:30
+  assert.equal(quotaDay('2026-11-02T07:30:00.000Z'), '2026-11-01');
+});

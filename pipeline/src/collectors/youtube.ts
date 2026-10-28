@@ -1,9 +1,12 @@
 /**
  * YouTube — production collector (official Data API v3, free key) + oEmbed fallback.
  *
- * Quota facts (developers.google.com/youtube/v3/determine_quota_cost, checked 2026-10-28):
- *   videos.list = 1 unit per call (up to 50 ids), 10,000 units/day for all non-search endpoints;
- *   search.list = its own bucket of 100 calls per day. Discovery is therefore rationed and statistics are cheap.
+ * Quota facts (developers.google.com/youtube/v3/determine_quota_cost + getting-started, re-checked 2026-10-28, and
+ * the project's own quota page in the Cloud console):
+ *   "Queries per day" = 10,000 units combined for all non-search endpoints; videos.list = 1 unit per call (≤50 ids);
+ *   "Search Queries per day" = 100 search.list calls in their OWN bucket (1 unit each, not 100 units of the pool);
+ *   per-minute limits (1.8M units, 100 searches) are irrelevant at this volume. Quotas reset at midnight PACIFIC time,
+ *   so the ledger's day is the Pacific date — a UTC day would let two ledger days fall into one quota day.
  *
  * Per run:
  *   A. Charts  — videos.list chart=mostPopular per region (+ per entertainment category): ~1 unit each, every run.
@@ -11,7 +14,7 @@
  *      found on Bluesky): 1 unit per 50 ids. This turns social shares into verified video records (real views,
  *      publish date, channel, duration) and produces repeated observations → view velocity.
  *   C. Discovery — search.list for format queries + the run's entertainment topics, only every
- *      VR_YT_DISCOVERY_HOURS (default 6h) and within VR_YT_SEARCH_BUDGET calls/day (default 72).
+ *      VR_YT_DISCOVERY_HOURS (default 6h) and within VR_YT_SEARCH_BUDGET calls/day (default 90 of the 100 allowed).
  *
  * A quota ledger (data/cache/youtube-quota.json) tracks units and search calls per UTC day and stops the collector
  * before the daily limits. Without a key the source is reported as "disabled" and nothing is fabricated.
@@ -29,12 +32,17 @@ export const YOUTUBE_REGIONS = (process.env.VR_YT_REGIONS || 'US,GB').split(',')
 /** entertainment categories for chart=mostPopular (documented category ids) */
 export const YT_CHART_CATEGORIES = (process.env.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24').split(',').map((s) => s.trim()).filter(Boolean);
 export const DISCOVERY_HOURS = Number(process.env.VR_YT_DISCOVERY_HOURS || 6);
-export const SEARCH_BUDGET = Number(process.env.VR_YT_SEARCH_BUDGET || 72);
+export const SEARCH_BUDGET = Number(process.env.VR_YT_SEARCH_BUDGET || 90);
 export const UNIT_BUDGET = Number(process.env.VR_YT_UNIT_BUDGET || 9000);
 export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 1500);
+/** broad "what is big right now" probes (order=viewCount within the last 72h) — run every discovery round */
+export const BROAD_QUERIES: string[] = process.env.VR_YT_BROAD_QUERIES
+  ? process.env.VR_YT_BROAD_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
+  : ['#shorts', 'viral', 'funny', 'trending', 'videos virales', 'reaction', 'animation', 'cat'];
+/** format probes — rotated across rounds so the whole list is covered every day */
 export const DISCOVERY_QUERIES: string[] = process.env.VR_YT_QUERIES
   ? process.env.VR_YT_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
-  : ['animated skit', 'animal interview', 'talking cat', 'ai animation short', 'puppet comedy', 'rapping cat', 'cartoon short film', 'comedy skit', 'street interview', 'stop motion', 'asmr', 'oddly satisfying', 'cooking recipe short', 'indie animation', 'dubbed animals', 'original character animation', 'parody song', 'storytime animation'];
+  : ['animated skit', 'animal interview', 'talking cat', 'ai animation short', 'puppet comedy', 'rapping cat', 'cartoon short film', 'comedy skit', 'street interview', 'stop motion', 'asmr', 'oddly satisfying', 'cooking recipe short', 'indie animation', 'dubbed animals', 'original character animation', 'parody song', 'storytime animation', 'ai generated video', 'skit', 'prank', 'meme', 'cover song', 'gaming clip', 'speedrun', 'satisfying', 'explained'];
 
 export const YT_CATEGORY: Record<string, string> = {
   '1': 'Film & Animation', '2': 'Autos & Vehicles', '10': 'Music', '15': 'Pets & Animals', '17': 'Sports',
@@ -52,14 +60,16 @@ export interface YtVideo {
   contentDetails?: { duration?: string };
 }
 
-export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; calls: { t: string; method: string; units: number; note?: string }[] }
+export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; rounds?: number; calls: { t: string; method: string; units: number; note?: string }[] }
 
-const today = () => nowIso().slice(0, 10);
+/** The quota day in Pacific time (YouTube resets at midnight PT), formatted YYYY-MM-DD. */
+export const quotaDay = (iso = nowIso()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+const today = () => quotaDay();
 
 export async function loadLedger(): Promise<QuotaLedger> {
   const l = await readJson<QuotaLedger>('cache/youtube-quota.json');
   if (l && l.day === today()) return l;
-  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, calls: [] };
+  return { day: today(), units: 0, searchCalls: 0, lastDiscoveryAt: l?.lastDiscoveryAt, rounds: l?.rounds, calls: [] };
 }
 export async function saveLedger(l: QuotaLedger): Promise<void> {
   l.calls = l.calls.slice(-200);
@@ -121,9 +131,10 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     seen.add(o.id);
     items.push(o);
   };
+  // search.list is metered in its own 100/day bucket; everything else draws from the 10,000-unit pool
   const spend = (method: string, units: number, note?: string) => {
-    ledger.units += units;
     if (method === 'search.list') ledger.searchCalls += 1;
+    else ledger.units += units;
     ledger.calls.push({ t: nowIso(), method, units, note });
   };
   const canSpend = (units: number) => ledger.units + units <= UNIT_BUDGET;
@@ -150,16 +161,22 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
   let discovered = 0;
   const hoursSinceDiscovery = ledger.lastDiscoveryAt ? (Date.now() - new Date(ledger.lastDiscoveryAt).getTime()) / 36e5 : Infinity;
   if (hoursSinceDiscovery >= DISCOVERY_HOURS && ledger.searchCalls < SEARCH_BUDGET) {
-    const topicQueries = (opts.topicTerms || []).slice(0, 4);
-    const queries = [...DISCOVERY_QUERIES, ...topicQueries];
+    const topicQueries = (opts.topicTerms || []).slice(0, 3);
     const perRound = Math.max(1, Math.floor(SEARCH_BUDGET / Math.max(1, Math.round(24 / DISCOVERY_HOURS))));
+    // broad probes every round, then a rotating window of format probes so the whole catalogue is covered daily
+    const round = ledger.rounds || 0;
+    const formatSlots = Math.max(0, perRound - BROAD_QUERIES.length - topicQueries.length);
+    const start = DISCOVERY_QUERIES.length ? (round * formatSlots) % DISCOVERY_QUERIES.length : 0;
+    const formatQueries = Array.from({ length: Math.min(formatSlots, DISCOVERY_QUERIES.length) }, (_, i) => DISCOVERY_QUERIES[(start + i) % DISCOVERY_QUERIES.length]);
+    const queries = Array.from(new Set([...BROAD_QUERIES, ...topicQueries, ...formatQueries]));
+    ledger.rounds = round + 1;
     const publishedAfter = encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString());
     const foundIds: string[] = [];
     for (const q of queries.slice(0, perRound)) {
       if (ledger.searchCalls >= SEARCH_BUDGET) break;
       try {
         subrequests++;
-        spend('search.list', 100, q);
+        spend('search.list', 1, q);
         const sUrl = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${publishedAfter}&q=${encodeURIComponent(q)}&maxResults=25&safeSearch=moderate&relevanceLanguage=en&key=${apiKey}`;
         const s = await fetchJson<{ items: { id: { videoId: string } }[] }>(sUrl, { retries: 0 });
         for (const it of s.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${q}`);
