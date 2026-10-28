@@ -53,11 +53,12 @@ Independent reviews (separate agents that did not build the system and did not r
 |---|---|---|---|
 | `docs/RECOMMENDATION_AUDIT.md` | 11:24 UTC | desk 2.45/5, label agreement 45 % (30 % substantive) | fixes in the 12:08 run |
 | `docs/RECOMMENDATION_AUDIT_2.md` | 12:08 UTC | desk **2.17/5** (8 items; three "not trends"), label agreement **37.5 %** (format 20 %, meme 0 %, event 40 %, uncertain 90 %), Viral Now 9/10 sound, Early Radar 5/10 | 4.0.1 (§9 of that file): evidence integrity, category/timing from evidence, calendar countdowns, hashtag/entity memes need a shared word, dominant video must carry the name, pools need a visible structure, Early Radar pace rule, lane sub-formats, playbooks only for actionable items; replay of the audited run: 8 desk items → 5, labels event 591/meme 25/format 16/uncertain 213 → 544/1/9/293 |
+| `docs/RECOMMENDATION_AUDIT_3.md` | 13:13 UTC (first live 4.0.1 run) | desk **2.56/5** (halloween 3.50; one actionable item), label agreement **58.1 %** (format 33 %, meme 0/2, event 50 %, uncertain 100 %; 38 % excluding "uncertain"), Viral Now 9/10, Early Radar 5/10 | 4.0.2 (§ "Owner's response" of that file): fresh-hit timing, sub-format merge + promotion, news/brand channels, template fragments, credible acceleration, broadcast/autoplay exclusions, honest monetization, card consistency; not re-audited |
 | `docs/CODE_REVIEW_4.0.md` | code | 0 critical, 4 high, 5 medium, 10 low | all 19 resolved |
 
-The second audit's scores stand as the measured quality of the 12:08 desk; the 4.0.1 changes were verified by
-replaying that run's observations offline (same data, new rules) and by the test suite, and a third audit of a live
-4.0.1 run is recorded below when available.
+Trajectory across the three audits (same rubric, three different agents): desk 2.45 → 2.17 → **2.56**/5; label
+agreement 45 % → 37.5 % → **58.1 %**. The 4.0.2 changes answer the third audit and are verified by an offline replay
+and the test suite only; the third audit's numbers stand as the last independent measurement.
 
 ---
 

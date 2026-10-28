@@ -253,3 +253,59 @@ Clearest misclassifications: 아이폰 듀오 (meme → news event), Black Cat (
 
 ---
 *Judged from the snapshot's own data (titles, creators, statistics, dates, categories, reasons) without watching any video and without network access to the platforms. No copyrighted content is reproduced; titles are quoted only as identifiers.*
+
+## Owner's response (4.0.2 — changes made after this audit)
+
+Audited run: `202610281313_036c3ccb99f8`. Changes below were verified by replaying that day's observations offline
+with the new rules and by the test suite (55 tests); the first live run carrying them is noted in `docs/PROGRESS.md`.
+They were **not re-audited**: the scores above (desk 2.56/5, labels 58.1 %) stand as the last independent measurement.
+
+**Fix 1 — sub-formats and freshness (done).** Timing now reads the flow of new independent hits before per-video
+rates: ≥2 qualified examples younger than 72 h from different creators → *accelerating*, one → *emerging*, none and
+most examples past their peak → *cooling*, none and no acceleration → *peaking* ("attention exists but is not
+fresh"). Overlapping sub-formats merge ("mbappe / haaland", "tf2 / diaper", "indian theft / theft auto / auto
+simulator"); a sub-format with ≥4 creators, ≥2 fresh qualified hits, ≥50 % English/Spanish, short-form and feasible
+in ≤2 h is **create today**, otherwise *research*; a parody of footballers inside the animation or comedy pool keeps
+the pool's category (YouTube files the videos under Sports; the pool's rules already exclude coverage). On the
+replay the desk became: create today — "mbappe / haaland · Comedy skits", "tf2 / diaper · Animation shorts",
+"AI-generated video", "Black Cat" (the AI animal-story shorts riding the black-cat day tag; its name is the
+clustering's, its evidence is what counts); participate — Halloween; research — "Theft Auto" (long-form), "husband /
+wife · Comedy skits"; monitor — wildlife rescue (three creators, one channel dominant).
+
+**Fix 2 — type and independence (done where a rule can see it).** Broadcaster/news channels (KBS, MTN, DAZN,
+Hotstar, ABC/NBC/CNN/BBC…, "news") are never evidence and a cluster with ≥40 % such uploads is a news event; the
+subject's own channels ("Upin & Ipin Animation" + "Upin & Ipin Indonesia" for "Upin Ipin") count as one brand, so
+"Upin Ipin" leaves the desk ("fewer than 3 independent creators once the subject's own channels count as one");
+Korean/Japanese/Indonesian title-template words ("X하면 생기는 일") are fragments; a cluster whose titles carry
+"national … day" is a calendar day even when named after its subject ("Black Cat" → calendar when the signature
+says so); a pool where one video holds >60 % of the views is not a format this week; a Gaming entity is a release
+only with release words in the titles ("Indian Theft Auto Simulator" → format). Not solved: a studio promo from
+channels that do not carry the subject's name (Marvel India for "Avengers Doomsday") still counts as a creator —
+the release rule keeps such clusters off the desk ("a release or news topic people cover"), which is the
+important part.
+
+**Fix 3 — timing and the radar (done).** Timing text no longer prints the cluster's raw creator count next to the
+clean count ("11 vs 3"); the "radar first saw this cluster Nh ago" caveat is kept but no longer decides the label.
+Early Radar: the acceleration branch counts only when the video also holds ≥0.9× its own pace or sits in the top
+20 % of tracked videos of its age (a 9× jump from a near-zero previous interval is noise); a young video slowing on
+both measures is not "finding its pace"; a channel's upload must reach 0.35× its subscribers (was 0.2×) when no
+upload baseline exists (the broadcaster promo); long-form uploads with comments switched off (the autoplay / kids
+compilation pattern) are not breakout signals; sports recordings ≥30 min and news recordings ≥20 min are
+"broadcast recordings" and leave both feeds (the 72-minute DAZN match). Replay: 6/40 radar entries older than
+72 h (was 7), 18/40 below their lifetime average (was 19; young videos legitimately decelerate from their launch
+spike), 17/40 above 1M (allowed: below the floor for their age).
+
+**Fix 4 — briefs (partly; the template design stays, as the spec requires and the docs state).** A hook is claimed
+only when ≥2 examples and ≥25 % of them carry it ("mostly episodic" from 1 of 5 can no longer appear) and the share
+is printed; the music variation needs music in ≥50 % of the clean titles or a Music category; hooks are computed on
+the clean evidence (the "Top Halloween Songs" list no longer turns Halloween into a music approach); the TikTok
+≥1-min line is conditional on the suggested length; long-form items get long-form eligibility lines; Instagram is
+described honestly (no general Reels ad-revenue share); subscriber counts appear on the evidence lines. Generating
+briefs from observed sub-mechanisms (costume ranking "Part N", pet costume, SFX fail) is the next real step and
+needs a sub-mechanism extractor per cluster — not done in this cycle.
+
+**Fix 5 — cards (done).** Short-form = median ≤3 min when known (no more "short-form (median 954s)"); the per-
+category cap and the desk limit are logged as exclusion reasons (316 = 316); the lane prints the per-pool reason
+("not on the desk: …"); subscribers are on the evidence; Malay function words are detected (Malay titles were
+"latin"); "GOAT → Animals & Pets" is the uploader's own YouTube category (Pets & Animals), not the keyword
+classifier — left as is and visible on the card.
