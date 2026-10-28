@@ -267,7 +267,8 @@ function evidenceFor(clean: Ev[], limit = 6): DeskEvidence[] {
 /** facts recomputed on the clean evidence (the cluster-level numbers include unverified, rejected and off-format videos) */
 /** 4.0.2: the subject's own channels ("Upin & Ipin Animation" + "Upin & Ipin Indonesia" for "Upin Ipin") are one brand, not independent creators */
 function creatorOf(t: Trend | undefined, x: Ev): string {
-  if (t && t.kind !== 'format') {
+  // only for named entities ("Upin Ipin", "Avengers Doomsday"); a channel called "Halloween Costumes" is an independent creator
+  if (t && t.kind !== 'format' && t.opportunity?.features.nameShape === 'entity') {
     const flat = t.name.replace(/^#/, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
     const ch = (x.r.creator?.name || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
     if (flat.length >= 5 && ch.includes(flat)) return `brand:${flat}`;

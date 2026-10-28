@@ -64,11 +64,15 @@ Holidays by evidence), 4 monitors with "what would change the verdict", 316 clus
 counted reasons; the lane lists ten pools with qualified/mid-size counts and sub-formats such as "tf2" (6 creators
 in Animation shorts) and "indian theft" (4). Nothing padded in: when fewer qualify, fewer are shown.
 
-Measured quality (independent audits, same rubric, separate agents that did not build the system):
-`docs/RECOMMENDATION_AUDIT.md` (11:24 run) desk 2.45/5, labels 45 %; `_2.md` (12:08 run) desk **2.17/5**, labels
-**37.5 %** — the weaknesses were specific (streams and rejected videos counted as "clean", keyword coincidences,
-wrong categories, inverted timing, template briefs on monitored items). 4.0.1 answered each one
-(`RECOMMENDATION_AUDIT_2.md` §9); `_3.md` audits the first live 4.0.1 run — see the final numbers in §7.
+Measured quality (three independent audits, same rubric, three separate agents that did not build the system and
+did not read each other): `docs/RECOMMENDATION_AUDIT.md` (11:24 run) desk 2.45/5, labels 45 %; `_2.md` (12:08 run)
+desk **2.17/5**, labels **37.5 %**; `_3.md` (13:13 run, first live 4.0.1) desk **2.56/5**, labels **58.1 %**
+(Viral Now 9/10 sound, Early Radar 5/10). Each audit's weaknesses were specific and each was answered in code the
+same day (4.0.1 after the second: evidence integrity, category/timing from evidence, calendar countdowns, honest
+labels; 4.0.2 after the third: timing by the flow of new hits, sub-formats merged and promoted — the 3D football-star
+parody format the auditor called "the best opportunity in the data" is now a create-today item on the replay —
+broadcaster/brand channels, template fragments, radar noise rules). The third audit's numbers are the last
+independent measurement; 4.0.2 is verified by an offline replay and 55 tests, not by a fourth audit.
 
 ## 6. Data reliability
 
@@ -84,10 +88,12 @@ Mastodon ok; TikTok disabled (no anonymous statistics).
 
 ## 7. Video relevance audit
 
-See §5 for the desk audits. Feeds: the second audit judged Viral Now's top 10 broadly sound (9/10; aggregator
-reposts and big-channel episodes are verified hits but not creator formats) and Early Radar 5/10 ("not early
-enough"); the 4.0.1 pace rule and dedupe answered the latter. Benchmark precision is 100 % with 0 of 741 negative
-controls leaking. The third audit's feed verdicts are recorded in `docs/RECOMMENDATION_AUDIT_3.md`.
+See §5 for the desk audits. Feeds: the second and third audits judged Viral Now's top 10 sound (9/10 twice —
+aggregator reposts, mega-channel uploads and one uploader-category error are verified hits but not creator
+formats) and Early Radar 5/10 twice ("not early enough": entries below their own lifetime average carried by a
+noisy acceleration ratio, a broadcaster promo, kids-autoplay compilations); 4.0.2 answered those with the credible-
+acceleration rule, the 0.35× subscriber floor, the autoplay and broadcast-recording exclusions. Benchmark precision
+is 100 % with 0 of 741 negative controls leaking (holdout re-run after the changes: unchanged 70.7 % recall).
 
 ## 8. Platform coverage (honest)
 
@@ -113,7 +119,11 @@ and GitHub).
   (the matched term is on every card).
 - The desk is thin on English/Spanish opportunities on a given day: most monitored items are Hindi/Korean/
   Indonesian clusters, and the desk says so instead of recommending them.
-- Sub-formats are shared words, not validated clusters; they reach the desk only as "research".
+- Sub-formats are shared words, not validated clusters; they reach the desk as "research", or as "create today"
+  only with ≥4 creators, ≥2 fresh qualified hits, mostly English/Spanish, short-form and feasible in ≤2 h — and the
+  card says they were found by shared title words.
+- Briefs are deterministic templates (as the spec requires); they claim a hook only when ≥25 % of the clean examples
+  carry it, but they do not yet derive variations from observed sub-mechanisms.
 - No real prediction outcomes until 2026-10-29; the scorecard is a promise with a mechanism, not a result.
 - GitHub's scheduler; the keeper chain is a workaround whose cadence must be watched over days.
 - Dev-set recall ~54 % under the free search quota; the holdout (70.7 %) is the more representative number.
@@ -133,7 +143,8 @@ producing → published with real numbers, Money for the production-return compa
 Use it daily as a *verified-evidence* desk, not as an oracle: the discovery, verification, early-detection and
 honesty layers are solid and measured (100 % precision, 0 leaks, 70.7 % holdout recall, every number traceable to
 a video), while the recommendation layer is still young — two independent audits scored the desk 2.45 and 2.17 out
-of 5 before the 4.0.1 fixes, and the third audit's score is the current truth. Give the prediction scorecard a
+of 5 before the 4.0.1 fixes and 2.56 after them (58 % label agreement), and the 4.0.2 replay — the owner's lane
+opportunities now reach the desk — has not been audited. Give the prediction scorecard a
 week before trusting any precision figure; watch the keeper chain's cadence on the Radar health tab for two days;
 re-run the audits after the index has a week of history. The next real upgrade would store tags/descriptions in
 a compact form and validate sub-formats as clusters — both within the free infrastructure.
