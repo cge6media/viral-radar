@@ -17,12 +17,39 @@
  *   rejected           below thresholds, stale, duplicate, unsupported — with the rule that rejected it
  * The thresholds are absolute AND relative, per platform: 4 → 8 likes is never a breakout.
  */
-import type { CrossPlatformLink, Metrics, Observation, VideoCard, VideoRecord, VideoState, VideoWindow, VelocityPoint } from '../types.js';
+import type { ConfidenceBand, CrossPlatformLink, Metrics, Observation, VideoCard, VideoRecord, VideoState, VideoWindow, VelocityPoint } from '../types.js';
 import { VIDEO_WINDOWS, VIDEO_WINDOW_HOURS } from '../types.js';
 import { clamp, hoursBetween, logNorm, round } from '../lib/util.js';
 import { classifyVideo } from './taxonomy.js';
 import { ratioToScore, median, type MetricPoint } from './score.js';
 import { exampleKey } from './cluster.js';
+import { detectLanguage } from './language.js';
+
+/**
+ * 4.0 — age-appropriate hit floor (YouTube views). A video is "already viral" when its verified views clear the
+ * floor for its age: 1M inside the first day, 2M by 3 days, 3M by a week, 5M by 30 days (log-linear in between).
+ * Below the floor a video can still be an *early* breakout (abnormal rise) — the two are different kinds of evidence.
+ */
+const HIT_FLOOR: [number, number][] = [[24, 1_000_000], [72, 2_000_000], [168, 3_000_000], [720, 5_000_000]];
+export function hitFloorViews(ageHours: number | undefined): number {
+  const a = ageHours == null || !isFinite(ageHours) ? 720 : Math.max(1, ageHours);
+  if (a <= HIT_FLOOR[0][0]) return HIT_FLOOR[0][1];
+  for (let i = 1; i < HIT_FLOOR.length; i++) {
+    const [h0, v0] = HIT_FLOOR[i - 1], [h1, v1] = HIT_FLOOR[i];
+    if (a <= h1) {
+      const f = (Math.log(a) - Math.log(h0)) / (Math.log(h1) - Math.log(h0));
+      return Math.round(v0 * Math.pow(v1 / v0, f));
+    }
+  }
+  return HIT_FLOOR[HIT_FLOOR.length - 1][1];
+}
+
+/** minimum views an interval must gain before its rate is used for acceleration (small samples are noise) */
+const MIN_INTERVAL_GAIN = { views: 1_000, likes: 20 } as const;
+
+export function confidenceBandOf(confidence: number): ConfidenceBand {
+  return confidence >= 70 ? 'high' : confidence >= 45 ? 'medium' : 'low';
+}
 
 export interface ChannelStats { subscribers?: number; videos?: number; views?: number; medianRecentViews?: number; baselineSampled?: number; baselineAt?: string }
 
@@ -82,7 +109,10 @@ export function measureVelocity(points: MetricPoint[] | undefined, now: string, 
       end = start;
     }
   }
-  const acceleration = velocity.length >= 2 && velocity[1].perHour > 0 ? round(velocity[0].perHour / velocity[1].perHour, 2) : undefined;
+  // acceleration only when both intervals gained enough to be more than counting noise
+  const minGain = MIN_INTERVAL_GAIN[metric];
+  const acceleration = velocity.length >= 2 && velocity[1].perHour > 0 && velocity[0].perHour * velocity[0].hours >= minGain && velocity[1].perHour * velocity[1].hours >= minGain
+    ? round(velocity[0].perHour / velocity[1].perHour, 2) : undefined;
   const gained: VideoRecord['gained'] = {};
   if (pts.length >= 2) {
     const last = pts[pts.length - 1];
@@ -142,13 +172,21 @@ export function buildVideoRecords(input: VideoBuildInput): VideoRecord[] {
     const cls = classifyVideo(text, primary.tags || [], primary.platformCategory);
     const ch = direct?.video?.channelId ? channels?.get(direct.video.channelId) : undefined;
     const likeRate = metrics.views && metrics.likes != null ? round(metrics.likes / metrics.views, 4) : undefined;
+    // Shorts: the strongest available evidence wins — a verified /shorts/ URL check, then the share URL, then duration
+    const dur = primary.video?.durationSec;
+    const shortsEvidence: VideoRecord['shortsEvidence'] = primary.video?.shortForm === 'verified' ? 'verified'
+      : primary.video?.shortForm === 'not_short' ? 'not_short'
+        : platform === 'youtube' && /shorts\//.test(shares.find((s) => /shorts\//.test(s.url))?.url || '') ? 'url'
+          : dur != null && dur <= 180 ? 'duration' : 'none';
+    const isShort = shortsEvidence === 'verified' || shortsEvidence === 'url' ? true : shortsEvidence === 'not_short' ? false : dur != null ? dur <= 180 : undefined;
     const rec: VideoRecord = {
       id: primary.id, platform, platformId,
       url: primary.url, title: primary.title, thumbnail: primary.thumbnail || shares.find((s) => s.thumbnail)?.thumbnail,
       creator: primary.creator ? { ...primary.creator, channelId: direct?.video?.channelId, subscribers: ch?.subscribers } : undefined,
-      durationSec: primary.video?.durationSec, isShort: primary.video?.durationSec != null ? primary.video.durationSec <= 180 : /shorts\//.test(primary.url) || undefined,
+      durationSec: dur, isShort, shortsEvidence,
       isLive: !!primary.video?.live || (primary.video?.durationSec === 0 && /\blive\b|🔴/i.test(primary.title)) || undefined,
       publishedAt, ageHours,
+      language: detectLanguage(`${primary.title} ${(primary.text || '').slice(0, 200)}`, primary.language),
       firstSeenAt: group.map((o) => o.firstSeenAt || o.observedAt).sort()[0],
       observedAt: group.map((o) => o.observedAt).sort().pop()!,
       verifiedAt: direct?.verifiedAt || shares.find((s) => s.verifiedAt)?.verifiedAt,
@@ -160,7 +198,7 @@ export function buildVideoRecords(input: VideoBuildInput): VideoRecord[] {
       likeRate,
       baselineRatio: ch?.medianRecentViews && metrics.views ? round(metrics.views / Math.max(ch.medianRecentViews, 1), 1) : undefined,
       subscriberRatio: ch?.subscribers && metrics.views ? round(metrics.views / Math.max(ch.subscribers, 1), 2) : undefined,
-      state: 'rejected', reasons: [], viralScore: 0, breakoutScore: 0, engagementScore: 0, outlierScore: 0, confidence: 0,
+      state: 'rejected', reasons: [], viralScore: 0, breakoutScore: 0, engagementScore: 0, outlierScore: 0, confidence: 0, confidenceBand: 'low',
       crossPlatform: [], trends: trendIndex?.get(primary.id) || [], observations: group.length + (metricHistory.get(direct?.id || '')?.length || 0),
     };
     records.push(rec);
@@ -213,11 +251,12 @@ export function decideVideo(r: VideoRecord): void {
     }
     r.viralScore = 0; r.breakoutScore = 0; r.engagementScore = 0; r.outlierScore = 0;
     r.confidence = clamp(10 + 10 * Math.min(accounts, 5), 0, 60);
+    r.confidenceBand = confidenceBandOf(r.confidence);
     r.reasons = reasons;
     return;
   }
 
-  if (r.platform === 'bluesky') return decideBluesky(r, measured, cooling, reasons);
+  if (r.platform === 'bluesky') { decideBluesky(r, measured, cooling, reasons); r.confidenceBand = confidenceBandOf(r.confidence); return; }
 
   const T = THRESHOLDS.youtube;
   const views = r.metrics.views || 0;
@@ -230,8 +269,9 @@ export function decideVideo(r: VideoRecord): void {
   if (topicChannel) { r.baselineRatio = undefined; r.subscriberRatio = undefined; r.outlierScore = 0; }
   const base = r.baselineRatio ?? r.subscriberRatio;
 
+  const floor = hitFloorViews(r.ageHours);
   // facts first — the same wording everywhere, so the UI never has to invent a sentence
-  reasons.push(`${fmt(views)} verified views${r.metrics.likes != null ? `, ${fmt(r.metrics.likes)} likes` : ''} on YouTube, ${ageLabel(r.ageHours)}${r.agePercentile != null ? ` (top ${Math.max(1, Math.round((1 - r.agePercentile) * 100))}% of tracked videos of similar age)` : ''}.`);
+  reasons.push(`${fmt(views)} verified views${r.metrics.likes != null ? `, ${fmt(r.metrics.likes)} likes` : ''} on YouTube, ${ageLabel(r.ageHours)}${r.agePercentile != null ? ` (top ${Math.max(1, Math.round((1 - r.agePercentile) * 100))}% of tracked videos of similar age)` : ''}; the hit floor for this age is ${fmt(floor)} views.`);
   if (L) reasons.push(`Lifetime average ${fmt(L)} views/hour since publication (an average, not a measured recent rate).`);
   if (measured) reasons.push(`Measured: +${fmt(measured.perHour)} views/hour over the last ${measured.hours}h (${r.velocityRatio}× the lifetime average)${A != null ? `, ${A >= 1.2 ? 'accelerating' : A <= 0.8 ? 'slowing' : 'steady'} vs the previous interval (${A}×)` : ''}.`);
   else if (r.observations <= 1) reasons.push('Seen once so far — recent velocity will be measured on the next collections.');
@@ -261,34 +301,44 @@ export function decideVideo(r: VideoRecord): void {
     r.reasons = reasons;
     return;
   }
-  const isHit = views >= T.hitViews || (views >= T.hitViewsWithRate && ((V ?? 0) >= T.hitRate || L >= T.hitRate));
+  // established virality: the age-appropriate floor, or ≥1M views with a ≥50K/h rate (measured or lifetime)
+  const isHit = views >= floor || (views >= T.hitViewsWithRate && ((V ?? 0) >= T.hitRate || L >= T.hitRate));
   // a big channel's ordinary clip gaining fast is that channel's normal, not a breakout — when the creator's range is
   // known, measured growth must at least reach it (looser than the young-video rule, which has no measurement)
   const notBelowNormal = r.baselineRatio != null ? r.baselineRatio >= 1.2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.2 : true;
-  const breakoutMeasured = V != null && notBelowNormal && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
+  const recent = age <= 168; // the "early" window: a week
+  const breakoutMeasured = recent && V != null && notBelowNormal && ((V >= T.breakoutVelocity && views >= T.breakoutVelocityViews) || (V >= T.accelVelocity && (A ?? 0) >= T.accelRatio && views >= T.accelViews));
   // a big channel's ordinary upload is not a breakout: when the creator's normal range is known, the video must exceed it
   const aboveNormal = r.baselineRatio != null ? r.baselineRatio >= 2 : r.subscriberRatio != null ? r.subscriberRatio >= 0.5 : true;
   const breakoutYoung = V == null && age <= T.youngHours && L >= T.youngRate && views >= T.youngViews && aboveNormal;
   const outlier = base != null && base >= T.outlierRatio && views >= T.outlierViews && age <= T.outlierMaxHours;
-  const resurging = age > T.maxAgeHours && V != null && V >= T.resurgeVelocity && (r.velocityRatio ?? 0) >= 5 && views >= T.outlierViews;
+  // delayed breakout: older than a week and gaining measurably faster than its own lifetime average (×3; ×5 past 30 days)
+  const resurging = !recent && V != null && V >= T.resurgeVelocity && (r.velocityRatio ?? 0) >= (age > T.maxAgeHours ? 5 : 3) && views >= T.outlierViews;
 
   if (age > T.maxAgeHours && !resurging) {
     rejectedBy = 'older than 30 days without measured resurgence';
   } else if (isHit && !cooling) {
     state = 'verified_hit';
+    r.kind = 'established';
   } else if (isHit && cooling) {
     state = 'verified_hit';
+    r.kind = 'established';
     reasons.push('Still a verified hit by total views, but past its peak.');
   } else if (resurging) {
     state = 'early_breakout';
-    reasons.push(`Delayed breakout: a ${Math.round(age / 24)}-day-old video gaining ${fmt(V!)} views/hour now.`);
+    r.kind = 'delayed';
+    reasons.push(`Delayed breakout: a ${Math.round(age / 24)}-day-old video gaining ${fmt(V!)} views/hour now (${r.velocityRatio}× its lifetime average) — resurfacing, not a new upload.`);
   } else if (breakoutMeasured && !cooling) {
     state = 'early_breakout';
+    r.kind = 'early';
+    reasons.push(`Early breakout: ${fmt(views)} views is below the ${fmt(floor)} hit floor for its age, but the measured rate is abnormal.`);
   } else if (breakoutYoung) {
     state = 'early_breakout';
+    r.kind = 'early';
     reasons.push('Young video with an exceptional average rate — provisional until a second measurement confirms it.');
   } else if (outlier && !cooling) {
     state = 'early_breakout';
+    r.kind = 'early';
     reasons.push('Creator outlier: performing far above this channel\'s normal range.');
   } else if (views < T.candidateViews) {
     rejectedBy = `below candidate floor (${fmt(T.candidateViews)} views)`;
@@ -296,10 +346,12 @@ export function decideVideo(r: VideoRecord): void {
     rejectedBy = `within the creator's normal range (${r.baselineRatio != null ? `${r.baselineRatio}× median upload` : `${r.subscriberRatio}× subscribers`})`;
   } else if (cooling) {
     rejectedBy = 'cooling and below hit threshold';
+  } else if (V != null && !recent) {
+    rejectedBy = `older than a week without measured resurgence (${fmt(V)}/h, ${r.velocityRatio}× lifetime)`;
   } else if (V != null) {
     rejectedBy = `measured velocity ${fmt(V)}/h below breakout thresholds`;
   } else {
-    rejectedBy = `below popularity thresholds for its age (${fmt(views)} views, ${fmt(L)}/h average)`;
+    rejectedBy = `below popularity thresholds for its age (${fmt(views)} views vs a ${fmt(floor)} hit floor, ${fmt(L)}/h average)`;
   }
   r.state = state;
   r.rejectedBy = rejectedBy;
@@ -316,6 +368,7 @@ export function decideVideo(r: VideoRecord): void {
   r.engagementScore = views >= T.candidateViews && r.likeRate != null ? round(100 * clamp(0.8 * logNorm(r.likeRate, 0.005, 0.1) + 0.2 * logNorm((r.metrics.comments || 0) / Math.max(views, 1), 0.0002, 0.01), 0, 1), 0) : 0;
   r.outlierScore = views >= T.candidateViews && base != null ? round(100 * logNorm(base, 1, 200), 0) : 0;
   r.confidence = round(clamp(25 + 20 * Math.min(r.observations, 3) / 3 + (V != null ? 25 : 0) + (r.baselineRatio != null ? 10 : r.subscriberRatio != null ? 5 : 0) + (r.shareMetrics?.posts ? 10 : 0) + (r.ageHours != null ? 5 : 0), 0, 100), 0);
+  r.confidenceBand = confidenceBandOf(r.confidence);
   r.reasons = reasons;
 }
 
@@ -330,9 +383,9 @@ function decideBluesky(r: VideoRecord, measured: VelocityPoint | undefined, cool
   let state: VideoState = 'rejected';
   let rejectedBy: string | undefined;
   if (age > T.maxAgeHours) rejectedBy = 'older than 30 days';
-  else if (likes >= T.hitLikes) state = 'verified_hit';
-  else if (V != null && V >= T.breakoutVelocity && likes >= T.breakoutLikes && !cooling) state = 'early_breakout';
-  else if (V == null && age <= T.youngHours && L >= T.youngRate && likes >= T.youngLikes) { state = 'early_breakout'; reasons.push('Young post with an exceptional average rate — provisional until a second measurement confirms it.'); }
+  else if (likes >= T.hitLikes) { state = 'verified_hit'; r.kind = 'established'; }
+  else if (V != null && V >= T.breakoutVelocity && likes >= T.breakoutLikes && !cooling) { state = 'early_breakout'; r.kind = age > 168 ? 'delayed' : 'early'; }
+  else if (V == null && age <= T.youngHours && L >= T.youngRate && likes >= T.youngLikes) { state = 'early_breakout'; r.kind = 'early'; reasons.push('Young post with an exceptional average rate — provisional until a second measurement confirms it.'); }
   else if (likes < T.candidateLikes) rejectedBy = `below Bluesky candidate floor (${T.candidateLikes} likes)`;
   else rejectedBy = `Bluesky engagement below viral thresholds (${fmt(likes)} likes)`;
   r.state = state;
@@ -357,6 +410,7 @@ export function toCard(r: VideoRecord): VideoCard {
     velocityPerHour: v?.perHour, velocityHours: v?.hours, velocityRatio: r.velocityRatio, acceleration: r.acceleration, lifetimeRate: r.lifetimeRate,
     baselineRatio: r.baselineRatio, subscriberRatio: r.subscriberRatio,
     category: r.category, formats: r.formats, reasons: r.reasons, crossPlatform: r.crossPlatform.length, verified: r.verified,
+    kind: r.kind, band: r.confidenceBand, language: r.language, shortsEvidence: r.shortsEvidence, gained24h: r.gained?.['24h'],
   };
 }
 

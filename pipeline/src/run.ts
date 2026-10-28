@@ -9,7 +9,13 @@
 import { collectGoogleTrends } from './collectors/googleTrends.js';
 import { collectBluesky, refreshBlueskyPosts } from './collectors/bluesky.js';
 import { collectMastodon } from './collectors/mastodon.js';
-import { collectYouTube, enrichYouTubeLinks, fetchChannelData, loadChannelCache, quotaDay, SEARCH_BUDGET, UNIT_BUDGET } from './collectors/youtube.js';
+import { applyShortsCache, collectYouTube, enrichYouTubeLinks, fetchChannelData, loadChannelCache, loadShortsCache, quotaDay, SEARCH_BUDGET, UNIT_BUDGET } from './collectors/youtube.js';
+import { summarizeYield, type YieldLedger } from './collectors/discovery.js';
+import { classifyTrends } from './intel/formats.js';
+import { buildDesk } from './intel/desk.js';
+import { buildAlerts } from './intel/alerts.js';
+import { recordHealth } from './intel/health.js';
+import { attachHistory, buildScorecard, detectCrossings, evaluatePredictions, selectPredictions, summaryOf, type CrossingRecord } from './intel/predict.js';
 import { collectTikTok, enrichTikTokLinks } from './collectors/tiktok.js';
 import { buildVideoRecords, linkCrossPlatform, trendIndexFrom, type ChannelStats } from './intel/videos.js';
 import { buildVideoIntel, markDuplicates } from './intel/funnel.js';
@@ -19,11 +25,11 @@ import { FORMAT_BY_ID, validateObservation } from './intel/relevance.js';
 import { contentTime, inWindow, interestLevel, scoreWindow, uniqByExample, videoRate, type MetricPoint } from './intel/score.js';
 import { runQualityChecks } from './quality.js';
 import {
-  appendObservations, appendScores, loadMetricHistory, loadObservations, loadScores, loadSourceCache, pruneHistory,
+  appendNdjson, appendObservations, appendScores, loadMetricHistory, loadObservations, loadScores, loadSourceCache, pruneHistory, readNdjsonLog,
   saveSourceCache, writeJson, readJson, DATA_DIR, type ScoreRecord,
 } from './lib/store.js';
 import { fixtureMode } from './lib/http.js';
-import type { CategoryActivity, Observation, Platform, Snapshot, SourceQuality, SourceStatus, Trend, VideoRecord, Window, WindowScores } from './types.js';
+import type { Alert, CategoryActivity, Observation, OutcomeRecord, Platform, PredictionRecord, Snapshot, SourceQuality, SourceStatus, Trend, VideoRecord, Window, WindowScores } from './types.js';
 import { WINDOWS } from './types.js';
 import { hasUnsafeMarkers, hoursBetween, nowIso, round, sha1 } from './lib/util.js';
 
@@ -96,7 +102,18 @@ export async function main(): Promise<Snapshot> {
     if (!firstSeenById.has(o.video.id) || fs < firstSeenById.get(o.video.id)!) firstSeenById.set(o.video.id, fs);
   }
   const previous = await readJson<Snapshot>('latest.json');
+  // 4.0: open predictions stay in the priority tracking set until their 7-day horizon has been evaluated
+  const predictionsAll = await readNdjsonLog<PredictionRecord>('predictions/predictions.ndjson');
+  const openPredictionIds = new Set(predictionsAll.filter((p) => p.platform === 'youtube' && hoursBetween(p.predictedAt, runStart) <= 168 * 1.5).map((p) => p.platformId));
   const featured = new Set<string>([...Object.values(previous?.videos?.viralNow || {}).flat(), ...(previous?.videos?.earlyRadar || [])].filter((c) => c.platform === 'youtube').map((c) => c.platformId));
+  for (const id of openPredictionIds) featured.add(id);
+  // every YouTube id known over the 30-day retention window: the discovery scheduler measures yield as "new to us"
+  const knownYt30 = new Set<string>();
+  for (const o of existing) if (o.video?.platform === 'youtube') knownYt30.add(o.video.id);
+  // hot channels (produced a featured hit/breakout recently): their newest uploads are checked without search quota
+  const channelCache0 = await loadChannelCache();
+  const hotIds = Array.from(new Set([...(previous?.videos?.earlyRadar || []), ...(previous?.videos?.viralNow?.['72h'] || [])].map((c) => c.creatorUrl?.match(/channel\/(UC[A-Za-z0-9_-]{20,})/)?.[1]).filter((x): x is string => !!x)));
+  const hotChannels = hotIds.map((id) => channelCache0[id]).filter((c) => c?.uploads && (!c.uploadsAt || hoursBetween(c.uploadsAt, runStart) >= 6)).sort((a, b) => (a.uploadsAt || '').localeCompare(b.uploadsAt || '')).slice(0, 30).map((c) => ({ id: c.id, uploads: c.uploads }));
   const runParity = Number(runStart.slice(14, 16)) >= 30 ? 1 : 0;
   const trackIds = Array.from(knownYt).sort((a, b) => rank(a) - rank(b));
   function rank(id: string): number {
@@ -111,11 +128,19 @@ export async function main(): Promise<Snapshot> {
   const watch = (await readJson<{ ids: string[] }>('diagnostics/watch.json'))?.ids || [];
   let ytDiagnostics: { id: string; t: string; views?: number; likes?: number; comments?: number }[] = [];
   const yt = await runSource('youtube', async () => {
-    const r = await collectYouTube({ trackIds, topicTerms, trendTerms, diagnosticIds: watch });
+    const r = await collectYouTube({ trackIds, topicTerms, trendTerms, diagnosticIds: watch, knownIds: knownYt30, hotChannels, shortsCheckIds: Array.from(featured), runSeed: runId });
     ytDiagnostics = r.diagnostics || [];
+    if (r.probes?.length) console.log(`  discovery: allowance ${r.searchAllowance}, ${r.probes.map((p) => `${p.label} [${p.how}] new ${p.newIds}/${p.returned}, eligible ${p.newEligible}`).join('; ')}`);
+    if (r.uploadsChecked) console.log(`  hot-channel uploads: ${r.uploadsChecked} channels checked, ${r.uploadsNew} new videos`);
+    if (r.shortsVerified) console.log(`  shorts verification: ${r.shortsVerified.checked} checked (${r.shortsVerified.shorts} Shorts, ${r.shortsVerified.notShorts} not), reliable=${r.shortsVerified.reliable}`);
     return r;
   });
   if (ytDiagnostics.length) await appendDiagnostics(ytDiagnostics);
+  if (hotChannels.length && yt.status.ok) {
+    const cc = await loadChannelCache();
+    for (const h of hotChannels) if (cc[h.id]) cc[h.id].uploadsAt = runStart;
+    await writeJson('cache/youtube-channels.json', cc);
+  }
 
   // featured Bluesky videos are re-measured every run (their statistics otherwise only refresh when a feed shows them again)
   if (!fixtureMode() && previous?.videos) {
@@ -164,6 +189,9 @@ export async function main(): Promise<Snapshot> {
   const all = dedupeLatest([...existing, ...fresh]);
   // re-validate every observation with the current rules — stored formats are a cache from the rules of the day they were first seen
   for (const o of all) o.formats = validateObservation(o).formats;
+  // 4.0: the Shorts verification cache is the source of truth for every YouTube observation, old or new
+  const shortsApplied = applyShortsCache(all, await loadShortsCache());
+  if (shortsApplied) console.log(`  shorts: ${shortsApplied} observations carry a verified Shorts/not-Shorts state`);
   console.log(`  observations: +${written.full} new, ${written.ticks} ticks, ${all.length} unique in window (${existing.length} loaded from history)`);
 
   // ---- 5. cluster ----
@@ -214,7 +242,7 @@ export async function main(): Promise<Snapshot> {
   await appendScores(records);
   // keep the snapshot small: series capped to the last 96 points; bare signal topics with no videos and no grade
   // in any window are counted but not shipped (they are news/search spikes the dashboard never shows)
-  for (const t of trends) t.series = t.series.slice(-96);
+  for (const t of trends) t.series = t.series.slice(-48);
   const shipped = trends.filter((t) => !(t.kind === 'topic' && t.videoCount === 0 && WINDOWS.every((w) => t.windows[w].grade === 'insufficient')));
   console.log(`  snapshot trends: ${shipped.length} of ${trends.length} (dropped ${trends.length - shipped.length} bare signal topics)`);
 
@@ -247,7 +275,35 @@ export async function main(): Promise<Snapshot> {
   const dupes = markDuplicates(videoRecords);
   const ledgerNow = await readJson<{ units: number; searchCalls: number; day: string }>('cache/youtube-quota.json');
   const videoIntel = buildVideoIntel({ records: videoRecords, trends, sources, observations: recent30, now, youtubeQuota: ledgerNow && ledgerNow.day === quotaDay(now) ? { used: ledgerNow.units, limit: UNIT_BUDGET, searches: ledgerNow.searchCalls, searchLimit: SEARCH_BUDGET } : undefined });
-  await writeJson('videos.json', { generatedAt: now, runId, counts: videoIntel.counts, records: videoRecords.filter((r) => r.state !== 'rejected' || isCandidateLike(r)).map(slimRecord) });
+  await writeJson('videos.json', { generatedAt: now, runId, counts: videoIntel.counts, records: videoRecords.filter((r) => r.state !== 'rejected' || isCandidateLike(r)).map(slimRecord) }, { compact: true });
+
+  // ---- 8c. 4.0: opportunity types, Creator Desk, forward predictions, alerts ----
+  const typeCounts = classifyTrends(trends, videoRecords, now);
+  const desk = buildDesk(trends, videoRecords, now);
+  console.log(`  opportunity types: ${Object.entries(typeCounts).map(([k, v]) => `${k} ${v}`).join(', ')}; desk: ${desk.opportunities.length} opportunities (${desk.opportunities.map((o) => `${o.action}:${o.name.slice(0, 24)}`).join(', ')})`);
+  const trendCreators = new Map(trends.map((t) => [t.id, t.creatorCount]));
+  const recordById = new Map(videoRecords.map((r) => [r.id, r]));
+  const radarRecords = videoIntel.earlyRadar.map((c) => recordById.get(c.id)).filter((r): r is VideoRecord => !!r);
+  const channelStats = toStats(await loadChannelCache());
+  const outcomesAll = await readNdjsonLog<OutcomeRecord>('predictions/outcomes.ndjson');
+  const crossingsAll = await readNdjsonLog<CrossingRecord>('predictions/crossings.ndjson');
+  const newPredictions = fixtureMode() ? [] : selectPredictions({ records: videoRecords, radar: radarRecords, open: predictionsAll, trendCreators, now, runId });
+  attachHistory(newPredictions, metricHistory30, now);
+  const newOutcomes = evaluatePredictions({ predictions: predictionsAll, outcomes: outcomesAll, metricHistory: metricHistory30, records: videoRecords, channels: channelStats, trendCreators, now });
+  const newCrossings = detectCrossings(videoRecords, metricHistory30, [...predictionsAll, ...newPredictions], new Set(crossingsAll.map((c) => c.videoId)), now, runId);
+  if (!fixtureMode()) {
+    await appendNdjson('predictions/predictions.ndjson', newPredictions);
+    await appendNdjson('predictions/outcomes.ndjson', newOutcomes);
+    await appendNdjson('predictions/crossings.ndjson', newCrossings);
+  }
+  const allPreds = [...predictionsAll, ...newPredictions].filter((p) => hoursBetween(p.predictedAt, now) <= 24 * 60);
+  const scorecard = buildScorecard(allPreds, [...outcomesAll, ...newOutcomes], [...crossingsAll, ...newCrossings], now);
+  await writeJson('predictions/scorecard.json', scorecard, { compact: true });
+  console.log(`  predictions: +${newPredictions.length} recorded (${allPreds.length} total, ${scorecard.pending} horizons pending), +${newOutcomes.length} outcomes evaluated, +${newCrossings.length} crossings; radar precision@48h ${scorecard.precision['48'] ?? 'n/a'}`);
+  const alerts = buildAlerts({ records: videoRecords, desk, waves: videoIntel.waves, crossings: newCrossings, history: previous?.alerts || [], now });
+  console.log(`  alerts: ${alerts.filter((a) => a.at === now).length} new, ${alerts.length} in the 7-day log`);
+  const yieldLedger = await readJson<YieldLedger>('cache/youtube-yield.json');
+  if (yieldLedger) await writeJson('diagnostics/discovery-yield.json', { generatedAt: now, ...summarizeYield(yieldLedger) }, { compact: true });
   console.log(`  videos: ${videoRecords.length} unique (${videoIntel.counts.verified_hit} verified hits, ${videoIntel.counts.early_breakout} breakouts, ${videoIntel.counts.unverified_signal} unverified signals, ${videoIntel.counts.rejected} rejected, ${dupes} duplicates); funnel ${videoIntel.funnel.discovered}→${videoIntel.funnel.verified}→${videoIntel.funnel.candidates}→${videoIntel.funnel.qualified}→${videoIntel.funnel.inFeed}`);
 
   // ---- 9. quality checks + snapshot ----
@@ -256,8 +312,10 @@ export async function main(): Promise<Snapshot> {
   const earliest = all.map((o) => o.firstSeenAt || o.observedAt).sort()[0];
   const ledger = await readJson<{ units: number; searchCalls: number; day: string }>('cache/youtube-quota.json');
   const quality = runQualityChecks({ trends, observations: recent, sources, now, records: videoRecords });
+  const health = await recordHealth({ runId, startedAt: runStart, durationSec: round((Date.now() - new Date(runStart).getTime()) / 1000, 0), sourcesOk: sources.filter((s) => s.ok).length, sourcesTotal: sources.length, items: fresh.length, units: ledger?.day === quotaDay(now) ? ledger.units : undefined, searches: ledger?.day === quotaDay(now) ? ledger.searchCalls : undefined, published: quality.checks.every((c) => c.ok), trigger: process.env.GITHUB_EVENT_NAME }, sources, now);
   const snapshot: Snapshot = {
     version: 2, generatedAt: now, runId, sources, sourceQuality, trends: shipped.map(slimTrend), categories, quality, videos: videoIntel,
+    desk, alerts, health, scorecard: summaryOf(scorecard),
     stats: {
       observationsThisRun: fresh.length, observationsTotal: all.length,
       qualifiedTrends: trends.filter((t) => t.qualified).length,
@@ -266,7 +324,7 @@ export async function main(): Promise<Snapshot> {
       youtube: ledger && ledger.day === quotaDay(now) ? { quotaUnitsToday: ledger.units, searchCallsToday: ledger.searchCalls, trackedVideos: knownYt.size } : { quotaUnitsToday: 0, searchCallsToday: 0, trackedVideos: knownYt.size },
     },
   };
-  await writeJson('latest.json', snapshot);
+  await writeJson('latest.json', snapshot, { compact: true });
   await writeJson('sources.json', sources);
   await writeJson('quality/report.json', { generatedAt: now, runId, quality, sourceQuality, qualified: trends.filter((t) => t.qualified).map((t) => ({ id: t.id, name: t.name, kind: t.kind, grade: t.scores.grade, creators: t.scores.creators, videos: t.scores.videos, direct: t.scores.directVideos })) });
   console.log(`  trends: ${trends.length} (${snapshot.stats.qualifiedTrends} qualified; ${trends.filter((t) => t.kind === 'microtrend').length} microtrends, ${trends.filter((t) => t.kind === 'format').length} formats, ${trends.filter((t) => t.kind === 'topic').length} topics). Quality: ${quality.checks.filter((c) => c.ok).length}/${quality.checks.length} checks ok. Wrote data/latest.json`);
@@ -327,7 +385,7 @@ function pickEvidence(c: Cluster, now: string): Observation[] {
 
 /** unqualified trends ship fewer examples; the window objects for 24h/48h drop their component breakdown */
 function slimTrend(t: Trend): Trend {
-  const evidence = t.qualified ? t.evidence.slice(0, 14) : t.evidence.slice(0, 6);
+  const evidence = t.qualified ? t.evidence.slice(0, 12) : t.evidence.slice(0, 4);
   const windows = { ...t.windows };
   for (const w of WINDOWS) if (w !== '7d') windows[w] = { ...windows[w], components: {} };
   return { ...t, evidence, windows };

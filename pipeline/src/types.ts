@@ -53,6 +53,8 @@ export interface VideoRef {
   statsDirect: boolean;
   /** live stream / premiere state as reported by the platform */
   live?: 'live' | 'upcoming';
+  /** 4.0: Shorts verification — 'verified' = youtube.com/shorts/<id> serves the Shorts player; 'not_short' = it redirects to /watch */
+  shortForm?: 'verified' | 'not_short';
 }
 
 export interface Observation {
@@ -95,6 +97,8 @@ export interface Observation {
   formats?: string[];
   /** YouTube category label etc. */
   platformCategory?: string;
+  /** language as declared by the platform (defaultAudioLanguage/defaultLanguage), when it told us */
+  language?: string;
 }
 
 export interface SourceStatus {
@@ -208,6 +212,8 @@ export interface Trend {
   monetizationSuitability: number;
   /** one-paragraph, evidence-backed explanation */
   summary: string;
+  /** 4.0: what kind of opportunity this cluster is (event / meme / format / uncertain), with the basis */
+  opportunity?: OpportunityClass;
 }
 
 export interface CategoryActivity {
@@ -242,6 +248,8 @@ export const VIDEO_WINDOW_HOURS: Record<VideoWindow, number> = { '24h': 24, '48h
 
 /** The five evidence classes. Only the first two are video rankings; the third is a cluster-level state. */
 export type VideoState = 'verified_hit' | 'early_breakout' | 'unverified_signal' | 'rejected';
+export type BreakoutKind = 'established' | 'early' | 'delayed';
+export type ConfidenceBand = 'high' | 'medium' | 'low';
 export type CategoryWaveState = 'promising_wave' | 'established' | 'crowded' | 'declining' | 'insufficient';
 
 export interface VelocityPoint {
@@ -318,6 +326,15 @@ export interface VideoRecord {
   /** percentile of lifetime rate among videos of comparable age on the same platform (0..1) */
   agePercentile?: number;
   state: VideoState;
+  /**
+   * 4.0: which kind of attention this is — established (already viral for its age), early (a young video on an
+   * abnormal rise, not yet at hit level), delayed (an older video resurfacing with measured new velocity)
+   */
+  kind?: BreakoutKind;
+  /** 4.0: descriptive confidence band — never a probability (see docs/SCORING.md) */
+  confidenceBand: ConfidenceBand;
+  /** 4.0: how the Shorts label was established; 'duration' alone only makes a short-form *candidate* */
+  shortsEvidence?: 'verified' | 'duration' | 'url' | 'not_short' | 'none';
   /** why it is in (or out of) the feed — real metrics, honest wording */
   reasons: string[];
   rejectedBy?: string;
@@ -398,6 +415,13 @@ export interface VideoCard {
   reasons: string[];
   crossPlatform: number;
   verified: boolean;
+  /** 4.0 */
+  kind?: BreakoutKind;
+  band?: ConfidenceBand;
+  language?: string;
+  shortsEvidence?: VideoRecord['shortsEvidence'];
+  /** views (likes) gained in the trailing 24h, when the observation history brackets it */
+  gained24h?: number;
 }
 
 export interface VideoIntel {
@@ -427,6 +451,14 @@ export interface Snapshot {
   quality: QualitySummary;
   /** 3.0: video-native intelligence (top lists; the full index is in data/videos.json) */
   videos?: VideoIntel;
+  /** 4.0: today's creator opportunities (Creator Desk) */
+  desk?: DeskReport;
+  /** 4.0: early-warning alerts (rolling 7 days; the client decides what is "new since last visit") */
+  alerts?: Alert[];
+  /** 4.0: collection health + freshness facts */
+  health?: HealthReport;
+  /** 4.0: prediction scorecard summary (full detail in data/predictions/scorecard.json) */
+  scorecard?: ScorecardSummary;
   stats: {
     observationsThisRun: number;
     observationsTotal: number;
@@ -436,4 +468,234 @@ export interface Snapshot {
     earliestObservation?: string;
     youtube?: { quotaUnitsToday: number; searchCallsToday: number; trackedVideos: number };
   };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// 4.0 — opportunity classes, Creator Desk, predictions, alerts, health
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Three types of viral opportunity (plus uncertain). A single huge video is not a content opportunity. */
+export type OpportunityType = 'event' | 'meme' | 'format' | 'uncertain';
+export interface OpportunityClass {
+  type: OpportunityType;
+  /** 0-100 how well the evidence supports the type */
+  confidence: number;
+  /** facts the decision rests on (independent creators, dominance of the top video, spread, recurrence) */
+  basis: string[];
+  /** structural features observed in the titles/descriptions of the examples (never inferred from visuals) */
+  features: TrendFeatures;
+}
+
+export interface TrendFeatures {
+  creators: number;
+  videos: number;
+  directVideos: number;
+  /** share of total verified views held by the single biggest video (1 = one video is the whole cluster) */
+  dominance: number;
+  /** creators with ≥2 examples in the cluster (recurring producers of the format) */
+  repeatCreators: number;
+  /** hours between the first and the latest example (content time) */
+  spreadHours: number;
+  newCreators48h: number;
+  platforms: string[];
+  shortsShare: number;
+  medianDurationSec?: number;
+  languages: Record<string, number>;
+  /** title-level hooks observed, with counts: question, pov, when, versus, numbered, series, challenge, reaction, transformation, character, caps, emoji */
+  hooks: Record<string, number>;
+  /** words shared by ≥ 3 independent creators' titles (the recognisable signature), excluding generic tags */
+  signature: string[];
+  /** whether the cluster name is a calendar moment, a title fragment, a broad tag or a real phrase */
+  nameShape: 'phrase' | 'hashtag' | 'fragment' | 'calendar' | 'entity';
+  /** share of examples whose TITLE carries the cluster's name tokens (a phrase living only in descriptions is boilerplate) */
+  titleShare: number;
+  /** share of examples that are live streams / stream recordings by title */
+  liveShare: number;
+  /** majority platform (YouTube) category of the examples, when known */
+  platformCategory?: string;
+  /** a hashtag made of generic descriptor words (#aianimation, #digitalart): a subject, not a format */
+  descriptor: boolean;
+}
+
+export type DeskAction = 'create_today' | 'research' | 'monitor' | 'participate' | 'skip';
+export type DeskTiming = 'emerging' | 'accelerating' | 'established' | 'resurfacing' | 'peaking' | 'cooling';
+
+export interface DeskEvidence {
+  id: string;
+  platform: VideoRecord['platform'];
+  url: string;
+  title: string;
+  creator?: string;
+  thumbnail?: string;
+  publishedAt?: string;
+  ageHours?: number;
+  views?: number;
+  likes?: number;
+  velocityPerHour?: number;
+  velocityHours?: number;
+  state: VideoState;
+  kind?: BreakoutKind;
+  verified: boolean;
+  durationSec?: number;
+  language?: string;
+}
+
+export interface DeskOpportunity {
+  id: string;
+  trendId: string;
+  name: string;
+  category: string;
+  type: OpportunityType;
+  typeConfidence: number;
+  timing: DeskTiming;
+  timingWhy: string;
+  evidence: DeskEvidence[];
+  /** concise, factual explanation of why this is an opportunity now */
+  why: string[];
+  /** measured facts: creators, new creators, growth, best video */
+  facts: { creators: number; newCreators48h: number; videos: number; directVideos: number; growth?: number; growthBasis: 'measured' | 'provisional'; topViews?: number; topVelocity?: number; grade: EvidenceGrade };
+  features: TrendFeatures;
+  production: { feasibleIn2h: boolean; approach: string[]; why: string; effortHours: [number, number] };
+  monetization: { platforms: string[]; mechanisms: string[]; eligibility: string[]; suitability: number };
+  action: DeskAction;
+  actionWhy: string;
+  /** 0-100 fit with the creator profile (AI entertainment, animation, characters, music, en/es, ≤2h) */
+  fit: number;
+  /** 0-100 evidence strength */
+  evidenceScore: number;
+  /** 0-100 timing score (earliness × momentum) */
+  timingScore: number;
+  /** composite used for ordering */
+  score: number;
+  /** the alternative "a popular video exists" reading, to keep the recommendation honest */
+  caution?: string;
+}
+
+export interface DeskReport {
+  generatedAt: string;
+  opportunities: DeskOpportunity[];
+  /** how many clusters were considered and why the rest were left out (counts by reason) */
+  considered: number;
+  excluded: Record<string, number>;
+  /** creator profile used for the server-side ranking (the client can re-rank with its own preferences) */
+  profile: { languages: string[]; tools: string[]; maxHours: number; goal: string };
+}
+
+export type PredictionStrategy = 'radar' | 'views' | 'velocity';
+export const PREDICTION_HORIZONS = [24, 48, 72, 168] as const;
+export type PredictionHorizon = (typeof PREDICTION_HORIZONS)[number];
+
+/** Immutable prediction record — written once, before the outcome is known. */
+export interface PredictionRecord {
+  id: string;
+  runId: string;
+  predictedAt: string;
+  strategy: PredictionStrategy;
+  rank: number;
+  videoId: string;
+  platform: VideoRecord['platform'];
+  platformId: string;
+  url: string;
+  title: string;
+  creator?: string;
+  channelId?: string;
+  subscribers?: number;
+  ageHours?: number;
+  views?: number;
+  likes?: number;
+  lifetimeRate?: number;
+  velocityPerHour?: number;
+  velocityHours?: number;
+  acceleration?: number;
+  baselineRatio?: number;
+  subscriberRatio?: number;
+  breakoutScore: number;
+  viralScore: number;
+  confidence: number;
+  confidenceBand: ConfidenceBand;
+  kind?: BreakoutKind;
+  reasons: string[];
+  /** observation history known at prediction time (≤ 8 points) */
+  history: { t: string; views?: number; likes?: number }[];
+  horizons: PredictionHorizon[];
+  /** the age-appropriate hit floor the video must reach at each horizon (platform rule, frozen at prediction time) */
+  hitFloorAt: Record<string, number>;
+  /** trend memberships and their independent creator counts at prediction time (for the format-spread criterion) */
+  trends: { id: string; creators: number }[];
+}
+
+export interface OutcomeRecord {
+  predictionId: string;
+  horizon: PredictionHorizon;
+  evaluatedAt: string;
+  /** the observation used (first one at or after the horizon, within tolerance) */
+  observedAt: string;
+  observedHours: number;
+  views?: number;
+  likes?: number;
+  gained?: number;
+  reachedHit: boolean;
+  multiplied: boolean;
+  accelerated: boolean | null;
+  outperformedCohort: boolean | null;
+  cohortSize: number;
+  creatorJump: boolean | null;
+  formatSpread: boolean | null;
+  /** headline: reached the age-appropriate hit floor, or doubled with ≥100K gained */
+  breakout: boolean;
+  /** the horizon window passed without any observation (tracking gap) — excluded from precision, never a success */
+  unobserved?: boolean;
+}
+
+export interface ScorecardSummary {
+  generatedAt: string;
+  predictions: number;
+  pending: number;
+  evaluated: number;
+  /** headline precision of the radar strategy at each horizon (null until ≥ 10 evaluated) */
+  precision: Record<string, number | null>;
+  /** same horizons for the simple baselines */
+  baselines: Record<PredictionStrategy, Record<string, number | null>>;
+  leadTimeHours?: { median: number; n: number };
+  crossings: { observed: number; predictedBefore: number; missed: number; recall: number | null };
+  unobserved: number;
+  firstPredictionAt?: string;
+}
+
+export type AlertKind = 'new_hit' | 'acceleration' | 'creator_outlier' | 'format_spreading' | 'category_momentum' | 'resurfacing';
+export interface Alert {
+  id: string;
+  kind: AlertKind;
+  at: string;
+  severity: 'high' | 'medium';
+  category: string;
+  subject: { type: 'video' | 'trend' | 'category'; id: string; title: string; url?: string; thumbnail?: string; platform?: string };
+  /** what caused it — numbers, not adjectives */
+  evidence: string;
+  /** threshold that was crossed */
+  threshold: string;
+}
+
+export interface HealthRun {
+  runId: string;
+  startedAt: string;
+  durationSec: number;
+  sourcesOk: number;
+  sourcesTotal: number;
+  items: number;
+  units?: number;
+  searches?: number;
+  published: boolean;
+  trigger?: string;
+}
+export interface HealthReport {
+  generatedAt: string;
+  lastCollectionAt: string;
+  lastPublishedAt?: string;
+  /** collections in the last 24 h versus the schedule's slots */
+  last24h: { collections: number; expectedSlots: number; startRate: number | null; meanGapMin?: number; maxGapMin?: number; failures: number };
+  /** per-source last success */
+  sources: { source: string; ok: boolean; lastSuccess?: string; error?: string }[];
+  schedule: string;
+  runs: HealthRun[];
 }

@@ -1,12 +1,17 @@
-# Scheduled cloud collection (Viral Radar 2.0): runs the pipeline on GitHub's runners, commits the data
-# (observation history, score history, quality report, YouTube quota ledger, latest snapshot), checks the
-# release gate, and publishes the dashboard to GitHub Pages. Nothing runs on any personal machine.
+# Scheduled cloud collection (Viral Radar 4.0): runs the pipeline on GitHub's runners, commits the data
+# (observation history, score history, predictions, quality report, YouTube quota + yield ledgers, latest snapshot),
+# checks the release gate, and publishes the dashboard to GitHub Pages. Nothing runs on any personal machine.
+#
+# Reliability (4.0): GitHub drops or delays scheduled runs under load (measured 2026-10-28: 53 % of 30-minute slots
+# started, 8–23 min late). The schedule therefore offers four slots an hour and every scheduled run first checks how
+# old the published data is — younger than 22 minutes → it exits without collecting, so the quota ledger never
+# sees overlapping collectors and the effective cadence stays ~30 minutes whichever slots GitHub honours.
 name: Collect trends
 
 on:
   schedule:
-    - cron: '7,37 * * * *'   # every 30 minutes (GitHub may delay scheduled runs)
-  workflow_dispatch: {}      # manual refresh from the Actions tab
+    - cron: '3,18,33,48 * * * *'
+  workflow_dispatch: {}      # manual refresh from the Actions tab (never skipped by the freshness gate)
 
 concurrency:
   group: collect
@@ -14,6 +19,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   collect:
@@ -21,18 +27,44 @@ jobs:
     timeout-minutes: 20
     outputs:
       publish: ${{ steps.gate.outputs.publish }}
+      skipped: ${{ steps.fresh.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Freshness gate (skip when the last collection is < 22 min old)
+        id: fresh
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] && [ -f data/latest.json ]; then
+            AGE=$(node -e "const s=require('./data/latest.json'); console.log(Math.round((Date.now()-new Date(s.generatedAt).getTime())/60000))")
+            echo "last collection is ${AGE} min old"
+            if [ "$AGE" -lt 22 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "::notice::skipped — data is ${AGE} min old"; exit 0; fi
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
+        if: steps.fresh.outputs.skip != 'true'
         with:
           node-version: 22
           cache: npm
       - name: Install
+        if: steps.fresh.outputs.skip != 'true'
         run: npm ci --ignore-scripts
 
+      - name: Export the Actions run history (dropped scheduled runs are only visible here)
+        if: steps.fresh.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data/health
+          gh run list --workflow collect.yml --limit 200 --json createdAt,startedAt,updatedAt,event,status,conclusion \
+            --jq '[.[] | {createdAt, event, status, conclusion, durationSec: (if .startedAt and .updatedAt then (((.updatedAt|fromdateiso8601) - (.startedAt|fromdateiso8601))) else null end)}]' \
+            > data/health/actions.json || echo "[]" > data/health/actions.json
+          node -e "const a=require('./data/health/actions.json'); console.log('actions history:', a.length, 'runs')"
+
       - name: Collect
+        if: steps.fresh.outputs.skip != 'true'
         env:
           # Free YouTube Data API v3 key (10,000 units/day for videos.list etc.; search.list has its own 100 calls/day).
           # Without it the YouTube source is reported as "disabled"; nothing is fabricated.
@@ -40,20 +72,25 @@ jobs:
           VR_GT_REGIONS: ${{ vars.VR_GT_REGIONS || 'US,GB,CA,AU' }}
           VR_YT_REGIONS: ${{ vars.VR_YT_REGIONS || 'US,GB' }}
           VR_YT_CHART_CATEGORIES: ${{ vars.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24' }}
-          VR_YT_SEARCHES_PER_RUN: ${{ vars.VR_YT_SEARCHES_PER_RUN || '2' }}
+          VR_YT_MAX_SEARCHES_PER_RUN: ${{ vars.VR_YT_MAX_SEARCHES_PER_RUN || '4' }}
           VR_YT_SEARCH_BUDGET: ${{ vars.VR_YT_SEARCH_BUDGET || '90' }}
           VR_YT_QUERIES: ${{ vars.VR_YT_QUERIES }}
           VR_BSKY_QUERIES: ${{ vars.VR_BSKY_QUERIES }}
           VR_TIKTOK: ${{ vars.VR_TIKTOK || '0' }}
           VR_MASTODON_INSTANCES: ${{ vars.VR_MASTODON_INSTANCES || 'mastodon.social' }}
+          VR_SCHEDULE: '3,18,33,48 * * * * (gated to ~30 min)'
+          VR_TARGET_COLLECTIONS_PER_DAY: '48'
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: npm run collect
 
       - name: Release gate (critical data-integrity checks)
         id: gate
+        if: steps.fresh.outputs.skip != 'true'
         run: |
           if npx tsx pipeline/src/gate.ts; then echo "publish=true" >> "$GITHUB_OUTPUT"; else echo "publish=false" >> "$GITHUB_OUTPUT"; fi
 
       - name: Commit data
+        if: steps.fresh.outputs.skip != 'true'
         run: |
           git config user.name "viral-radar-bot"
           git config user.email "viral-radar-bot@users.noreply.github.com"
@@ -66,15 +103,17 @@ jobs:
           fi
 
       - name: Report
+        if: steps.fresh.outputs.skip != 'true'
         run: |
           echo "## Collection summary" >> "$GITHUB_STEP_SUMMARY"
-          node -e "const s=require('./data/latest.json'); console.log('- generated', s.generatedAt); for (const x of s.sources) console.log('- '+x.source+': '+x.mode+' '+x.items+' items'+(x.error?' ('+x.error.slice(0,80)+')':'')); console.log('- trends', s.trends.length, 'qualified', s.stats.qualifiedTrends); for (const c of s.quality.checks) console.log('- '+(c.ok?'✅':'❌')+' '+c.name+' — '+c.detail);" >> "$GITHUB_STEP_SUMMARY"
+          node -e "const s=require('./data/latest.json'); console.log('- generated', s.generatedAt); for (const x of s.sources) console.log('- '+x.source+': '+x.mode+' '+x.items+' items'+(x.error?' ('+x.error.slice(0,80)+')':'')); console.log('- trends', s.trends.length, 'qualified', s.stats.qualifiedTrends); if (s.desk) console.log('- desk:', s.desk.opportunities.map(o=>o.action+' '+o.name).join('; ')); if (s.scorecard) console.log('- predictions', s.scorecard.predictions, 'pending horizons', s.scorecard.pending, 'evaluated', s.scorecard.evaluated); if (s.health) console.log('- health: collections 24h', s.health.last24h.collections, 'start rate', s.health.last24h.startRate); for (const c of s.quality.checks) console.log('- '+(c.ok?'✅':'❌')+' '+c.name+' — '+c.detail);" >> "$GITHUB_STEP_SUMMARY"
 
   # Pushes made with GITHUB_TOKEN do not trigger other workflows, so the collector publishes the refreshed
   # dashboard itself — only when the release gate passed. A skipped publish keeps the previous release live.
+  # The front-end build is cached by source hash: an unchanged app is not rebuilt, only its data files are refreshed.
   publish:
     needs: collect
-    if: needs.collect.outputs.publish == 'true'
+    if: needs.collect.outputs.publish == 'true' && needs.collect.outputs.skipped != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -91,16 +130,33 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+      - name: Restore the built app (keyed by the app's source)
+        id: dist
+        uses: actions/cache@v4
+        with:
+          path: web/dist
+          key: web-dist-${{ hashFiles('web/src/**', 'web/index.html', 'web/vite.config.ts', 'web/tsconfig*.json', 'web/package.json', 'pipeline/src/types.ts', 'pipeline/src/intel/taxonomy.ts', 'package-lock.json') }}
       - uses: actions/setup-node@v4
+        if: steps.dist.outputs.cache-hit != 'true'
         with:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
+        if: steps.dist.outputs.cache-hit != 'true'
       - name: Build
+        if: steps.dist.outputs.cache-hit != 'true'
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
           VITE_REPO: ${{ github.repository }}
         run: npm run build -w web
+      - name: Copy data into the build
+        run: |
+          mkdir -p web/dist/data/predictions web/dist/data/diagnostics
+          cp data/latest.json data/videos.json web/dist/data/
+          cp data/health.json web/dist/data/ 2>/dev/null || true
+          cp data/predictions/scorecard.json web/dist/data/predictions/ 2>/dev/null || true
+          cp data/diagnostics/discovery-yield.json web/dist/data/diagnostics/ 2>/dev/null || true
+          ls -la web/dist/data
       - uses: actions/configure-pages@v5
         with:
           enablement: true

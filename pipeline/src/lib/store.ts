@@ -241,10 +241,21 @@ export async function pruneHistory(): Promise<string[]> {
   return removed;
 }
 
-export async function writeJson(rel: string, data: unknown): Promise<void> {
+export async function writeJson(rel: string, data: unknown, opts: { compact?: boolean } = {}): Promise<void> {
   const file = path.join(DATA_DIR, rel);
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, JSON.stringify(data, null, 1), 'utf8');
+  await writeFile(file, opts.compact ? JSON.stringify(data) : JSON.stringify(data, null, 1), 'utf8');
+}
+
+/** append-only NDJSON logs (predictions, outcomes, health): one JSON object per line, never rewritten */
+export async function appendNdjson(rel: string, rows: unknown[]): Promise<void> {
+  if (!rows.length) return;
+  const file = path.join(DATA_DIR, rel);
+  await mkdir(path.dirname(file), { recursive: true });
+  await appendFile(file, rows.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf8');
+}
+export async function readNdjsonLog<T>(rel: string): Promise<T[]> {
+  return readNdjson<T>(path.join(DATA_DIR, rel));
 }
 
 export async function readJson<T>(rel: string): Promise<T | undefined> {

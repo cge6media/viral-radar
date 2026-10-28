@@ -13,10 +13,11 @@ export default defineConfig({
       name: 'copy-data',
       closeBundle() {
         const outDir = path.resolve(__dirname, 'dist/data');
-        for (const name of ['latest.json', 'videos.json']) {
+        // the same list as .github/workflows/collect.yml "Copy data" (which refreshes a cached build without rebuilding)
+        for (const name of ['latest.json', 'videos.json', 'predictions/scorecard.json', 'diagnostics/discovery-yield.json', 'health.json']) {
           const src = path.resolve(__dirname, '../data', name);
           if (existsSync(src)) {
-            mkdirSync(outDir, { recursive: true });
+            mkdirSync(path.dirname(path.join(outDir, name)), { recursive: true });
             copyFileSync(src, path.join(outDir, name));
           }
         }

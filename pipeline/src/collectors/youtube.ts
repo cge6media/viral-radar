@@ -13,10 +13,14 @@
  *   B. Tracking refresh — videos.list for every video id seen in the last 7 days (YouTube records AND YouTube links
  *      found on Bluesky): 1 unit per 50 ids. This turns social shares into verified video records (real views,
  *      publish date, channel, duration) and produces repeated observations → view velocity.
- *   C. Discovery — a rolling schedule of search.list probes, VR_YT_SEARCHES_PER_RUN (default 2) per run inside
- *      VR_YT_SEARCH_BUDGET calls/day (default 90 of the 100 allowed): query-less top-by-views probes by window,
- *      category and region (how public Shorts charts are built), plus a few keyword/topic probes.
+ *   C. Discovery — 4.0: an ADAPTIVE allocation of search.list probes (see discovery.ts): the run's allowance comes
+ *      from the budget left for the Pacific day ÷ runs still expected (reserve rule), probes are chosen by measured
+ *      yield with 25 % exploration, inside VR_YT_SEARCH_BUDGET calls/day (default 90 of the 100 allowed).
  *   E. Channel statistics (50 per unit) and upload baselines for outlier candidates (2 units each).
+ *   F. Hot-channel uploads (4.0, units only): the latest uploads of channels that just produced a hit/breakout, so a
+ *      creator's next video is seen in its first hours (exploitation without spending a search call).
+ *   G. Shorts verification (4.0, no quota): HEAD youtube.com/shorts/<id> — 200 means the Shorts player serves it,
+ *      a redirect to /watch means it is not a Short. Cached in data/cache/youtube-shorts.json.
  *
  * A quota ledger (data/cache/youtube-quota.json) tracks units and search calls per Pacific day and stops the
  * collector before the daily limits. Without a key the source is reported as "disabled" and nothing is fabricated.
@@ -24,59 +28,24 @@
  * D. oEmbed (no key) verifies title + channel of linked videos when the API is unavailable (no stats, no dates).
  */
 import type { Observation } from '../types.js';
-import { fetchJson } from '../lib/http.js';
+import { fetchJson, fixtureMode } from '../lib/http.js';
 import { readJson, writeJson } from '../lib/store.js';
-import { extractHashtags, hoursBetween, nowIso, youtubeId } from '../lib/util.js';
+import { extractHashtags, hoursBetween, nowIso, round, sha1, youtubeId } from '../lib/util.js';
 import { FORMATS } from '../intel/relevance.js';
+import { allowance, buildPool, choose, emptyLedger, probeLabel, recordYield, rollLedger, summarizeYield, wantsDepth, MAX_PER_RUN, type Probe, type ProbeResult, type YieldLedger } from './discovery.js';
 
 const API = 'https://www.googleapis.com/youtube/v3';
 export const YOUTUBE_REGIONS = (process.env.VR_YT_REGIONS || 'US,GB').split(',').map((s) => s.trim()).filter(Boolean);
 /** secondary regions: two per run in rotation (international coverage at ~1/6 of the cost of charting them all every run) */
 export const YOUTUBE_SECONDARY_REGIONS = (process.env.VR_YT_SECONDARY_REGIONS || 'CA,AU,IN,MX,BR,ES,DE,FR,JP,KR,PH,ID').split(',').map((s) => s.trim()).filter(Boolean);
-export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 6);
+export const SECONDARY_PER_RUN = Number(process.env.VR_YT_SECONDARY_PER_RUN || 3);
 /** entertainment categories for chart=mostPopular (documented category ids) */
 export const YT_CHART_CATEGORIES = (process.env.VR_YT_CHART_CATEGORIES || '1,10,15,20,23,24').split(',').map((s) => s.trim()).filter(Boolean);
 export const SEARCH_BUDGET = Number(process.env.VR_YT_SEARCH_BUDGET || 90);
 export const UNIT_BUDGET = Number(process.env.VR_YT_UNIT_BUDGET || 9000);
 export const TRACK_MAX = Number(process.env.VR_YT_TRACK_MAX || 2500);
-/**
- * Query-less "top by views" probes — the single most important discovery source. search.list accepts no `q`, so
- * `order=viewCount&publishedAfter=…&videoDuration=short&regionCode=…` returns the most-viewed videos published in a
- * window, exactly how public Shorts charts are built. One search call per page (own 100/day bucket), 50 ids each.
- * Exploration that does not depend on any vocabulary: a format we have never heard of still shows up here.
- */
-export interface Probe { hours: number; beforeHours?: number; duration?: 'short' | 'medium' | 'long'; region?: string; category?: string; lang?: string; pages?: number; q?: string }
-export const SEARCHES_PER_RUN = Number(process.env.VR_YT_SEARCHES_PER_RUN || 2);
-const US = 'US';
-/** the 49-slot cycle (~12h at 2 searches per run): fresh US Shorts most often, then windows, categories, regions, keywords */
-export function buildSchedule(opts: { topicTerms?: string[]; trendTerms?: string[] } = {}): Probe[] {
-  const fresh: Probe = { hours: 24, duration: 'short', region: US };
-  const regions: Probe[] = ['GB', 'IN', 'MX', 'BR', 'ID', 'PH', 'JP', 'KR', 'ES', 'DE', 'FR', 'VN'].map((r) => ({ hours: 72, duration: 'short', region: r, lang: r === 'MX' || r === 'ES' ? 'es' : undefined }));
-  const cats: Probe[] = ['15', '23', '20', '24', '22', '26', '1', '10', '27', '28'].map((c) => ({ hours: 72, duration: 'short', region: US, category: c }));
-  const topics = (opts.topicTerms || []).slice(0, 2).map((q) => ({ hours: 72, q } as Probe));
-  const trends = (opts.trendTerms || []).slice(0, 2).map((q) => ({ hours: 72, q } as Probe));
-  const formats = DISCOVERY_QUERIES.slice(0, 4).map((q) => ({ hours: 72, q } as Probe));
-  const keywords: Probe[] = [{ hours: 72, q: '#shorts', duration: 'short' }, { hours: 72, q: 'videos virales', duration: 'short', lang: 'es' }, ...topics, ...trends, ...formats];
-  // day slices: the top 50 Shorts of EACH of the last 7 days (publishedAfter/publishedBefore) — 350 distinct leaders
-  // per week instead of the same 50 giants every time; this is where the mid-size 3–10M breakouts live
-  const days: Probe[] = Array.from({ length: 7 }, (_, i) => ({ hours: 24 * (i + 2), beforeHours: 24 * (i + 1), duration: 'short' as const, region: US }));
-  const windows: Probe[] = [
-    { hours: 72, duration: 'short', region: US, pages: 2 }, { hours: 24 * 7, duration: 'short', region: US, pages: 2 }, ...days,
-    { hours: 24 * 21, duration: 'short', region: US }, { hours: 72, region: US }, { hours: 24 * 7, region: US }, { hours: 24 * 7, duration: 'medium', region: US },
-    // added after the cycle-3 holdout (not yet benchmarked): global (no region) windows — the holdout's biggest misses
-    // were 7–14-day-old worldwide kids'/international Shorts absent from every regional list — and a 6h probe so a
-    // video can be seen in its first hours instead of only once it reaches a 24h top-50
-    { hours: 24 * 7, duration: 'short', pages: 2 }, { hours: 24 * 21, duration: 'short' }, { hours: 6, duration: 'short', region: US },
-  ];
-  // interleave so the fresh probe recurs every ~4 slots (~2h) and every family appears each cycle
-  const pool = [...windows, ...cats, ...regions, ...keywords];
-  const out: Probe[] = [];
-  for (let i = 0; i < pool.length; i++) {
-    if (i % 4 === 0) out.push(fresh);
-    out.push(pool[i]);
-  }
-  return out;
-}
+/** search.list calls per run are decided by the adaptive scheduler (discovery.ts); this env var now only caps it */
+export const SEARCHES_PER_RUN = Number(process.env.VR_YT_SEARCHES_PER_RUN || MAX_PER_RUN);
 /** format probes — a slice rotates into the schedule */
 export const DISCOVERY_QUERIES: string[] = process.env.VR_YT_QUERIES
   ? process.env.VR_YT_QUERIES.split(',').map((s) => s.trim()).filter(Boolean)
@@ -99,7 +68,14 @@ export interface YtVideo {
   contentDetails?: { duration?: string };
 }
 
-export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; slot?: number; rounds?: number; chartRound?: number; calls: { t: string; method: string; units: number; note?: string }[] }
+export interface QuotaLedger { day: string; units: number; searchCalls: number; lastDiscoveryAt?: string; slot?: number; rounds?: number; chartRound?: number; runsToday?: number; firstRunAt?: string; calls: { t: string; method: string; units: number; note?: string }[] }
+
+/** hours until the next Pacific midnight (quota reset) */
+export function hoursLeftInQuotaDay(iso = nowIso()): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(iso));
+  const h = Number(parts.find((p) => p.type === 'hour')?.value || 0) % 24, m = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+  return round(24 - (h + m / 60), 2);
+}
 
 /** The quota day in Pacific time (YouTube resets at midnight PT), formatted YYYY-MM-DD. */
 export const quotaDay = (iso = nowIso()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
@@ -150,7 +126,7 @@ export function isoDurationSeconds(iso: string): number {
   return Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0);
 }
 
-export interface YouTubeRunResult { items: Observation[]; errors: string[]; disabled?: boolean; subrequests: number; ledger?: QuotaLedger; tracked?: number; discovered?: number; regions?: string[]; diagnostics?: { id: string; t: string; views?: number; likes?: number; comments?: number }[] }
+export interface YouTubeRunResult { items: Observation[]; errors: string[]; disabled?: boolean; subrequests: number; ledger?: QuotaLedger; tracked?: number; discovered?: number; regions?: string[]; diagnostics?: { id: string; t: string; views?: number; likes?: number; comments?: number }[]; probes?: ProbeResult[]; searchAllowance?: number; uploadsChecked?: number; uploadsNew?: number; shortsVerified?: { checked: number; shorts: number; notShorts: number; reliable: boolean } }
 
 /**
  * @param trackIds   YouTube video ids already known (from history + this run's social links) to refresh.
@@ -158,7 +134,7 @@ export interface YouTubeRunResult { items: Observation[]; errors: string[]; disa
  * @param trendTerms microtrend names from the previous snapshot (exploitation: follow measured momentum).
  * @param diagnosticIds videos re-measured for diagnostics only (never stored as observations).
  */
-export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[]; topicTerms?: string[]; trendTerms?: string[]; diagnosticIds?: string[] } = {}): Promise<YouTubeRunResult> {
+export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[]; topicTerms?: string[]; trendTerms?: string[]; diagnosticIds?: string[]; knownIds?: Set<string>; hotChannels?: { id: string; uploads?: string }[]; shortsCheckIds?: string[]; runSeed?: string } = {}): Promise<YouTubeRunResult> {
   const apiKey = opts.apiKey ?? process.env.YOUTUBE_API_KEY;
   const items: Observation[] = [];
   const errors: string[] = [];
@@ -202,57 +178,119 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     }
   }
 
-  // C. discovery — a rolling schedule: every run spends SEARCHES_PER_RUN search calls on the next slots of a
-  //    49-slot cycle (query-less top-by-views probes by window/region/category, plus a few keyword probes), so
-  //    discovery is continuous and even instead of bursty, and the freshest probe recurs every ~2 hours.
+  // C. discovery — adaptive allocation (4.0): reserve rule → allowance; bandit choice over the probe pool; yield ledger
   let discovered = 0;
-  const foundIds: string[] = [];
-  const schedule = buildSchedule(opts);
-  let slot = ledger.slot || 0;
+  const known = opts.knownIds || new Set<string>();
+  const yieldLedger = rollLedger((await readJson<YieldLedger>('cache/youtube-yield.json')) || emptyLedger(today()), today());
+  yieldLedger.today.runs++;
+  if (!yieldLedger.today.firstRunAt) yieldLedger.today.firstRunAt = observedAt;
+  ledger.runsToday = (ledger.runsToday || 0) + 1;
+  if (!ledger.firstRunAt) ledger.firstRunAt = observedAt;
+  const hoursElapsed = hoursBetween(ledger.firstRunAt, observedAt);
+  const hoursLeft = hoursLeftInQuotaDay(observedAt);
+  const searchAllowance = allowance({ budget: SEARCH_BUDGET, spent: ledger.searchCalls, hoursLeftInDay: hoursLeft, runsToday: ledger.runsToday, hoursElapsedToday: hoursElapsed, max: MAX_PER_RUN });
+  const queryRound = yieldLedger.today.runs + Object.keys(yieldLedger.probes).length;
+  const pool = buildPool({ topicTerms: opts.topicTerms, trendTerms: opts.trendTerms, queries: DISCOVERY_QUERIES.slice(queryRound % DISCOVERY_QUERIES.length, (queryRound % DISCOVERY_QUERIES.length) + 6) });
+  const seed = opts.runSeed || sha1(observedAt);
+  const picks = choose(pool, yieldLedger, searchAllowance, observedAt, seed);
+  const probeResults: ProbeResult[] = [];
+  const searchOnce = async (probe: Probe, label: string, pageToken?: string): Promise<{ ids: string[]; next?: string } | undefined> => {
+    if (ledger.searchCalls >= SEARCH_BUDGET) return undefined;
+    subrequests++;
+    spend('search.list', 1, `${label}${pageToken ? ' p2' : ''}`);
+    const after = encodeURIComponent(new Date(Date.now() - probe.hours * 36e5).toISOString());
+    const before = probe.beforeHours ? `&publishedBefore=${encodeURIComponent(new Date(Date.now() - probe.beforeHours * 36e5).toISOString())}` : '';
+    const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}${before}&maxResults=50&safeSearch=moderate${probe.q != null ? `&q=${encodeURIComponent(probe.q)}` : ''}${probe.duration ? `&videoDuration=${probe.duration}` : ''}${probe.region ? `&regionCode=${probe.region}` : ''}${probe.category ? `&videoCategoryId=${probe.category}` : ''}${probe.lang ? `&relevanceLanguage=${probe.lang}` : ''}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${apiKey}`;
+    const sr = await fetchJson<{ items: { id: { videoId: string } }[]; nextPageToken?: string }>(url, { retries: 0 });
+    return { ids: (sr.items || []).map((it) => it.id?.videoId).filter(Boolean), next: sr.nextPageToken };
+  };
+  const detailsFor = async (ids: string[], label: string): Promise<YtVideo[]> => {
+    const out: YtVideo[] = [];
+    for (let i = 0; i < ids.length; i += 50) {
+      if (!canSpend(1)) break;
+      const chunk = ids.slice(i, i + 50);
+      subrequests++;
+      spend('videos.list', 1, `details ${label} ${chunk.length}`);
+      const v = await fetchJson<{ items: YtVideo[] }>(`${API}/videos?part=snippet,statistics,contentDetails&id=${chunk.join(',')}&key=${apiKey}`, { retries: 0 });
+      out.push(...(v.items || []));
+    }
+    return out;
+  };
+  const measure = (label: string, family: string, how: ProbeResult['how'], searches: number, vids: YtVideo[], returned: number): ProbeResult => {
+    const r: ProbeResult = { label, family, searches, returned, newIds: 0, newCandidates: 0, newEligible: 0, newFresh: 0, how };
+    for (const v of vids) {
+      if (known.has(v.id) || seen.has(`youtube:video:${v.id}`)) continue;
+      r.newIds++;
+      const views = num(v.statistics?.viewCount) || 0;
+      const age = hoursBetween(v.snippet.publishedAt, observedAt);
+      if (views >= 10_000) r.newCandidates++;
+      if (views >= 500_000 && age <= 24 * 30) r.newEligible++;
+      if (age <= 24) r.newFresh++;
+    }
+    return r;
+  };
   let spentThisRun = 0;
-  while (spentThisRun < SEARCHES_PER_RUN && ledger.searchCalls < SEARCH_BUDGET && schedule.length) {
-    const probe = schedule[slot % schedule.length];
-    slot++;
-    if (!probe) continue;
-    const label = probe.q != null ? `yt:${probe.q}` : `top:${probe.region || 'all'}:${probe.hours}h${probe.beforeHours ? '-' + probe.beforeHours + 'h' : ''}${probe.duration ? ':' + probe.duration : ''}${probe.category ? ':cat' + probe.category : ''}`;
-    let pageToken: string | undefined;
-    for (let page = 1; page <= (probe.pages || 1); page++) {
-      if (ledger.searchCalls >= SEARCH_BUDGET) break;
-      try {
-        subrequests++;
-        spend('search.list', 1, `${label} p${page}`);
-        spentThisRun++;
-        const after = encodeURIComponent(new Date(Date.now() - probe.hours * 36e5).toISOString());
-        const before = probe.beforeHours ? `&publishedBefore=${encodeURIComponent(new Date(Date.now() - probe.beforeHours * 36e5).toISOString())}` : '';
-        const url = `${API}/search?part=id&type=video&order=viewCount&publishedAfter=${after}${before}&maxResults=50&safeSearch=moderate${probe.q != null ? `&q=${encodeURIComponent(probe.q)}` : ''}${probe.duration ? `&videoDuration=${probe.duration}` : ''}${probe.region ? `&regionCode=${probe.region}` : ''}${probe.category ? `&videoCategoryId=${probe.category}` : ''}${probe.lang ? `&relevanceLanguage=${probe.lang}` : ''}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${apiKey}`;
-        const sr = await fetchJson<{ items: { id: { videoId: string } }[]; nextPageToken?: string }>(url, { retries: 0 });
-        for (const it of sr.items || []) if (it.id?.videoId) foundIds.push(`${it.id.videoId}|${label}`);
-        pageToken = sr.nextPageToken;
-        if (!pageToken) break;
-      } catch (e) {
-        errors.push(`${label} p${page}: ${redact((e as Error).message)}`);
-        break;
+  for (const pick of picks) {
+    if (spentThisRun >= searchAllowance) break;
+    try {
+      const page1 = await searchOnce(pick.probe, pick.label);
+      if (!page1) break;
+      spentThisRun++;
+      const vids = await detailsFor(page1.ids, pick.label);
+      const r = measure(pick.label, pick.probe.family, pick.how, 1, vids, page1.ids.length);
+      for (const v of vids) { add(videoToObservation(v, pick.label, undefined, observedAt)); discovered++; }
+      // depth: a second page in the same run when the first one was rich in new eligible videos and the allowance allows
+      if (page1.next && wantsDepth(pick.probe, { newEligible: r.newEligible, returned: page1.ids.length }) && ledger.searchCalls < SEARCH_BUDGET && spentThisRun < searchAllowance) {
+        const page2 = await searchOnce(pick.probe, pick.label, page1.next);
+        if (page2) {
+          spentThisRun++;
+          const vids2 = await detailsFor(page2.ids, pick.label);
+          const r2 = measure(pick.label, pick.probe.family, 'depth', 1, vids2, page2.ids.length);
+          for (const v of vids2) { add(videoToObservation(v, pick.label, undefined, observedAt)); discovered++; }
+          r.searches += 1; r.returned += r2.returned; r.newIds += r2.newIds; r.newCandidates += r2.newCandidates; r.newEligible += r2.newEligible; r.newFresh += r2.newFresh;
+          yieldLedger.today.picks.depth++;
+        }
       }
+      recordYield(yieldLedger, r, observedAt);
+      probeResults.push(r);
+    } catch (e) {
+      errors.push(`${pick.label}: ${redact((e as Error).message)}`);
     }
   }
-  ledger.slot = slot % Math.max(1, schedule.length);
   ledger.lastDiscoveryAt = nowIso();
-  // details for discovered ids (batched)
-  const byId = new Map(foundIds.map((x) => x.split('|') as [string, string]));
-  const ids = Array.from(byId.keys());
-  for (let i = 0; i < ids.length; i += 50) {
+  await writeJson('cache/youtube-yield.json', yieldLedger);
+
+  // F. hot-channel uploads (units only): the newest uploads of channels that just produced a hit or breakout
+  let uploadsChecked = 0, uploadsNew = 0;
+  const hot = (opts.hotChannels || []).filter((c) => c.uploads && /^UU[A-Za-z0-9_-]{20,}$/.test(c.uploads)).slice(0, 30);
+  const uploadIds: string[] = [];
+  for (const c of hot) {
     if (!canSpend(1)) break;
-    const chunk = ids.slice(i, i + 50);
     try {
       subrequests++;
-      spend('videos.list', 1, `discovery details ${chunk.length}`);
-      const v = await fetchJson<{ items: YtVideo[] }>(`${API}/videos?part=snippet,statistics,contentDetails&id=${chunk.join(',')}&key=${apiKey}`, { retries: 0 });
-      for (const vid of v.items || []) {
-        add(videoToObservation(vid, byId.get(vid.id) || 'yt:search', undefined, observedAt));
-        discovered++;
+      spend('playlistItems.list', 1, `uploads ${c.id}`);
+      const pl = await fetchJson<{ items: { contentDetails: { videoId: string; videoPublishedAt?: string } }[] }>(`${API}/playlistItems?part=contentDetails&playlistId=${c.uploads}&maxResults=10&key=${apiKey}`, { retries: 0 });
+      uploadsChecked++;
+      for (const it of pl.items || []) {
+        const id = it.contentDetails?.videoId;
+        const at = it.contentDetails?.videoPublishedAt;
+        if (!id || known.has(id) || seen.has(`youtube:video:${id}`)) continue;
+        if (at && hoursBetween(at, observedAt) > 72) continue;
+        uploadIds.push(id);
       }
     } catch (e) {
-      errors.push(`discovery details: ${redact((e as Error).message)}`);
+      errors.push(`uploads ${c.id}: ${redact((e as Error).message)}`);
+    }
+  }
+  if (uploadIds.length) {
+    try {
+      const vids = await detailsFor(Array.from(new Set(uploadIds)), 'uploads');
+      const r = measure('uploads:hot-channels', 'uploads', 'rotation', 0, vids, vids.length);
+      for (const v of vids) { add(videoToObservation(v, 'uploads:hot-channels', undefined, observedAt)); uploadsNew++; }
+      recordYield(yieldLedger, r, observedAt);
+      await writeJson('cache/youtube-yield.json', yieldLedger);
+    } catch (e) {
+      errors.push(`uploads details: ${redact((e as Error).message)}`);
     }
   }
 
@@ -294,14 +332,17 @@ export async function collectYouTube(opts: { apiKey?: string; trackIds?: string[
     }
   }
 
+  // G. Shorts verification (no quota): applies to the ids the caller asked about (featured + new candidates)
+  const shortsVerified = fixtureMode() ? undefined : await verifyShorts(opts.shortsCheckIds || [], items);
+
   await saveLedger(ledger);
-  return { items, errors, subrequests, ledger, tracked, discovered, regions, diagnostics };
+  return { items, errors, subrequests, ledger, tracked, discovered, regions, diagnostics, probes: probeResults, searchAllowance, uploadsChecked, uploadsNew, shortsVerified };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Channel statistics + creator baselines (cheap: 50 channels per unit; baseline = 2 units per channel)
 // ---------------------------------------------------------------------------------------------------------------
-export interface ChannelRecord { id: string; title?: string; subscribers?: number; videos?: number; views?: number; uploads?: string; fetchedAt: string; medianRecentViews?: number; baselineSampled?: number; baselineAt?: string }
+export interface ChannelRecord { id: string; title?: string; subscribers?: number; videos?: number; views?: number; uploads?: string; fetchedAt: string; medianRecentViews?: number; baselineSampled?: number; baselineAt?: string; /** 4.0: last time this channel's uploads playlist was checked for new videos */ uploadsAt?: string }
 
 export async function loadChannelCache(): Promise<Record<string, ChannelRecord>> {
   return (await readJson<Record<string, ChannelRecord>>('cache/youtube-channels.json')) || {};
@@ -362,6 +403,73 @@ export async function fetchChannelData(opts: { apiKey?: string; channelIds: stri
   for (const [id, c] of Object.entries(cache)) if (hoursBetween(c.fetchedAt, now) > 24 * 14) delete cache[id];
   await writeJson('cache/youtube-channels.json', cache);
   return { channels: cache, units, errors };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Shorts verification (no quota). youtube.com/shorts/<id> answers 200 for a Short and redirects (303 → /watch?v=)
+// for a long-form video. A self-check on long videos from the same run guards against a region/consent page that
+// would answer 200 for everything; if the check fails the run records nothing (duration stays the only evidence).
+// ---------------------------------------------------------------------------------------------------------------
+export interface ShortsCache { [id: string]: { s: 0 | 1; t: string } }
+export async function loadShortsCache(): Promise<ShortsCache> {
+  return (await readJson<ShortsCache>('cache/youtube-shorts.json')) || {};
+}
+async function headShorts(id: string): Promise<'short' | 'not_short' | 'unknown'> {
+  try {
+    const res = await fetch(`https://www.youtube.com/shorts/${id}`, { method: 'HEAD', redirect: 'manual', headers: { 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', 'accept-language': 'en-US,en;q=0.9' }, signal: AbortSignal.timeout(8000) });
+    if (res.status === 200) return 'short';
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location') || '';
+      return /\/watch\?v=|youtube\.com\/watch/.test(loc) ? 'not_short' : /consent|sorry/.test(loc) ? 'unknown' : 'not_short';
+    }
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+export async function verifyShorts(ids: string[], items: Observation[], max = 150): Promise<{ checked: number; shorts: number; notShorts: number; reliable: boolean }> {
+  const cache = await loadShortsCache();
+  const byId = new Map(items.filter((o) => o.video?.platform === 'youtube').map((o) => [o.video!.id, o]));
+  const result = { checked: 0, shorts: 0, notShorts: 0, reliable: true };
+  // self-check: two long videos must NOT answer 200
+  const longs = items.filter((o) => (o.video?.durationSec || 0) >= 600).slice(0, 2).map((o) => o.video!.id);
+  for (const id of longs) {
+    const r = await headShorts(id);
+    if (r === 'short') { result.reliable = false; break; }
+  }
+  if (result.reliable && longs.length) {
+    const todo = Array.from(new Set(ids)).filter((id) => /^[A-Za-z0-9_-]{6,}$/.test(id) && !cache[id] && (byId.get(id)?.video?.durationSec ?? 0) <= 180).slice(0, max);
+    const now = nowIso();
+    for (let i = 0; i < todo.length; i += 4) {
+      const rs = await Promise.all(todo.slice(i, i + 4).map(async (id) => [id, await headShorts(id)] as const));
+      for (const [id, r] of rs) {
+        if (r === 'unknown') continue;
+        cache[id] = { s: r === 'short' ? 1 : 0, t: now };
+        result.checked++;
+        if (r === 'short') result.shorts++; else result.notShorts++;
+      }
+    }
+    // a batch of ≥20 sub-minute videos with zero Shorts means the check is not working from this network
+    const subMinute = todo.filter((id) => (byId.get(id)?.video?.durationSec ?? 999) <= 60).length;
+    if (subMinute >= 20 && result.shorts === 0) result.reliable = false;
+    if (result.reliable) await writeJson('cache/youtube-shorts.json', cache);
+  }
+  if (result.reliable) applyShortsCache(items, cache);
+  return result;
+}
+/** stamp the verified Shorts state onto YouTube observations (the cache is the source of truth across runs) */
+export function applyShortsCache(items: Observation[], cache: ShortsCache): number {
+  let n = 0;
+  for (const o of items) {
+    if (o.video?.platform !== 'youtube') continue;
+    const c = cache[o.video.id];
+    if (!c) continue;
+    o.video.shortForm = c.s ? 'verified' : 'not_short';
+    if (c.s && !/shorts\//.test(o.url) && o.source === 'youtube') o.url = `https://www.youtube.com/shorts/${o.video.id}`;
+    if (!c.s && /shorts\//.test(o.url) && o.source === 'youtube') o.url = `https://www.youtube.com/watch?v=${o.video.id}`;
+    n++;
+  }
+  return n;
 }
 
 /** oEmbed enrichment (no key): verified title + channel for linked YouTube videos. No stats, no dates. */
