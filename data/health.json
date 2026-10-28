@@ -1,42 +1,42 @@
 {
- "generatedAt": "2026-10-28T11:25:19.027Z",
- "lastCollectionAt": "2026-10-28T11:24:19.972Z",
- "lastPublishedAt": "2026-10-28T11:24:19.972Z",
+ "generatedAt": "2026-10-28T12:01:36.922Z",
+ "lastCollectionAt": "2026-10-28T12:00:36.026Z",
+ "lastPublishedAt": "2026-10-28T12:00:36.026Z",
  "last24h": {
-  "collections": 2,
-  "expectedSlots": 1,
+  "collections": 3,
+  "expectedSlots": 2,
   "startRate": null,
-  "meanGapMin": 27,
-  "maxGapMin": 27,
+  "meanGapMin": 32,
+  "maxGapMin": 36,
   "failures": 3
  },
  "sources": [
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-10-28T11:24:20.686Z"
+   "lastSuccess": "2026-10-28T12:00:36.912Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-10-28T11:24:27.834Z"
+   "lastSuccess": "2026-10-28T12:00:41.551Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-10-28T11:24:20.789Z"
+   "lastSuccess": "2026-10-28T12:00:36.536Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-10-28T11:25:04.110Z"
+   "lastSuccess": "2026-10-28T12:01:23.729Z"
   },
   {
    "source": "tiktok",
    "ok": false
   }
  ],
- "schedule": "3,18,33,48 * * * * (gated to ~30 min)",
+ "schedule": "4 schedules × 2 slots/hour (3,33 · 18,48 · 11,41 · 26,56), gated to ≥22 min",
  "runs": [
   {
    "runId": "202610281057_fd8cf25fe973",
@@ -59,6 +59,18 @@
    "items": 4494,
    "units": 1915,
    "searches": 25,
+   "published": true,
+   "trigger": "workflow_dispatch"
+  },
+  {
+   "runId": "202610281200_a6d46c703f70",
+   "startedAt": "2026-10-28T12:00:36.026Z",
+   "durationSec": 101,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4531,
+   "units": 2076,
+   "searches": 26,
    "published": true,
    "trigger": "workflow_dispatch"
   }
