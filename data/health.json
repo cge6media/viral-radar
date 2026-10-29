@@ -1,35 +1,36 @@
 {
- "generatedAt": "2026-10-29T22:17:38.907Z",
- "lastCollectionAt": "2026-10-29T22:16:37.914Z",
- "lastPublishedAt": "2026-10-29T22:16:37.914Z",
+ "generatedAt": "2026-10-29T23:33:20.762Z",
+ "lastCollectionAt": "2026-10-29T23:32:16.789Z",
+ "lastPublishedAt": "2026-10-29T23:32:16.789Z",
  "last24h": {
-  "collections": 46,
+  "collections": 44,
   "expectedSlots": 48,
-  "startRate": 0.96,
-  "meanGapMin": 32,
+  "startRate": 0.92,
+  "meanGapMin": 33,
   "maxGapMin": 95,
-  "failures": 27
+  "failures": 28
  },
  "sources": [
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-10-29T22:16:39.500Z"
+   "lastSuccess": "2026-10-29T23:32:18.138Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-10-29T22:16:44.379Z"
+   "lastSuccess": "2026-10-29T23:32:26.508Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-10-29T22:16:39.016Z"
+   "lastSuccess": "2026-10-29T23:32:17.628Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-10-29T22:17:14.081Z"
+   "lastSuccess": "2026-10-29T23:32:58.779Z",
+   "error": "2 sub-request(s) failed: top:US:72h:short:cat17: HTTP 429 for <url> | top:US:72h:short:cat1: HTTP 429 for <url>"
   },
   {
    "source": "tiktok",
@@ -877,6 +878,18 @@
    "searches": 54,
    "published": true,
    "trigger": "workflow_dispatch"
+  },
+  {
+   "runId": "202610292332_a1ba76a3529c",
+   "startedAt": "2026-10-29T23:32:16.789Z",
+   "durationSec": 1055,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4508,
+   "units": 4123,
+   "searches": 57,
+   "published": true,
+   "trigger": "schedule"
   }
  ]
 }
