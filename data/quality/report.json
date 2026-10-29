@@ -1,10 +1,10 @@
 {
- "generatedAt": "2026-10-29T01:49:50.802Z",
- "runId": "202610290148_bbb6f4eccd09",
+ "generatedAt": "2026-10-29T02:21:35.513Z",
+ "runId": "202610290220_fac441ae7254",
  "quality": {
   "relevance": {
-   "sampled": 256,
-   "relevant": 256,
+   "sampled": 257,
+   "relevant": 257,
    "rate": 1
   },
   "duplicates": 0,
@@ -15,7 +15,7 @@
    {
     "name": "format evidence passes relevance validation",
     "ok": true,
-    "detail": "256/256 (100%)"
+    "detail": "257/257 (100%)"
    },
    {
     "name": "no duplicate videos within a trend",
@@ -55,7 +55,7 @@
    {
     "name": "at least one qualified opportunity",
     "ok": true,
-    "detail": "378 qualified of 1469"
+    "detail": "380 qualified of 1491"
    },
    {
     "name": "no news/person events in recommendations",
@@ -90,7 +90,7 @@
    {
     "name": "featured video statistics observed within 6h",
     "ok": false,
-    "detail": "559 stale"
+    "detail": "566 stale"
    }
   ]
  },
@@ -99,7 +99,7 @@
    "source": "google_trends",
    "label": "Google Trends — trending searches",
    "status": "live",
-   "lastSuccess": "2026-10-29T01:48:44.861Z",
+   "lastSuccess": "2026-10-29T02:20:41.791Z",
    "items": 40,
    "uniqueVideos": 0,
    "directVideos": 0,
@@ -120,10 +120,10 @@
    "source": "bluesky",
    "label": "Bluesky — topics, feeds, video discovery",
    "status": "live",
-   "lastSuccess": "2026-10-29T01:48:56.642Z",
+   "lastSuccess": "2026-10-29T02:20:46.232Z",
    "items": 755,
-   "uniqueVideos": 821,
-   "directVideos": 485,
+   "uniqueVideos": 834,
+   "directVideos": 498,
    "relevantItems": 279,
    "metrics": [
     "likes",
@@ -132,7 +132,7 @@
     "native video",
     "external video links"
    ],
-   "medianAgeHours": 5.8,
+   "medianAgeHours": 6.2,
    "historyDays": 2,
    "errorRate": 0,
    "weight": 0.7,
@@ -144,7 +144,7 @@
    "source": "mastodon",
    "label": "Mastodon — trending hashtags (7-day history)",
    "status": "live",
-   "lastSuccess": "2026-10-29T01:48:44.911Z",
+   "lastSuccess": "2026-10-29T02:20:41.471Z",
    "items": 20,
    "uniqueVideos": 0,
    "directVideos": 0,
@@ -166,11 +166,11 @@
    "source": "youtube",
    "label": "YouTube Data API — charts, tracking, discovery",
    "status": "live",
-   "lastSuccess": "2026-10-29T01:49:30.575Z",
-   "items": 3659,
-   "uniqueVideos": 6923,
-   "directVideos": 6923,
-   "relevantItems": 2214,
+   "lastSuccess": "2026-10-29T02:21:12.626Z",
+   "items": 3274,
+   "uniqueVideos": 6983,
+   "directVideos": 6983,
+   "relevantItems": 2235,
    "metrics": [
     "views",
     "likes",
@@ -179,7 +179,7 @@
     "duration",
     "channel"
    ],
-   "medianAgeHours": 75.8,
+   "medianAgeHours": 77.6,
    "historyDays": 1,
    "errorRate": 0,
    "weight": 1,
@@ -262,15 +262,6 @@
    "direct": 33
   },
   {
-   "id": "t_four_favorite_movies",
-   "name": "Four favorite movies",
-   "kind": "topic",
-   "grade": "strong",
-   "creators": 7,
-   "videos": 7,
-   "direct": 7
-  },
-  {
    "id": "m_released_producer",
    "name": "Released Producer",
    "kind": "microtrend",
@@ -280,13 +271,22 @@
    "direct": 30
   },
   {
-   "id": "m_free_fire",
-   "name": "Free Fire",
+   "id": "m_livestream",
+   "name": "#livestream",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 19,
-   "videos": 24,
-   "direct": 24
+   "creators": 17,
+   "videos": 35,
+   "direct": 35
+  },
+  {
+   "id": "t_four_favorite_movies",
+   "name": "Four favorite movies",
+   "kind": "topic",
+   "grade": "strong",
+   "creators": 7,
+   "videos": 7,
+   "direct": 7
   },
   {
    "id": "m_composer_lyricist",
@@ -307,22 +307,13 @@
    "direct": 14
   },
   {
-   "id": "m_if_enjoyed",
-   "name": "If Enjoyed",
+   "id": "m_gta5",
+   "name": "#gta5",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 9,
-   "videos": 17,
-   "direct": 17
-  },
-  {
-   "id": "m_theft_auto",
-   "name": "Theft Auto",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 12,
-   "videos": 18,
-   "direct": 18
+   "creators": 18,
+   "videos": 22,
+   "direct": 22
   },
   {
    "id": "m_que_se",
@@ -343,13 +334,22 @@
    "direct": 44
   },
   {
+   "id": "m_theft_auto",
+   "name": "Theft Auto",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 13,
+   "videos": 19,
+   "direct": 19
+  },
+  {
    "id": "m_funny_moments",
    "name": "Funny Moments",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 29,
-   "videos": 39,
-   "direct": 39
+   "creators": 33,
+   "videos": 44,
+   "direct": 44
   },
   {
    "id": "m_ケ_ーム実況",
@@ -357,15 +357,6 @@
    "kind": "microtrend",
    "grade": "strong",
    "creators": 15,
-   "videos": 16,
-   "direct": 16
-  },
-  {
-   "id": "m_gta5",
-   "name": "#gta5",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 12,
    "videos": 16,
    "direct": 16
   },
@@ -406,6 +397,24 @@
    "direct": 13
   },
   {
+   "id": "m_humor",
+   "name": "#humor",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 129,
+   "videos": 215,
+   "direct": 215
+  },
+  {
+   "id": "m_humour",
+   "name": "#humour",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 26,
+   "videos": 52,
+   "direct": 52
+  },
+  {
    "id": "m_aujourd_hui",
    "name": "Aujourd Hui",
    "kind": "microtrend",
@@ -415,13 +424,13 @@
    "direct": 16
   },
   {
-   "id": "m_humour",
-   "name": "#humour",
+   "id": "m_join_discord",
+   "name": "Join Discord",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 23,
-   "videos": 44,
-   "direct": 44
+   "creators": 18,
+   "videos": 36,
+   "direct": 36
   },
   {
    "id": "f_puppets",
@@ -437,9 +446,9 @@
    "name": "#gameplay",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 36,
-   "videos": 41,
-   "direct": 41
+   "creators": 38,
+   "videos": 43,
+   "direct": 43
   },
   {
    "id": "m_food",
@@ -449,15 +458,6 @@
    "creators": 14,
    "videos": 15,
    "direct": 15
-  },
-  {
-   "id": "m_minecraft_mod",
-   "name": "Minecraft Mod",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 10,
-   "videos": 17,
-   "direct": 17
   },
   {
    "id": "f_ai_video",
@@ -478,13 +478,13 @@
    "direct": 4
   },
   {
-   "id": "m_join_discord",
-   "name": "Join Discord",
+   "id": "m_if_enjoyed",
+   "name": "If Enjoyed",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 18,
-   "videos": 35,
-   "direct": 35
+   "creators": 9,
+   "videos": 17,
+   "direct": 17
   },
   {
    "id": "m_redes_sociales",
@@ -514,6 +514,15 @@
    "direct": 75
   },
   {
+   "id": "m_minecraft_mod",
+   "name": "Minecraft Mod",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 10,
+   "videos": 17,
+   "direct": 17
+  },
+  {
    "id": "m_kitten",
    "name": "#kitten",
    "kind": "microtrend",
@@ -521,24 +530,6 @@
    "creators": 9,
    "videos": 15,
    "direct": 15
-  },
-  {
-   "id": "t_clayface_hits_theaters",
-   "name": "Clayface hits theaters",
-   "kind": "topic",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 5,
-   "direct": 5
-  },
-  {
-   "id": "m_humor",
-   "name": "#humor",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 127,
-   "videos": 213,
-   "direct": 213
   },
   {
    "id": "m_yeni_dizi",
@@ -550,31 +541,13 @@
    "direct": 41
   },
   {
-   "id": "m_prank",
-   "name": "#prank",
+   "id": "m_free_fire",
+   "name": "Free Fire",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 16,
-   "videos": 22,
-   "direct": 22
-  },
-  {
-   "id": "m_lustig",
-   "name": "#lustig",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 8,
-   "videos": 19,
-   "direct": 19
-  },
-  {
-   "id": "m_livestream",
-   "name": "#livestream",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 15,
-   "videos": 33,
-   "direct": 33
+   "creators": 25,
+   "videos": 32,
+   "direct": 32
   },
   {
    "id": "m_horror",
@@ -582,8 +555,8 @@
    "kind": "microtrend",
    "grade": "strong",
    "creators": 8,
-   "videos": 9,
-   "direct": 9
+   "videos": 10,
+   "direct": 10
   },
   {
    "id": "m_oddlysatisfying",
@@ -593,6 +566,15 @@
    "creators": 9,
    "videos": 10,
    "direct": 10
+  },
+  {
+   "id": "t_clayface_hits_theaters",
+   "name": "Clayface hits theaters",
+   "kind": "topic",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 5,
+   "direct": 5
   },
   {
    "id": "t_spooky_month_stream_schedules",
@@ -631,15 +613,6 @@
    "direct": 12
   },
   {
-   "id": "m_facebook_twitter",
-   "name": "Facebook Twitter",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 11,
-   "videos": 12,
-   "direct": 12
-  },
-  {
    "id": "m_released_lyricist",
    "name": "Released Lyricist",
    "kind": "microtrend",
@@ -647,15 +620,6 @@
    "creators": 14,
    "videos": 16,
    "direct": 16
-  },
-  {
-   "id": "m_karwachauth",
-   "name": "#karwachauth",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 12,
-   "videos": 20,
-   "direct": 20
   },
   {
    "id": "m_family",
@@ -712,22 +676,13 @@
    "direct": 10
   },
   {
-   "id": "m_stream",
-   "name": "#stream",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 4,
-   "videos": 5,
-   "direct": 5
-  },
-  {
    "id": "m_league_legends",
    "name": "League Legends",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 17,
-   "videos": 24,
-   "direct": 24
+   "creators": 18,
+   "videos": 26,
+   "direct": 26
   },
   {
    "id": "m_nintendo",
@@ -739,15 +694,6 @@
    "direct": 7
   },
   {
-   "id": "m_get_ready",
-   "name": "Get Ready",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 17,
-   "videos": 21,
-   "direct": 21
-  },
-  {
    "id": "m_apple_music",
    "name": "Apple Music",
    "kind": "microtrend",
@@ -757,31 +703,13 @@
    "direct": 15
   },
   {
-   "id": "m_nostalgia",
-   "name": "#nostalgia",
+   "id": "m_facebook_twitter",
+   "name": "Facebook Twitter",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 7,
-   "videos": 16,
-   "direct": 16
-  },
-  {
-   "id": "m_clips",
-   "name": "#clips",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 7,
-   "videos": 10,
-   "direct": 10
-  },
-  {
-   "id": "m_music_provided",
-   "name": "Music Provided",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 16,
-   "videos": 24,
-   "direct": 24
+   "creators": 11,
+   "videos": 12,
+   "direct": 12
   },
   {
    "id": "m_tik_tok",
@@ -802,15 +730,6 @@
    "direct": 8
   },
   {
-   "id": "m_drama",
-   "name": "#drama",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 12,
-   "videos": 12,
-   "direct": 12
-  },
-  {
    "id": "m_gatos",
    "name": "#gatos",
    "kind": "microtrend",
@@ -820,13 +739,22 @@
    "direct": 5
   },
   {
+   "id": "m_real_life",
+   "name": "Real Life",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 9,
+   "videos": 10,
+   "direct": 10
+  },
+  {
    "id": "m_steal_egg",
    "name": "Steal Egg",
    "kind": "microtrend",
    "grade": "strong",
    "creators": 7,
-   "videos": 7,
-   "direct": 7
+   "videos": 8,
+   "direct": 8
   },
   {
    "id": "m_iphone_duo",
@@ -847,6 +775,15 @@
    "direct": 9
   },
   {
+   "id": "m_cutebaby",
+   "name": "#cutebaby",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 7,
+   "videos": 17,
+   "direct": 17
+  },
+  {
    "id": "m_todos_os",
    "name": "Todos Os",
    "kind": "microtrend",
@@ -856,13 +793,22 @@
    "direct": 9
   },
   {
-   "id": "m_es_una",
-   "name": "Es Una",
+   "id": "m_karwachauth",
+   "name": "#karwachauth",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 6,
-   "videos": 6,
-   "direct": 6
+   "creators": 12,
+   "videos": 20,
+   "direct": 20
+  },
+  {
+   "id": "m_music_provided",
+   "name": "Music Provided",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 16,
+   "videos": 24,
+   "direct": 24
   },
   {
    "id": "m_bigg_boss",
@@ -874,22 +820,22 @@
    "direct": 31
   },
   {
-   "id": "m_relatable",
-   "name": "#relatable",
+   "id": "m_drama",
+   "name": "#drama",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 41,
-   "videos": 50,
-   "direct": 50
+   "creators": 12,
+   "videos": 12,
+   "direct": 12
   },
   {
-   "id": "m_리그오브레전드",
-   "name": "#리그오브레전드",
+   "id": "m_lucu",
+   "name": "#lucu",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 7,
-   "videos": 9,
-   "direct": 9
+   "creators": 12,
+   "videos": 17,
+   "direct": 17
   },
   {
    "id": "m_tech",
@@ -901,15 +847,6 @@
    "direct": 12
   },
   {
-   "id": "m_hari_ini",
-   "name": "Hari Ini",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 7,
-   "direct": 7
-  },
-  {
    "id": "m_kutlu_olsun",
    "name": "Kutlu Olsun",
    "kind": "microtrend",
@@ -919,6 +856,60 @@
    "direct": 7
   },
   {
+   "id": "m_es_una",
+   "name": "Es Una",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 6,
+   "videos": 6,
+   "direct": 6
+  },
+  {
+   "id": "m_section_copyright",
+   "name": "Section Copyright",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 10,
+   "videos": 13,
+   "direct": 13
+  },
+  {
+   "id": "m_get_ready",
+   "name": "Get Ready",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 14,
+   "videos": 17,
+   "direct": 17
+  },
+  {
+   "id": "m_lustig",
+   "name": "#lustig",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 7,
+   "videos": 8,
+   "direct": 8
+  },
+  {
+   "id": "m_relatable",
+   "name": "#relatable",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 41,
+   "videos": 50,
+   "direct": 50
+  },
+  {
+   "id": "m_prank",
+   "name": "#prank",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 13,
+   "videos": 15,
+   "direct": 15
+  },
+  {
    "id": "m_youtube_shorts",
    "name": "#youtube shorts",
    "kind": "microtrend",
@@ -926,24 +917,6 @@
    "creators": 13,
    "videos": 21,
    "direct": 21
-  },
-  {
-   "id": "m_challenge",
-   "name": "#challenge",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 22,
-   "videos": 32,
-   "direct": 32
-  },
-  {
-   "id": "m_avengers_doomsday",
-   "name": "Avengers Doomsday",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 10,
-   "videos": 14,
-   "direct": 14
   },
   {
    "id": "m_メンハ_ーシッフ",
@@ -964,13 +937,49 @@
    "direct": 6
   },
   {
-   "id": "m_lucu",
-   "name": "#lucu",
+   "id": "m_challenge",
+   "name": "#challenge",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 11,
-   "videos": 16,
-   "direct": 16
+   "creators": 22,
+   "videos": 32,
+   "direct": 32
+  },
+  {
+   "id": "m_high_speed",
+   "name": "High Speed",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 5,
+   "videos": 6,
+   "direct": 6
+  },
+  {
+   "id": "m_리그오브레전드",
+   "name": "#리그오브레전드",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 7,
+   "videos": 9,
+   "direct": 9
+  },
+  {
+   "id": "m_hari_ini",
+   "name": "Hari Ini",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 6,
+   "videos": 7,
+   "direct": 7
+  },
+  {
+   "id": "m_映画紹介",
+   "name": "#映画紹介",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 8,
+   "videos": 15,
+   "direct": 15
   },
   {
    "id": "m_do_think",
@@ -1000,15 +1009,6 @@
    "direct": 13
   },
   {
-   "id": "m_follow_twitter",
-   "name": "Follow Twitter",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 10,
-   "videos": 12,
-   "direct": 12
-  },
-  {
    "id": "m_get_access",
    "name": "Get Access",
    "kind": "microtrend",
@@ -1027,13 +1027,13 @@
    "direct": 7
   },
   {
-   "id": "m_high_speed",
-   "name": "High Speed",
+   "id": "m_avengers_doomsday",
+   "name": "Avengers Doomsday",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 5,
-   "videos": 6,
-   "direct": 6
+   "creators": 10,
+   "videos": 14,
+   "direct": 14
   },
   {
    "id": "m_science",
@@ -1063,15 +1063,6 @@
    "direct": 9
   },
   {
-   "id": "m_cutebaby",
-   "name": "#cutebaby",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 15,
-   "direct": 15
-  },
-  {
    "id": "m_wildlife",
    "name": "#wildlife",
    "kind": "microtrend",
@@ -1079,6 +1070,15 @@
    "creators": 7,
    "videos": 8,
    "direct": 8
+  },
+  {
+   "id": "t_jack_perry_hugs_taz_on_dynamite",
+   "name": "Jack Perry hugs Taz on Dynamite",
+   "kind": "topic",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 5,
+   "direct": 5
   },
   {
    "id": "m_mastering_engineer",
@@ -1099,15 +1099,6 @@
    "direct": 6
   },
   {
-   "id": "m_poppy_playtime",
-   "name": "Poppy Playtime",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 6,
-   "direct": 6
-  },
-  {
    "id": "m_if_have",
    "name": "If Have",
    "kind": "microtrend",
@@ -1115,15 +1106,6 @@
    "creators": 5,
    "videos": 5,
    "direct": 5
-  },
-  {
-   "id": "m_비즈니스_문의",
-   "name": "비즈니스 문의",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 7,
-   "direct": 7
   },
   {
    "id": "m_coversong",
@@ -1144,11 +1126,56 @@
    "direct": 12
   },
   {
+   "id": "m_비즈니스_문의",
+   "name": "비즈니스 문의",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 6,
+   "videos": 7,
+   "direct": 7
+  },
+  {
+   "id": "m_funnymoments",
+   "name": "#funnymoments",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 12,
+   "videos": 13,
+   "direct": 13
+  },
+  {
+   "id": "m_stream",
+   "name": "#stream",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
    "id": "m_lyrics",
    "name": "#lyrics",
    "kind": "microtrend",
    "grade": "strong",
    "creators": 9,
+   "videos": 9,
+   "direct": 9
+  },
+  {
+   "id": "m_furry",
+   "name": "#furry",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_phillies_land_star",
+   "name": "Phillies Land Star",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 7,
    "videos": 9,
    "direct": 9
   },
@@ -1162,6 +1189,15 @@
    "direct": 6
   },
   {
+   "id": "m_esports",
+   "name": "#esports",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 5,
+   "videos": 6,
+   "direct": 6
+  },
+  {
    "id": "m_history",
    "name": "#history",
    "kind": "microtrend",
@@ -1169,15 +1205,6 @@
    "creators": 5,
    "videos": 9,
    "direct": 9
-  },
-  {
-   "id": "m_get_off",
-   "name": "Get Off",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 7,
-   "videos": 7,
-   "direct": 7
   },
   {
    "id": "m_gamedev",
@@ -1189,22 +1216,13 @@
    "direct": 3
   },
   {
-   "id": "m_6pm_kst",
-   "name": "6pm Kst",
+   "id": "m_ist_ein",
+   "name": "Ist Ein",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 3,
-   "videos": 8,
-   "direct": 8
-  },
-  {
-   "id": "m_section_copyright",
-   "name": "Section Copyright",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 9,
-   "videos": 12,
-   "direct": 12
+   "creators": 4,
+   "videos": 6,
+   "direct": 6
   },
   {
    "id": "m_unboxing_asmr_satisfying",
@@ -1225,31 +1243,13 @@
    "direct": 8
   },
   {
-   "id": "m_映画紹介",
-   "name": "#映画紹介",
+   "id": "m_clips",
+   "name": "#clips",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 8,
-   "videos": 15,
-   "direct": 15
-  },
-  {
-   "id": "m_esports",
-   "name": "#esports",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 5,
-   "videos": 5,
-   "direct": 5
-  },
-  {
-   "id": "m_furry",
-   "name": "#furry",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 5,
-   "videos": 5,
-   "direct": 5
+   "creators": 7,
+   "videos": 10,
+   "direct": 10
   },
   {
    "id": "m_funnyanimals",
@@ -1261,6 +1261,15 @@
    "direct": 4
   },
   {
+   "id": "m_horror_game",
+   "name": "Horror Game",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 5,
+   "videos": 6,
+   "direct": 6
+  },
+  {
    "id": "m_3danimation",
    "name": "#3danimation",
    "kind": "microtrend",
@@ -1268,6 +1277,15 @@
    "creators": 7,
    "videos": 7,
    "direct": 7
+  },
+  {
+   "id": "m_follow_twitter",
+   "name": "Follow Twitter",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 10,
+   "videos": 13,
+   "direct": 13
   },
   {
    "id": "m_engracado",
@@ -1297,6 +1315,15 @@
    "direct": 5
   },
   {
+   "id": "m_emotional",
+   "name": "#emotional",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 7,
+   "videos": 7,
+   "direct": 7
+  },
+  {
    "id": "m_무단_전재_재배포",
    "name": "무단 전재 재배포",
    "kind": "microtrend",
@@ -1315,6 +1342,15 @@
    "direct": 12
   },
   {
+   "id": "m_shorts",
+   "name": "##shorts",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 8,
+   "videos": 11,
+   "direct": 11
+  },
+  {
    "id": "m_baby",
    "name": "#baby",
    "kind": "microtrend",
@@ -1322,24 +1358,6 @@
    "creators": 7,
    "videos": 7,
    "direct": 7
-  },
-  {
-   "id": "m_gamer",
-   "name": "#gamer",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 4,
-   "videos": 5,
-   "direct": 5
-  },
-  {
-   "id": "m_phillies_land_star",
-   "name": "Phillies Land Star",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 7,
-   "videos": 9,
-   "direct": 9
   },
   {
    "id": "m_how_to",
@@ -1351,13 +1369,13 @@
    "direct": 6
   },
   {
-   "id": "m_real_life",
-   "name": "Real Life",
+   "id": "m_get_off",
+   "name": "Get Off",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 8,
-   "videos": 9,
-   "direct": 9
+   "creators": 6,
+   "videos": 6,
+   "direct": 6
   },
   {
    "id": "t_touchscreen",
@@ -1369,13 +1387,13 @@
    "direct": 3
   },
   {
-   "id": "m_follow_media",
-   "name": "Follow Media",
+   "id": "m_year_old",
+   "name": "Year Old",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 4,
-   "videos": 4,
-   "direct": 4
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
   },
   {
    "id": "m_show_tv",
@@ -1387,24 +1405,6 @@
    "direct": 31
   },
   {
-   "id": "m_marvel",
-   "name": "#marvel",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 6,
-   "direct": 6
-  },
-  {
-   "id": "m_mis_redes",
-   "name": "Mis Redes",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 24,
-   "direct": 24
-  },
-  {
    "id": "m_kids",
    "name": "#kids",
    "kind": "microtrend",
@@ -1412,15 +1412,6 @@
    "creators": 9,
    "videos": 11,
    "direct": 11
-  },
-  {
-   "id": "m_emotional",
-   "name": "#emotional",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 6,
-   "direct": 6
   },
   {
    "id": "m_streaming_download",
@@ -1432,13 +1423,13 @@
    "direct": 6
   },
   {
-   "id": "m_funnymoments",
-   "name": "#funnymoments",
+   "id": "m_nostalgia",
+   "name": "#nostalgia",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 10,
-   "videos": 11,
-   "direct": 11
+   "creators": 6,
+   "videos": 14,
+   "direct": 14
   },
   {
    "id": "m_faktaunik",
@@ -1477,6 +1468,15 @@
    "direct": 4
   },
   {
+   "id": "m_gamer",
+   "name": "#gamer",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 4,
+   "videos": 5,
+   "direct": 5
+  },
+  {
    "id": "m_creative",
    "name": "#creative",
    "kind": "microtrend",
@@ -1504,13 +1504,13 @@
    "direct": 4
   },
   {
-   "id": "m_action_movie",
-   "name": "Action Movie",
+   "id": "m_follow_media",
+   "name": "Follow Media",
    "kind": "microtrend",
-   "grade": "developing",
-   "creators": 7,
-   "videos": 11,
-   "direct": 11
+   "grade": "strong",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
   },
   {
    "id": "m_ela_nao",
@@ -1522,13 +1522,22 @@
    "direct": 4
   },
   {
-   "id": "m_minecraft_survival",
-   "name": "Minecraft Survival",
+   "id": "m_mis_redes",
+   "name": "Mis Redes",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 4,
-   "videos": 7,
-   "direct": 7
+   "creators": 3,
+   "videos": 25,
+   "direct": 25
+  },
+  {
+   "id": "m_poppy_playtime",
+   "name": "Poppy Playtime",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
   },
   {
    "id": "m_spiderman",
@@ -1540,11 +1549,11 @@
    "direct": 6
   },
   {
-   "id": "m_music_director",
-   "name": "Music Director",
+   "id": "m_minecraft_survival",
+   "name": "Minecraft Survival",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 7,
+   "creators": 4,
    "videos": 7,
    "direct": 7
   },
@@ -1585,6 +1594,24 @@
    "direct": 14
   },
   {
+   "id": "m_gta_5",
+   "name": "#gta 5",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 4,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_bande_annonce",
+   "name": "Bande Annonce",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 5,
+   "direct": 5
+  },
+  {
    "id": "m_viral_shorts",
    "name": "#viral shorts",
    "kind": "microtrend",
@@ -1608,6 +1635,24 @@
    "kind": "microtrend",
    "grade": "strong",
    "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_support_channel",
+   "name": "Support Channel",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_exclusive_content",
+   "name": "Exclusive Content",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
    "videos": 4,
    "direct": 4
   },
@@ -1648,15 +1693,6 @@
    "direct": 5
   },
   {
-   "id": "m_animalrescue",
-   "name": "#animalrescue",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 4,
-   "videos": 10,
-   "direct": 10
-  },
-  {
    "id": "m_drawing",
    "name": "#drawing",
    "kind": "microtrend",
@@ -1664,6 +1700,15 @@
    "creators": 6,
    "videos": 6,
    "direct": 6
+  },
+  {
+   "id": "m_music_director",
+   "name": "Music Director",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 7,
+   "videos": 7,
+   "direct": 7
   },
   {
    "id": "m_웃긴영상",
@@ -1675,22 +1720,13 @@
    "direct": 15
   },
   {
-   "id": "m_bande_annonce",
-   "name": "Bande Annonce",
+   "id": "m_historia",
+   "name": "#historia",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 3,
-   "videos": 5,
-   "direct": 5
-  },
-  {
-   "id": "m_shorts",
-   "name": "##shorts",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 7,
-   "videos": 10,
-   "direct": 10
+   "creators": 6,
+   "videos": 7,
+   "direct": 7
   },
   {
    "id": "m_tutorial",
@@ -1702,15 +1738,6 @@
    "direct": 6
   },
   {
-   "id": "m_historia",
-   "name": "#historia",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 7,
-   "direct": 7
-  },
-  {
    "id": "m_construction",
    "name": "#construction",
    "kind": "microtrend",
@@ -1720,15 +1747,6 @@
    "direct": 4
   },
   {
-   "id": "m_ist_ein",
-   "name": "Ist Ein",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 4,
-   "videos": 6,
-   "direct": 6
-  },
-  {
    "id": "m_mukbang",
    "name": "#mukbang",
    "kind": "microtrend",
@@ -1736,15 +1754,6 @@
    "creators": 3,
    "videos": 3,
    "direct": 3
-  },
-  {
-   "id": "m_year_old",
-   "name": "Year Old",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 4,
-   "videos": 4,
-   "direct": 4
   },
   {
    "id": "m_espero_que",
@@ -1783,13 +1792,13 @@
    "direct": 10
   },
   {
-   "id": "m_shortsviral",
-   "name": "#shortsviral",
+   "id": "m_marvel",
+   "name": "#marvel",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 6,
-   "videos": 10,
-   "direct": 10
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
   },
   {
    "id": "m_para_que",
@@ -1799,6 +1808,15 @@
    "creators": 5,
    "videos": 5,
    "direct": 5
+  },
+  {
+   "id": "t_celebrity",
+   "name": "celebrity",
+   "kind": "topic",
+   "grade": "developing",
+   "creators": 5,
+   "videos": 7,
+   "direct": 7
   },
   {
    "id": "m_hiphop",
@@ -1819,6 +1837,15 @@
    "direct": 6
   },
   {
+   "id": "m_reaction",
+   "name": "#reaction",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 4,
+   "videos": 16,
+   "direct": 16
+  },
+  {
    "id": "m_newmusic",
    "name": "#newmusic",
    "kind": "microtrend",
@@ -1828,6 +1855,15 @@
    "direct": 6
   },
   {
+   "id": "m_every_single",
+   "name": "Every Single",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
    "id": "m_team_liquid",
    "name": "Team Liquid",
    "kind": "microtrend",
@@ -1835,15 +1871,6 @@
    "creators": 3,
    "videos": 5,
    "direct": 5
-  },
-  {
-   "id": "m_until_end",
-   "name": "Until End",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 8,
-   "videos": 8,
-   "direct": 8
   },
   {
    "id": "m_around_world",
@@ -1859,6 +1886,24 @@
    "name": "Mi Libro",
    "kind": "microtrend",
    "grade": "strong",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_until_end",
+   "name": "Until End",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 5,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_bolum_fragmanı",
+   "name": "Bolum FragmanI",
+   "kind": "microtrend",
+   "grade": "developing",
    "creators": 4,
    "videos": 4,
    "direct": 4
@@ -1882,13 +1927,13 @@
    "direct": 5
   },
   {
-   "id": "m_exclusive_content",
-   "name": "Exclusive Content",
+   "id": "m_exclusive_license",
+   "name": "Exclusive License",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 4,
-   "videos": 4,
-   "direct": 4
+   "videos": 13,
+   "direct": 13
   },
   {
    "id": "m_halloween_costume",
@@ -1927,15 +1972,6 @@
    "direct": 4
   },
   {
-   "id": "t_celebrity",
-   "name": "celebrity",
-   "kind": "topic",
-   "grade": "developing",
-   "creators": 5,
-   "videos": 7,
-   "direct": 7
-  },
-  {
    "id": "m_created_entertainment",
    "name": "Created Entertainment",
    "kind": "microtrend",
@@ -1952,6 +1988,15 @@
    "creators": 4,
    "videos": 5,
    "direct": 5
+  },
+  {
+   "id": "m_shortsviral",
+   "name": "#shortsviral",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 6,
+   "videos": 10,
+   "direct": 10
   },
   {
    "id": "m_song_credits",
@@ -2008,38 +2053,11 @@
    "direct": 10
   },
   {
-   "id": "m_gta_5",
-   "name": "#gta 5",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 4,
-   "direct": 4
-  },
-  {
    "id": "m_engineering",
    "name": "#engineering",
    "kind": "microtrend",
    "grade": "strong",
    "creators": 3,
-   "videos": 5,
-   "direct": 5
-  },
-  {
-   "id": "m_game_pass",
-   "name": "Game Pass",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 5,
-   "direct": 5
-  },
-  {
-   "id": "m_horror_game",
-   "name": "Horror Game",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 4,
    "videos": 5,
    "direct": 5
   },
@@ -2053,6 +2071,15 @@
    "direct": 5
   },
   {
+   "id": "m_game_pass",
+   "name": "Game Pass",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 5,
+   "direct": 5
+  },
+  {
    "id": "m_hanumanji",
    "name": "#hanumanji",
    "kind": "microtrend",
@@ -2062,8 +2089,26 @@
    "direct": 4
   },
   {
-   "id": "m_records_released",
-   "name": "Records Released",
+   "id": "m_이_영상은",
+   "name": "이 영상은",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 4,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_aewdynamite",
+   "name": "#aewdynamite",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_ultimate_team",
+   "name": "Ultimate Team",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 4,
@@ -2071,8 +2116,8 @@
    "direct": 4
   },
   {
-   "id": "m_bolum_fragmanı",
-   "name": "Bolum FragmanI",
+   "id": "m_records_released",
+   "name": "Records Released",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 4,
@@ -2107,13 +2152,13 @@
    "direct": 4
   },
   {
-   "id": "m_reaction",
-   "name": "#reaction",
+   "id": "m_animalrescue",
+   "name": "#animalrescue",
    "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 5,
-   "direct": 5
+   "grade": "developing",
+   "creators": 4,
+   "videos": 10,
+   "direct": 10
   },
   {
    "id": "m_por_que",
@@ -2125,22 +2170,13 @@
    "direct": 4
   },
   {
-   "id": "m_이_영상은",
-   "name": "이 영상은",
+   "id": "m_duet",
+   "name": "#duet",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 4,
-   "videos": 5,
-   "direct": 5
-  },
-  {
-   "id": "m_whether_re",
-   "name": "Whether Re",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
+   "creators": 5,
+   "videos": 6,
+   "direct": 6
   },
   {
    "id": "m_chaine_secondaire",
@@ -2170,17 +2206,8 @@
    "direct": 4
   },
   {
-   "id": "m_ultimate_team",
-   "name": "Ultimate Team",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 4,
-   "videos": 4,
-   "direct": 4
-  },
-  {
-   "id": "m_exclusive_license",
-   "name": "Exclusive License",
+   "id": "m_pour_ne",
+   "name": "Pour Ne",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 4,
@@ -2197,6 +2224,24 @@
    "direct": 3
   },
   {
+   "id": "m_help_but",
+   "name": "Help But",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_кино",
+   "name": "#кино",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
    "id": "m_tv_show",
    "name": "Tv Show",
    "kind": "microtrend",
@@ -2204,6 +2249,24 @@
    "creators": 3,
    "videos": 3,
    "direct": 3
+  },
+  {
+   "id": "m_craft_attack",
+   "name": "Craft Attack",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 5,
+   "direct": 5
+  },
+  {
+   "id": "m_action_movie",
+   "name": "Action Movie",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 7,
+   "videos": 11,
+   "direct": 11
   },
   {
    "id": "m_abhishek_sharma",
@@ -2215,24 +2278,6 @@
    "direct": 4
   },
   {
-   "id": "m_duet",
-   "name": "#duet",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 5,
-   "videos": 6,
-   "direct": 6
-  },
-  {
-   "id": "m_aivideo",
-   "name": "#aivideo",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_sera_que",
    "name": "Sera Que",
    "kind": "microtrend",
@@ -2240,15 +2285,6 @@
    "creators": 4,
    "videos": 6,
    "direct": 6
-  },
-  {
-   "id": "m_메이플랜드",
-   "name": "#메이플랜드",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 4,
-   "direct": 4
   },
   {
    "id": "m_subscribe_hit",
@@ -2278,15 +2314,6 @@
    "direct": 4
   },
   {
-   "id": "m_till_end",
-   "name": "Till End",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 6,
-   "videos": 7,
-   "direct": 7
-  },
-  {
    "id": "m_villagelife",
    "name": "#villagelife",
    "kind": "microtrend",
@@ -2296,8 +2323,8 @@
    "direct": 4
   },
   {
-   "id": "m_hbo_max",
-   "name": "Hbo Max",
+   "id": "m_whether_re",
+   "name": "Whether Re",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 3,
@@ -2314,8 +2341,8 @@
    "direct": 4
   },
   {
-   "id": "m_pour_ne",
-   "name": "Pour Ne",
+   "id": "m_kevin_hart",
+   "name": "Kevin Hart",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 4,
@@ -2323,19 +2350,10 @@
    "direct": 4
   },
   {
-   "id": "m_help_but",
-   "name": "Help But",
+   "id": "m_tendran_que",
+   "name": "Tendran Que",
    "kind": "microtrend",
    "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
-   "id": "m_кино",
-   "name": "#кино",
-   "kind": "microtrend",
-   "grade": "strong",
    "creators": 3,
    "videos": 4,
    "direct": 4
@@ -2350,15 +2368,6 @@
    "direct": 3
   },
   {
-   "id": "m_craft_attack",
-   "name": "Craft Attack",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 4,
-   "videos": 5,
-   "direct": 5
-  },
-  {
    "id": "m_officialtrailer",
    "name": "#officialtrailer",
    "kind": "microtrend",
@@ -2366,6 +2375,15 @@
    "creators": 3,
    "videos": 3,
    "direct": 3
+  },
+  {
+   "id": "m_ce_jeu",
+   "name": "Ce Jeu",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
   },
   {
    "id": "m_shubhankar_mishra",
@@ -2431,6 +2449,15 @@
    "direct": 3
   },
   {
+   "id": "m_메이플랜드",
+   "name": "#메이플랜드",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
    "id": "m_fashion",
    "name": "#fashion",
    "kind": "microtrend",
@@ -2449,15 +2476,6 @@
    "direct": 4
   },
   {
-   "id": "m_familydrama",
-   "name": "#familydrama",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 5,
-   "videos": 6,
-   "direct": 6
-  },
-  {
    "id": "m_siapa_yang",
    "name": "Siapa Yang",
    "kind": "microtrend",
@@ -2465,6 +2483,15 @@
    "creators": 4,
    "videos": 4,
    "direct": 4
+  },
+  {
+   "id": "m_till_end",
+   "name": "Till End",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 6,
+   "videos": 7,
+   "direct": 7
   },
   {
    "id": "m_creative_commons_attribution",
@@ -2476,6 +2503,24 @@
    "direct": 4
   },
   {
+   "id": "m_hbo_max",
+   "name": "Hbo Max",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_pc_consoles",
+   "name": "Pc Consoles",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
    "id": "m_perros",
    "name": "#perros",
    "kind": "microtrend",
@@ -2485,26 +2530,17 @@
    "direct": 4
   },
   {
-   "id": "m_kevin_hart",
-   "name": "Kevin Hart",
+   "id": "m_war_das",
+   "name": "War Das",
    "kind": "microtrend",
-   "grade": "developing",
-   "creators": 4,
-   "videos": 4,
-   "direct": 4
-  },
-  {
-   "id": "m_tendran_que",
-   "name": "Tendran Que",
-   "kind": "microtrend",
-   "grade": "developing",
+   "grade": "strong",
    "creators": 3,
-   "videos": 4,
-   "direct": 4
+   "videos": 3,
+   "direct": 3
   },
   {
-   "id": "m_ce_jeu",
-   "name": "Ce Jeu",
+   "id": "m_early_access",
+   "name": "Early Access",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 4,
@@ -2566,6 +2602,24 @@
    "direct": 4
   },
   {
+   "id": "m_6pm_kst",
+   "name": "6pm Kst",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 8,
+   "direct": 8
+  },
+  {
+   "id": "m_aivideo",
+   "name": "#aivideo",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
    "id": "m_vijay",
    "name": "#vijay",
    "kind": "microtrend",
@@ -2611,13 +2665,13 @@
    "direct": 6
   },
   {
-   "id": "m_pc_consoles",
-   "name": "Pc Consoles",
+   "id": "m_release_date",
+   "name": "Release Date",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 3,
    "videos": 3,
-   "direct": 3
+   "direct": 2
   },
   {
    "id": "m_ya_nos",
@@ -2629,15 +2683,6 @@
    "direct": 3
   },
   {
-   "id": "m_early_access",
-   "name": "Early Access",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 4,
-   "videos": 4,
-   "direct": 4
-  },
-  {
    "id": "m_pakistani_drama",
    "name": "Pakistani Drama",
    "kind": "microtrend",
@@ -2647,10 +2692,28 @@
    "direct": 4
   },
   {
+   "id": "m_repost",
+   "name": "#repost",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
    "id": "m_halloween_coming",
    "name": "Halloween Coming",
    "kind": "microtrend",
    "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_released_composer",
+   "name": "Released Composer",
+   "kind": "microtrend",
+   "grade": "strong",
    "creators": 3,
    "videos": 3,
    "direct": 3
@@ -2681,6 +2744,15 @@
    "creators": 3,
    "videos": 3,
    "direct": 3
+  },
+  {
+   "id": "m_minecraft_mods",
+   "name": "Minecraft Mods",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 5,
+   "direct": 5
   },
   {
    "id": "m_アニメ_漫画",
@@ -2728,10 +2800,37 @@
    "direct": 4
   },
   {
+   "id": "m_familydrama",
+   "name": "#familydrama",
+   "kind": "microtrend",
+   "grade": "strong",
+   "creators": 4,
+   "videos": 5,
+   "direct": 5
+  },
+  {
    "id": "m_dojacat",
    "name": "#dojacat",
    "kind": "microtrend",
    "grade": "strong",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_provided_distrokid",
+   "name": "Provided Distrokid",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_mas_que",
+   "name": "Mas Que",
+   "kind": "microtrend",
+   "grade": "developing",
    "creators": 3,
    "videos": 3,
    "direct": 3
@@ -2755,8 +2854,17 @@
    "direct": 3
   },
   {
-   "id": "m_repost",
-   "name": "#repost",
+   "id": "m_フ_ロ野球",
+   "name": "#プロ野球",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 4,
+   "videos": 4,
+   "direct": 4
+  },
+  {
+   "id": "m_english",
+   "name": "#english",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 3,
@@ -2782,15 +2890,6 @@
    "direct": 3
   },
   {
-   "id": "m_minecraft_mods",
-   "name": "Minecraft Mods",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 5,
-   "direct": 5
-  },
-  {
    "id": "m_moments_welcome",
    "name": "Moments Welcome",
    "kind": "microtrend",
@@ -2809,24 +2908,6 @@
    "direct": 4
   },
   {
-   "id": "m_provided_distrokid",
-   "name": "Provided Distrokid",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
-   "id": "m_mas_que",
-   "name": "Mas Que",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "t_fed_holds_rates_as_inflation_rises",
    "name": "Fed holds rates as inflation rises",
    "kind": "topic",
@@ -2834,24 +2915,6 @@
    "creators": 2,
    "videos": 4,
    "direct": 4
-  },
-  {
-   "id": "m_フ_ロ野球",
-   "name": "#プロ野球",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 4,
-   "videos": 4,
-   "direct": 4
-  },
-  {
-   "id": "m_english",
-   "name": "#english",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
   },
   {
    "id": "m_아이폰_듀오",
@@ -2890,15 +2953,6 @@
    "direct": 9
   },
   {
-   "id": "m_every_single",
-   "name": "Every Single",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_funny_shorts",
    "name": "#funny shorts",
    "kind": "microtrend",
@@ -2917,15 +2971,6 @@
    "direct": 3
   },
   {
-   "id": "m_support_channel",
-   "name": "Support Channel",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_asmr_america_original",
    "name": "Asmr America Original",
    "kind": "microtrend",
@@ -2935,8 +2980,8 @@
    "direct": 3
   },
   {
-   "id": "m_war_das",
-   "name": "War Das",
+   "id": "m_road_trip",
+   "name": "Road Trip",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 3,
@@ -2944,13 +2989,13 @@
    "direct": 3
   },
   {
-   "id": "m_music_group",
-   "name": "Music Group",
+   "id": "m_yang_mau",
+   "name": "Yang Mau",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 3,
-   "videos": 3,
-   "direct": 3
+   "videos": 4,
+   "direct": 4
   },
   {
    "id": "m_리트리버",
@@ -2971,15 +3016,6 @@
    "direct": 3
   },
   {
-   "id": "m_ulang_tahun",
-   "name": "Ulang Tahun",
-   "kind": "microtrend",
-   "grade": "strong",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_ンシ_ャース",
    "name": "ンシ ャース",
    "kind": "microtrend",
@@ -2987,6 +3023,24 @@
    "creators": 3,
    "videos": 4,
    "direct": 4
+  },
+  {
+   "id": "m_웃긴_영상",
+   "name": "#웃긴 영상",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_tv_channel",
+   "name": "Tv Channel",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
   },
   {
    "id": "m_cheating",
@@ -3005,15 +3059,6 @@
    "creators": 5,
    "videos": 5,
    "direct": 5
-  },
-  {
-   "id": "m_road_trip",
-   "name": "Road Trip",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
   },
   {
    "id": "m_twitter_discord",
@@ -3088,6 +3133,15 @@
    "direct": 3
   },
   {
+   "id": "m_realmadrid",
+   "name": "#realmadrid",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 4,
+   "direct": 4
+  },
+  {
    "id": "m_cua_ong",
    "name": "Cua Ong",
    "kind": "microtrend",
@@ -3133,24 +3187,6 @@
    "direct": 4
   },
   {
-   "id": "m_웃긴_영상",
-   "name": "#웃긴 영상",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
-   "id": "m_tv_channel",
-   "name": "Tv Channel",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_サッカー",
    "name": "#サッカー",
    "kind": "microtrend",
@@ -3164,6 +3200,15 @@
    "name": "Sakura School Simulator",
    "kind": "microtrend",
    "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_grand_finals",
+   "name": "Grand Finals",
+   "kind": "microtrend",
+   "grade": "strong",
    "creators": 3,
    "videos": 3,
    "direct": 3
@@ -3214,15 +3259,6 @@
    "direct": 3
   },
   {
-   "id": "t_jack_perry_hugs_taz_on_dynamite",
-   "name": "Jack Perry hugs Taz on Dynamite",
-   "kind": "topic",
-   "grade": "early",
-   "creators": 2,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "t_luka_doncic",
    "name": "luka dončić",
    "kind": "topic",
@@ -3239,6 +3275,15 @@
    "creators": 2,
    "videos": 2,
    "direct": 2
+  },
+  {
+   "id": "m_sonic",
+   "name": "#sonic",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
   },
   {
    "id": "m_bolum_tanıtım",
@@ -3259,10 +3304,10 @@
    "direct": 5
   },
   {
-   "id": "m_grand_finals",
-   "name": "Grand Finals",
+   "id": "m_1st_ac",
+   "name": "1st Ac",
    "kind": "microtrend",
-   "grade": "strong",
+   "grade": "developing",
    "creators": 3,
    "videos": 3,
    "direct": 3
@@ -3340,24 +3385,6 @@
    "direct": 2
   },
   {
-   "id": "m_sonic",
-   "name": "#sonic",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
-   "id": "m_1st_ac",
-   "name": "1st Ac",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_6th_november",
    "name": "6th November",
    "kind": "microtrend",
@@ -3371,18 +3398,9 @@
    "name": "If Want",
    "kind": "microtrend",
    "grade": "developing",
-   "creators": 3,
-   "videos": 4,
-   "direct": 4
-  },
-  {
-   "id": "m_ada_yang",
-   "name": "Ada Yang",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
+   "creators": 4,
+   "videos": 5,
+   "direct": 5
   },
   {
    "id": "m_standupcomedy",
@@ -3407,15 +3425,6 @@
    "name": "Que Era",
    "kind": "microtrend",
    "grade": "strong",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
-   "id": "m_realmadrid",
-   "name": "#realmadrid",
-   "kind": "microtrend",
-   "grade": "developing",
    "creators": 3,
    "videos": 3,
    "direct": 3
@@ -3448,8 +3457,26 @@
    "direct": 3
   },
   {
+   "id": "m_channel_ini",
+   "name": "Channel Ini",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
    "id": "m_オーフ_ニンク",
    "name": "オーフ ニンク",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_반전드라마",
+   "name": "#반전드라마",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 3,
@@ -3520,26 +3547,26 @@
    "direct": 2
   },
   {
-   "id": "m_channel_ini",
-   "name": "Channel Ini",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
-   "id": "m_반전드라마",
-   "name": "#반전드라마",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
-  },
-  {
    "id": "m_telugu_movie",
    "name": "Telugu Movie",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_india_latent",
+   "name": "India Latent",
+   "kind": "microtrend",
+   "grade": "developing",
+   "creators": 3,
+   "videos": 3,
+   "direct": 3
+  },
+  {
+   "id": "m_cara_unik",
+   "name": "Cara Unik",
    "kind": "microtrend",
    "grade": "developing",
    "creators": 3,
@@ -3556,15 +3583,6 @@
    "direct": 2
   },
   {
-   "id": "t_valve_addresses_steam_ai_cloning",
-   "name": "Valve addresses Steam AI cloning",
-   "kind": "topic",
-   "grade": "early",
-   "creators": 2,
-   "videos": 2,
-   "direct": 1
-  },
-  {
    "id": "t_adif",
    "name": "adif",
    "kind": "topic",
@@ -3574,13 +3592,13 @@
    "direct": 2
   },
   {
-   "id": "m_india_latent",
-   "name": "India Latent",
-   "kind": "microtrend",
-   "grade": "developing",
-   "creators": 3,
-   "videos": 3,
-   "direct": 3
+   "id": "t_valve_addresses_steam_ai_cloning",
+   "name": "Valve addresses Steam AI cloning",
+   "kind": "topic",
+   "grade": "early",
+   "creators": 2,
+   "videos": 2,
+   "direct": 1
   },
   {
    "id": "t_trophy",
