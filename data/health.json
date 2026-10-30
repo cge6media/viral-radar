@@ -1,36 +1,36 @@
 {
- "generatedAt": "2026-10-30T16:25:28.723Z",
- "lastCollectionAt": "2026-10-30T16:24:22.225Z",
- "lastPublishedAt": "2026-10-30T16:24:22.225Z",
+ "generatedAt": "2026-10-30T17:05:05.734Z",
+ "lastCollectionAt": "2026-10-30T17:03:50.810Z",
+ "lastPublishedAt": "2026-10-30T17:03:50.810Z",
  "last24h": {
   "collections": 18,
   "expectedSlots": 47,
   "startRate": 0.38,
   "meanGapMin": 83,
   "maxGapMin": 301,
-  "failures": 10
+  "failures": 9
  },
  "sources": [
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-10-30T16:24:23.559Z"
+   "lastSuccess": "2026-10-30T17:03:51.785Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-10-30T16:24:27.990Z"
+   "lastSuccess": "2026-10-30T17:03:55.701Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-10-30T16:24:22.975Z"
+   "lastSuccess": "2026-10-30T17:03:51.698Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-10-30T16:25:05.065Z",
-   "error": "2 sub-request(s) failed: top:RU:72h:short: HTTP 429 for <url> | top:US:72h:short:cat19: HTTP 429 for <url>"
+   "lastSuccess": "2026-10-30T17:04:42.810Z",
+   "error": "1 sub-request(s) failed: top:US:144h-120h:short: HTTP 429 for <url>"
   },
   {
    "source": "tiktok",
@@ -986,6 +986,54 @@
    "searches": 16,
    "published": true,
    "trigger": "schedule"
+  },
+  {
+   "runId": "202610301703_9f9ae2a50781",
+   "startedAt": "2026-10-30T17:03:50.810Z",
+   "durationSec": 120,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4545,
+   "units": 1065,
+   "searches": 20,
+   "published": true,
+   "trigger": "workflow_dispatch",
+   "stages": {
+    "sources": 4.9,
+    "youtube": 50.7,
+    "relevance": 3.9,
+    "persist": 15.4,
+    "cluster": 3.3,
+    "score": 11.2,
+    "activity": 0,
+    "videos": 30,
+    "intel": 0.4,
+    "snapshot": 0.3
+   }
   }
- ]
+ ],
+ "workflow": {
+  "lastFailedAt": "2026-10-30T14:53:20Z",
+  "lastCancelledAt": "2026-10-30T16:11:33Z",
+  "consecutiveFailures": 1,
+  "last24h": {
+   "success": 16,
+   "failure": 9,
+   "cancelled": 112,
+   "total": 137
+  },
+  "exportedAt": "2026-10-30T17:05:05.734Z"
+ },
+ "stages": {
+  "sources": 4.9,
+  "youtube": 50.7,
+  "relevance": 3.9,
+  "persist": 15.4,
+  "cluster": 3.3,
+  "score": 11.2,
+  "activity": 0,
+  "videos": 30,
+  "intel": 0.4,
+  "snapshot": 0.3
+ }
 }
