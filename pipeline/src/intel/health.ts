@@ -3,7 +3,7 @@
  * Actions run list (data/health/actions.json) — the only place where *dropped* scheduled runs are visible, since a
  * run that never started cannot log itself. Freshness is a state computed by the client from `lastCollectionAt`.
  */
-import type { HealthReport, HealthRun, SourceStatus } from '../types.js';
+import type { HealthReport, HealthRun, SourceStatus, WorkflowHealth } from '../types.js';
 import { readJson, writeJson } from '../lib/store.js';
 import { hoursBetween, round } from '../lib/util.js';
 
@@ -24,6 +24,19 @@ export async function recordHealth(run: HealthRun, sources: SourceStatus[], now:
   const actions = await readJson<ActionsRun[]>('health/actions.json');
   const sched = (actions || []).filter((a) => a.event === 'schedule' && hoursBetween(a.createdAt, now) <= 24);
   const failures = (actions || []).filter((a) => hoursBetween(a.createdAt, now) <= 24 && a.conclusion === 'failure').length;
+  // workflow-level health: the Actions export is written before the pipeline runs, so it sees every earlier run,
+  // including the ones that failed or timed out and therefore never wrote a health record
+  const completed = (actions || []).filter((a) => a.status === 'completed' && a.conclusion).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  let consecutiveFailures = 0;
+  for (const a of completed) { if (a.conclusion === 'success') break; if (a.conclusion === 'failure') consecutiveFailures++; }
+  const day24 = completed.filter((a) => hoursBetween(a.createdAt, now) <= 24);
+  const workflow: WorkflowHealth = {
+    lastFailedAt: completed.find((a) => a.conclusion === 'failure')?.createdAt,
+    lastCancelledAt: completed.find((a) => a.conclusion === 'cancelled')?.createdAt,
+    consecutiveFailures,
+    last24h: { success: day24.filter((a) => a.conclusion === 'success').length, failure: day24.filter((a) => a.conclusion === 'failure').length, cancelled: day24.filter((a) => a.conclusion === 'cancelled').length, total: day24.length },
+    exportedAt: now,
+  };
   const report: HealthReport = {
     generatedAt: now,
     lastCollectionAt: run.startedAt,
@@ -38,6 +51,8 @@ export async function recordHealth(run: HealthRun, sources: SourceStatus[], now:
     sources: sources.map((s) => ({ source: s.source, ok: s.ok, lastSuccess: s.ok ? s.fetchedAt : undefined, error: s.error })),
     schedule: SCHEDULE,
     runs: runs.slice(-96),
+    workflow,
+    stages: run.stages,
   };
   void sched;
   await writeJson('health.json', { ...report, runs });

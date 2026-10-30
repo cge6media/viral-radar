@@ -19,7 +19,9 @@ import type { Metrics, Observation, Platform, SourceStatus } from '../types.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = process.env.VR_DATA_DIR || path.resolve(__dirname, '../../../data');
 export const RETENTION_DAYS = Number(process.env.VR_RETENTION_DAYS || 35);
-export const SCORE_RETENTION_DAYS = Number(process.env.VR_SCORE_RETENTION_DAYS || 14);
+// 2026-10-30: 14 → 7 days: the series shows 48 points (a day) and growth is measured over ≤48h; 14 days of records for
+// every cluster (~20 MB a day) were re-parsed by every run for nothing
+export const SCORE_RETENTION_DAYS = Number(process.env.VR_SCORE_RETENTION_DAYS || 7);
 /** minimum hours between ticks for an unchanged item */
 export const TICK_MIN_HOURS = Number(process.env.VR_TICK_MIN_HOURS || 3);
 /** relative change of the primary metric that forces a tick */
@@ -221,6 +223,41 @@ export async function loadScores(sinceDays = SCORE_RETENTION_DAYS): Promise<Scor
 }
 
 /** Remove history files older than the retention windows (keeps the repo small). */
+/**
+ * 2026-10-30: compact observation files older than `keepFullDays` to the last state per id (the last full record,
+ * plus the last tick after it). Metric history is only read for the last 8 days (velocity), so older files need
+ * only carry "the latest state of each id" for the 30-day index — not every 30-minute tick. Without this, the
+ * history grew ~18 MB a day and every run re-parsed all of it (35 days ≈ 600 MB), the next collection timeout in
+ * the making. A compacted file is marked by a `.compact` sidecar so it is rewritten only once.
+ */
+export async function compactHistory(keepFullDays = 9): Promise<{ files: string[]; before: number; after: number }> {
+  const out = { files: [] as string[], before: 0, after: 0 };
+  const cutoff = dayOf(new Date(Date.now() - keepFullDays * 864e5).toISOString());
+  let files: string[] = [];
+  try { files = (await readdir(obsDir())).filter((f) => f.endsWith('.ndjson') && f.slice(0, 10) < cutoff).sort(); } catch { return out; }
+  for (const f of files) {
+    const file = path.join(obsDir(), f);
+    const marker = `${file}.compact`;
+    try { await readFile(marker, 'utf8'); continue; } catch { /* not compacted yet */ }
+    const rows = await readNdjson<Observation | Tick>(file);
+    const lastFull = new Map<string, Observation>();
+    const lastTick = new Map<string, Tick>();
+    for (const r of rows) {
+      if (isTick(r)) { const cur = lastTick.get(r.id); if (!cur || r.observedAt >= cur.observedAt) lastTick.set(r.id, r); }
+      else { const cur = lastFull.get(r.id); if (!cur || r.observedAt >= cur.observedAt) lastFull.set(r.id, r); lastTick.delete(r.id); }
+    }
+    const kept: unknown[] = [];
+    for (const [id, full] of lastFull) { kept.push(full); const t = lastTick.get(id); if (t && t.observedAt >= full.observedAt) kept.push(t); }
+    // ticks whose full record lives in an earlier file must survive too (they carry the latest metrics for that id)
+    for (const [id, t] of lastTick) if (!lastFull.has(id)) kept.push(t);
+    out.before += rows.length; out.after += kept.length;
+    await rewriteNdjson(path.relative(DATA_DIR, file), kept);
+    await writeFile(marker, `${new Date().toISOString()} ${rows.length} -> ${kept.length}\n`, 'utf8');
+    out.files.push(f);
+  }
+  return out;
+}
+
 export async function pruneHistory(): Promise<string[]> {
   const removed: string[] = [];
   for (const [dir, days] of [[obsDir(), RETENTION_DAYS], [scoreDir(), SCORE_RETENTION_DAYS]] as const) {
@@ -232,7 +269,7 @@ export async function pruneHistory(): Promise<string[]> {
       continue;
     }
     for (const f of files) {
-      if (f.endsWith('.ndjson') && f.slice(0, 10) < cutoff) {
+      if ((f.endsWith('.ndjson') || f.endsWith('.ndjson.compact')) && f.slice(0, 10) < cutoff) {
         await unlink(path.join(dir, f));
         removed.push(f);
       }

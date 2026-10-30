@@ -741,6 +741,22 @@ export interface HealthRun {
   searches?: number;
   published: boolean;
   trigger?: string;
+  /** seconds spent per pipeline stage (sources, youtube, relevance, persist, cluster, score, activity, videos, intel) */
+  stages?: Record<string, number>;
+}
+/** 2026-10-30: workflow-level health from the Actions run history (data/health/actions.json), so a failed or
+ *  timed-out run is visible even though it never writes a health record itself */
+export interface WorkflowHealth {
+  /** last Actions run of any collect workflow that ended in failure */
+  lastFailedAt?: string;
+  /** last run that was cancelled (a timeout, or a queued run superseded by a newer one) */
+  lastCancelledAt?: string;
+  /** failures since the last successful collect run, counting only completed runs (cancelled runs are not failures) */
+  consecutiveFailures: number;
+  /** completed collect runs in the last 24 h by conclusion */
+  last24h: { success: number; failure: number; cancelled: number; total: number };
+  /** when the history was exported (it is written before the pipeline runs, so it excludes the current run) */
+  exportedAt?: string;
 }
 export interface HealthReport {
   generatedAt: string;
@@ -752,4 +768,8 @@ export interface HealthReport {
   sources: { source: string; ok: boolean; lastSuccess?: string; error?: string }[];
   schedule: string;
   runs: HealthRun[];
+  /** 2026-10-30: failures, cancellations and streaks from the Actions history */
+  workflow?: WorkflowHealth;
+  /** stage timings of the latest run (seconds) */
+  stages?: Record<string, number>;
 }

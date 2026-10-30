@@ -1,0 +1,8 @@
+# When two collections land on main at once, the later run is replayed on top of the earlier one (collect.yml):
+# append-only logs merge by union, regenerated JSON files take the replayed run's version whole ("takeours" driver,
+# defined in the workflow as `cp %B %A`), so the replay never conflicts and never produces half-merged JSON.
+data/history/**/*.ndjson merge=union
+data/predictions/*.ndjson merge=union
+data/predictions/archive/*.ndjson merge=union
+data/**/*.json merge=takeours
+data/*.json merge=takeours

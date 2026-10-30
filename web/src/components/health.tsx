@@ -32,7 +32,7 @@ export default function Health() {
   void recent;
   return (
     <>
-      <Section title="Freshness" sub="Collections are scheduled four times an hour and gated to roughly every 30 minutes; GitHub drops or delays some slots, so the real cadence is measured, not assumed.">
+      <Section title="Freshness" sub="Collections are scheduled four times an hour, chained by a keeper job and gated to roughly every 30 minutes; GitHub drops or delays some slots, so the real cadence is measured, not assumed. A failed or timed-out run never writes a record here, so the workflow-level counts below come from the Actions history exported at the start of each run.">
         <div className="tiles five">
           <StatTile v={f.label} k="Data state" s={`${f.minutes} min since the last collection`} cls={f.state === 'fresh' ? 'good' : f.state === 'delayed' ? 'warn' : 'bad'} />
           <StatTile v={h ? fmtAgo(h.lastCollectionAt, now) : fmtAgo(snapshot.generatedAt, now)} k="Last successful collection" s={new Date(h?.lastCollectionAt || snapshot.generatedAt).toLocaleString()} />
@@ -42,6 +42,15 @@ export default function Health() {
         </div>
         {h && (
           <div className="small muted" style={{ marginTop: 10 }}>Schedule <code>{h.schedule}</code> · mean gap {h.last24h.meanGapMin ?? '—'} min · {h.last24h.failures} failed Actions run{h.last24h.failures === 1 ? '' : 's'} in 24h · per-source last success: {h.sources.map((s) => `${s.source} ${s.ok ? '✓' : '✗ ' + (s.error || '').slice(0, 40)}`).join(' · ')}</div>
+        )}
+        {h?.workflow && (
+          <div className="tiles five" style={{ marginTop: 12 }}>
+            <StatTile v={h.workflow.consecutiveFailures} k="Consecutive failed runs" s={h.workflow.consecutiveFailures ? 'the last collect runs failed — check the Actions log' : 'the most recent completed run succeeded'} cls={h.workflow.consecutiveFailures === 0 ? 'good' : h.workflow.consecutiveFailures < 3 ? 'warn' : 'bad'} />
+            <StatTile v={h.workflow.lastFailedAt ? fmtAgo(h.workflow.lastFailedAt, now) : 'none'} k="Last failed run" s={h.workflow.lastFailedAt ? new Date(h.workflow.lastFailedAt).toLocaleString() : 'no failure in the exported history'} cls={h.workflow.lastFailedAt && (now - new Date(h.workflow.lastFailedAt).getTime()) < 6 * 36e5 ? 'warn' : ''} />
+            <StatTile v={`${h.workflow.last24h.success} / ${h.workflow.last24h.failure} / ${h.workflow.last24h.cancelled}`} k="Runs in 24h: ok / failed / cancelled" s="cancelled = timed out, or a queued run superseded by a newer trigger (not a failure)" cls={h.workflow.last24h.failure === 0 ? 'good' : h.workflow.last24h.failure <= 2 ? 'warn' : 'bad'} />
+            <StatTile v={h.workflow.lastCancelledAt ? fmtAgo(h.workflow.lastCancelledAt, now) : 'none'} k="Last cancelled run" s={h.workflow.lastCancelledAt ? new Date(h.workflow.lastCancelledAt).toLocaleString() : '—'} />
+            <StatTile v={h.stages ? `${Math.round(Object.values(h.stages).reduce((a, b) => a + b, 0))}s` : '—'} k="Last run's pipeline time" s={h.stages ? Object.entries(h.stages).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${v}s`).join(' · ') : 'stage timings appear from the next run'} cls={h.stages && Object.values(h.stages).reduce((a, b) => a + b, 0) > 900 ? 'warn' : ''} na={!h.stages} />
+          </div>
         )}
         {h?.runs?.length ? (
           <div className="runstrip" title="Last collections: height = items collected; dark = not published">

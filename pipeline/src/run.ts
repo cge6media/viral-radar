@@ -26,7 +26,7 @@ import { contentTime, inWindow, interestLevel, scoreWindow, uniqByExample, video
 import { runQualityChecks } from './quality.js';
 import { CRITICAL_CHECKS } from './gate.js';
 import {
-  appendNdjson, appendObservations, appendScores, loadMetricHistory, loadObservations, loadScores, loadSourceCache, pruneHistory, readNdjsonLog, rewriteNdjson,
+  appendNdjson, appendObservations, appendScores, compactHistory, loadMetricHistory, loadObservations, loadScores, loadSourceCache, pruneHistory, readNdjsonLog, rewriteNdjson,
   saveSourceCache, writeJson, readJson, DATA_DIR, type ScoreRecord,
 } from './lib/store.js';
 import { fixtureMode } from './lib/http.js';
@@ -80,6 +80,10 @@ async function runSource(source: Platform, fn: () => Promise<{ items: Observatio
 
 export async function main(): Promise<Snapshot> {
   const runStart = nowIso();
+  // stage timings (seconds since the previous stage) — printed and recorded in health.json so a slow run is diagnosable
+  const stageTimes: Record<string, number> = {};
+  let stageAt = Date.now();
+  const stage = (name: string) => { const t = Date.now(); stageTimes[name] = round((t - stageAt) / 1000, 1); stageAt = t; console.log(`  ⏱ ${name}: ${stageTimes[name]}s`); };
   const runId = `${runStart.slice(0, 16).replace(/[-:T]/g, '')}_${sha1(runStart)}`;
   console.log(`[viral-radar] run ${runId} fixtures=${fixtureMode()} data=${DATA_DIR}`);
 
@@ -92,6 +96,7 @@ export async function main(): Promise<Snapshot> {
     runSource('tiktok', collectTikTok),
   ]);
 
+  stage('sources');
   // ---- 2. YouTube: verify linked videos + charts + rationed discovery ----
   // tracking refresh, prioritised: featured videos every run, videos seen in the last 72h every run, the rest of the
   // 7-day universe on alternating runs (the universe outgrew a flat 1,500-id cap once discovery widened)
@@ -183,9 +188,11 @@ export async function main(): Promise<Snapshot> {
     if (n) console.log(`  verified ${n} linked TikTok videos via oEmbed (title + author + embed; TikTok publishes no statistics)`);
   }
 
+  stage('youtube');
   // ---- 3. relevance validation (stage 2 classification) ----
   for (const o of fresh) o.formats = validateObservation(o).formats;
 
+  stage('relevance');
   // ---- 4. persist + dedupe ----
   const written = await appendObservations(fresh, existing);
   const all = dedupeLatest([...existing, ...fresh]);
@@ -196,6 +203,7 @@ export async function main(): Promise<Snapshot> {
   if (shortsApplied) console.log(`  shorts: ${shortsApplied} observations carry a verified Shorts/not-Shorts state`);
   console.log(`  observations: +${written.full} new, ${written.ticks} ticks, ${all.length} unique in window (${existing.length} loaded from history)`);
 
+  stage('persist');
   // ---- 5. cluster ----
   const now = nowIso();
   const recent = all.filter((o) => inWindow(o, '7d', now) && !(o.kind === 'post' && !(o.text || '').trim()));
@@ -205,6 +213,7 @@ export async function main(): Promise<Snapshot> {
   for (const r of scoreHistory) (byTrend.get(r.trendId) || byTrend.set(r.trendId, []).get(r.trendId)!).push(r);
   const metricHistory = await loadMetricHistory(recent.filter((o) => o.kind === 'video' && o.level === 'direct').map((o) => o.id));
 
+  stage('cluster');
   // ---- 6. score per window ----
   const trends: Trend[] = [];
   const records: ScoreRecord[] = [];
@@ -241,19 +250,23 @@ export async function main(): Promise<Snapshot> {
     records.push({ runId, t: now, trendId: c.id, name: c.name, momentum: s7.momentum, confidence: s7.confidence, monetization: trend.monetizationSuitability, creator: s7.creatorOpportunity, signal: s7.adoption / 100, lifecycle: s7.lifecycle, evidenceCount: s7.items, adoption: s7.creators, creators24: windows['24h'].creators, creators48: windows['48h'].creators, directVideos: s7.directVideos, grade: s7.grade, sources: sourceSignature });
   }
   trends.sort((a, b) => Number(b.qualified) - Number(a.qualified) || b.scores.opportunity - a.scores.opportunity || b.scores.momentum - a.scores.momentum);
-  await appendScores(records);
+  // score history only for trends the dashboard ships (bare signal topics with no videos and no grade are counted, never shown)
+  const shippedIds = new Set(trends.filter((t) => !(t.kind === 'topic' && t.videoCount === 0 && WINDOWS.every((w) => t.windows[w].grade === 'insufficient'))).map((t) => t.id));
+  await appendScores(records.filter((r) => shippedIds.has(r.trendId)));
   // keep the snapshot small: series capped to the last 96 points; bare signal topics with no videos and no grade
   // in any window are counted but not shipped (they are news/search spikes the dashboard never shows)
   for (const t of trends) t.series = t.series.slice(-48);
   const shipped = trends.filter((t) => !(t.kind === 'topic' && t.videoCount === 0 && WINDOWS.every((w) => t.windows[w].grade === 'insufficient')));
   console.log(`  snapshot trends: ${shipped.length} of ${trends.length} (dropped ${trends.length - shipped.length} bare signal topics)`);
 
+  stage('score');
   // ---- 7. category activity ----
   const categories = categoryActivity(recent, trends, now);
 
   // ---- 8. source quality ----
   const sourceQuality = sourceQualityFrom([gt, bs, ma, yt, tt], recent, now, existing);
 
+  stage('activity');
   // ---- 8b. video-native intelligence (3.0): one record per unique video over 30 days ----
   const recent30 = all.filter((o) => o.kind === 'video' && hoursBetween(contentTime(o) || o.firstSeenAt || o.observedAt, now) <= 24 * 30);
   const metricHistory30 = await loadMetricHistory(new Set([...recent30.filter((o) => o.level === 'direct').map((o) => o.id), ...openPredictionVideoIds]), 12);
@@ -279,6 +292,7 @@ export async function main(): Promise<Snapshot> {
   const videoIntel = buildVideoIntel({ records: videoRecords, trends, sources, observations: recent30, now, youtubeQuota: ledgerNow && ledgerNow.day === quotaDay(now) ? { used: ledgerNow.units, limit: UNIT_BUDGET, searches: ledgerNow.searchCalls, searchLimit: SEARCH_BUDGET } : undefined });
   await writeJson('videos.json', { generatedAt: now, runId, counts: videoIntel.counts, records: videoRecords.filter((r) => r.state !== 'rejected' || isCandidateLike(r)).map(slimRecord) }, { compact: true });
 
+  stage('videos');
   // ---- 8c. 4.0: opportunity types, Creator Desk, forward predictions, alerts ----
   const typeCounts = classifyTrends(trends, videoRecords, now);
   const desk = buildDesk(trends, videoRecords, now);
@@ -327,13 +341,17 @@ export async function main(): Promise<Snapshot> {
   if (yieldLedger) await writeJson('diagnostics/discovery-yield.json', { generatedAt: now, ...summarizeYield(yieldLedger) }, { compact: true });
   console.log(`  videos: ${videoRecords.length} unique (${videoIntel.counts.verified_hit} verified hits, ${videoIntel.counts.early_breakout} breakouts, ${videoIntel.counts.unverified_signal} unverified signals, ${videoIntel.counts.rejected} rejected, ${dupes} duplicates); funnel ${videoIntel.funnel.discovered}→${videoIntel.funnel.verified}→${videoIntel.funnel.candidates}→${videoIntel.funnel.qualified}→${videoIntel.funnel.inFeed}`);
 
+  stage('intel');
   // ---- 9. quality checks + snapshot ----
   const pruned = await pruneHistory();
   if (pruned.length) console.log(`  pruned ${pruned.length} old history files`);
+  const compacted = await compactHistory();
+  if (compacted.files.length) console.log(`  compacted ${compacted.files.length} observation files older than 9 days: ${compacted.before} → ${compacted.after} rows`);
   const earliest = all.map((o) => o.firstSeenAt || o.observedAt).sort()[0];
   const ledger = await readJson<{ units: number; searchCalls: number; day: string }>('cache/youtube-quota.json');
   const quality = runQualityChecks({ trends, observations: recent, sources, now, records: videoRecords });
-  const health = await recordHealth({ runId, startedAt: runStart, durationSec: round((Date.now() - new Date(runStart).getTime()) / 1000, 0), sourcesOk: sources.filter((s) => s.ok).length, sourcesTotal: sources.length, items: fresh.length, units: ledger?.day === quotaDay(now) ? ledger.units : undefined, searches: ledger?.day === quotaDay(now) ? ledger.searchCalls : undefined, published: quality.checks.every((c) => c.ok || !CRITICAL_CHECKS.has(c.name)) && sources.some((x) => x.ok), trigger: process.env.GITHUB_EVENT_NAME }, sources, now);
+  stage('snapshot');
+  const health = await recordHealth({ runId, startedAt: runStart, durationSec: round((Date.now() - new Date(runStart).getTime()) / 1000, 0), sourcesOk: sources.filter((s) => s.ok).length, sourcesTotal: sources.length, items: fresh.length, units: ledger?.day === quotaDay(now) ? ledger.units : undefined, searches: ledger?.day === quotaDay(now) ? ledger.searchCalls : undefined, published: quality.checks.every((c) => c.ok || !CRITICAL_CHECKS.has(c.name)) && sources.some((x) => x.ok), trigger: process.env.GITHUB_EVENT_NAME, stages: stageTimes }, sources, now);
   const snapshot: Snapshot = {
     version: 2, generatedAt: now, runId, sources, sourceQuality, trends: shipped.map(slimTrend), categories, quality, videos: videoIntel,
     desk, alerts, health, scorecard: summaryOf(scorecard),
