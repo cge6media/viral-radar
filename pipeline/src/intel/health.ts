@@ -27,8 +27,10 @@ export async function recordHealth(run: HealthRun, sources: SourceStatus[], now:
   // workflow-level health: the Actions export is written before the pipeline runs, so it sees every earlier run,
   // including the ones that failed or timed out and therefore never wrote a health record
   const completed = (actions || []).filter((a) => a.status === 'completed' && a.conclusion).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  let consecutiveFailures = 0;
-  for (const a of completed) { if (a.conclusion === 'success') break; if (a.conclusion === 'failure') consecutiveFailures++; }
+  // a run's conclusion lags while its keeper job sleeps, so the streak is counted against the last *collection* that
+  // wrote a health record (this run excluded): failures created after it are consecutive
+  const lastSuccess = runs.filter((r) => r.runId !== run.runId).map((r) => r.startedAt).sort().pop() || '';
+  const consecutiveFailures = completed.filter((a) => a.conclusion === 'failure' && a.createdAt > lastSuccess).length;
   const day24 = completed.filter((a) => hoursBetween(a.createdAt, now) <= 24);
   const workflow: WorkflowHealth = {
     lastFailedAt: completed.find((a) => a.conclusion === 'failure')?.createdAt,

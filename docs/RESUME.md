@@ -48,7 +48,13 @@ git push -u origin main
   starts a `keeper` job: it sleeps 25 minutes, checks that no collection started in the last 10 minutes, and
   dispatches `collect.yml` with `chain=true`; the freshness gate (skip when `data/latest.json` is <22 min old)
   applies to scheduled and chained runs, so collectors never overlap. Manual runs are never skipped and start no
-  chain. Disabling the workflows stops the chain. Collection health and the Actions run history are in `data/health.json` and
+  chain. Disabling the workflows stops the chain.
+- **2026-10-30 repair** (`docs/INCIDENT_2026-10-30.md`): every collect job first syncs to the tip of `main`
+  (queued jobs used to check out a stale ref and then fail at the push); the data commit is replayed on a moved
+  `main` with union merges for NDJSON logs and whole-file "take ours" for regenerated JSON (`.gitattributes`);
+  the keeper also checks published freshness; clustering is near-linear again (the quadratic loops were the real
+  cause of the timeouts); observation files older than 9 days are compacted and score retention is 7 days;
+  `health.json → workflow` and `→ stages` carry failure streaks and per-stage timings for the Health tab. Collection health and the Actions run history are in `data/health.json` and
   `data/health/actions.json`; the app shows them under Diagnostics → Radar health (freshness is a state: fresh
   <45 min, delayed <2 h, stale).
 - **Adaptive discovery.** `data/cache/youtube-yield.json` is the per-probe yield ledger (summarised in
