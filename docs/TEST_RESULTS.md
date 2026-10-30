@@ -1,4 +1,17 @@
-# Test results — Viral Radar 4.0 (2026-10-28)
+# Test results — Viral Radar 4.0 (2026-10-28) · workflow repair (2026-10-30)
+
+## 2026-10-30 — workflow repair (`docs/INCIDENT_2026-10-30.md`)
+
+| check | result |
+|---|---|
+| `npm test` | **56/56** (new: `compact.test.ts` — old observation files compact to the last state per id, recent files untouched, latest state survives) |
+| offline replay of the 15:04 data, before → after | whole run **> 20 min → 2 m 30 s** (cluster stage > 12 min → 7.7 s; 60 s of the rest is the sandbox's blocked network timing out) |
+| manual run `202610301703` on the repaired code (jobs API) | Sync 16 s · gate 0 s · **Collect 2 m 01 s** (was 19 m 17 s at 14:44) · Commit data 7 s · job total 2 m 48 s · 4,545 items · 4/5 sources (TikTok disabled by design) · YouTube 1,065 units / 20 searches · gate true · data commit `8adc11f` |
+| replay-path test: a docs commit pushed to `main` while run `202610301708` was collecting | Commit data 18 s (push rejected → fetch → rebase with union/take-ours → push) → data commit `c782159` on top of the interleaved commit; 0 conflict markers; every JSON file parses; NDJSON tail parses; both runs in `health.json` |
+| first scheduled runs on the repaired code (`C` 17:19, `B` 17:23, `D` 17:07 UTC) | synced to `main`, freshness gate skipped in ≤ 40 s each (data 2–12 min old) — no 15-minute wasted runs, no failures |
+| live site (real Chromium on the runner, 17:23 UTC, `data/qa/`) | Health tab shows the 17:08 run, "Fresh", 0 consecutive failed runs, the 24-h ok/failed/cancelled counts and the stage timings; 0 overflow pages; 14/15 embeds; console errors are 82 resource 404s (missing thumbnails), no app errors |
+| historical data | untouched: `data/history` files preserved (18.4 + 15.9 + 5.0 MB observations; scores 13.2 + 20.2 + 4.4 MB), predictions/outcomes intact (574 predictions, 545 evaluated on the live scorecard); compaction only rewrites files older than 9 days (none yet) |
+| recovery checkpoint | branch `v4-stable` = `1ef4b60` (4.0.2 as deployed, data of 15:04 UTC) |
 
 Everything below ran in the cloud (GitHub Actions runners or Anthropic's sandbox); no personal machine was used.
 

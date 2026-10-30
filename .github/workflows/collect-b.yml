@@ -47,8 +47,7 @@ jobs:
       - name: Sync to the tip of main
         run: |
           sleep 15
-          git fetch -q origin main
-          git reset -q --hard origin/main
+          if git fetch -q origin main; then git reset -q --hard origin/main; else echo "::warning::fetch failed — working from the checkout"; fi
           echo "head: $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
 
       - name: Freshness gate (skip when the last collection is < 22 min old)
