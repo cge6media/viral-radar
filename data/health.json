@@ -1,36 +1,36 @@
 {
- "generatedAt": "2026-10-30T18:16:46.450Z",
- "lastCollectionAt": "2026-10-30T18:15:36.337Z",
- "lastPublishedAt": "2026-10-30T18:15:36.337Z",
+ "generatedAt": "2026-10-30T18:45:02.242Z",
+ "lastCollectionAt": "2026-10-30T18:43:57.926Z",
+ "lastPublishedAt": "2026-10-30T18:43:57.926Z",
  "last24h": {
   "collections": 19,
-  "expectedSlots": 48,
+  "expectedSlots": 47,
   "startRate": 0.4,
   "meanGapMin": 79,
   "maxGapMin": 301,
-  "failures": 7
+  "failures": 6
  },
  "sources": [
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-10-30T18:15:37.516Z"
+   "lastSuccess": "2026-10-30T18:43:59.157Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-10-30T18:15:42.519Z"
+   "lastSuccess": "2026-10-30T18:44:05.749Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-10-30T18:15:37.398Z"
+   "lastSuccess": "2026-10-30T18:43:59.092Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-10-30T18:16:17.416Z",
-   "error": "4 sub-request(s) failed: top:US:72h:short:cat1: HTTP 429 for <url> | top:CO:168h:short:es: HTTP 429 for <url> | …"
+   "lastSuccess": "2026-10-30T18:44:32.124Z",
+   "error": "2 sub-request(s) failed: top:JP:72h:short: HTTP 429 for <url> | top:US:168h:medium: HTTP 429 for <url>"
   },
   {
    "source": "tiktok",
@@ -1082,6 +1082,30 @@
     "intel": 0.5,
     "snapshot": 0.4
    }
+  },
+  {
+   "runId": "202610301843_02691722cdc7",
+   "startedAt": "2026-10-30T18:43:57.926Z",
+   "durationSec": 125,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4513,
+   "units": 1612,
+   "searches": 36,
+   "published": true,
+   "trigger": "workflow_dispatch",
+   "stages": {
+    "sources": 7.8,
+    "youtube": 31.3,
+    "relevance": 4.9,
+    "persist": 20.2,
+    "cluster": 4.9,
+    "score": 15.9,
+    "activity": 0,
+    "videos": 39,
+    "intel": 0.5,
+    "snapshot": 0.4
+   }
   }
  ],
  "workflow": {
@@ -1089,22 +1113,22 @@
   "lastCancelledAt": "2026-10-30T16:45:29Z",
   "consecutiveFailures": 0,
   "last24h": {
-   "success": 21,
-   "failure": 7,
+   "success": 22,
+   "failure": 6,
    "cancelled": 112,
    "total": 140
   },
-  "exportedAt": "2026-10-30T18:16:46.450Z"
+  "exportedAt": "2026-10-30T18:45:02.242Z"
  },
  "stages": {
-  "sources": 6.2,
-  "youtube": 39,
-  "relevance": 5,
-  "persist": 19.9,
-  "cluster": 4.8,
-  "score": 15.5,
-  "activity": 0.1,
-  "videos": 35.8,
+  "sources": 7.8,
+  "youtube": 31.3,
+  "relevance": 4.9,
+  "persist": 20.2,
+  "cluster": 4.9,
+  "score": 15.9,
+  "activity": 0,
+  "videos": 39,
   "intel": 0.5,
   "snapshot": 0.4
  }
