@@ -231,6 +231,8 @@ jobs:
     if: always() && (github.event_name == 'schedule' || inputs.chain == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    # a keeper that cannot dispatch (API hiccup) must not turn a successful collection into a failed run (and an email)
+    continue-on-error: true
     permissions:
       actions: write
     steps:
@@ -246,5 +248,5 @@ jobs:
           # and published data younger than 20 minutes means there is nothing to chase yet
           AGE=$(curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/main/data/health.json" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const h=JSON.parse(s);console.log(Math.round((Date.now()-new Date(h.lastCollectionAt).getTime())/60000))})" 2>/dev/null || echo 999)
           if [ "$AGE" -lt 20 ]; then echo "::notice::last collection is ${AGE} min old — not dispatching"; exit 0; fi
-          gh workflow run collect.yml --repo "${{ github.repository }}" -f chain=true
+          gh workflow run collect.yml --repo "${{ github.repository }}" -f chain=true || { echo "::warning::dispatch failed — the schedules will cover the next slot"; exit 0; }
           echo "::notice::next collection dispatched"
