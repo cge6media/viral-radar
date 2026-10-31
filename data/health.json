@@ -1,12 +1,12 @@
 {
- "generatedAt": "2026-10-31T02:46:41.197Z",
- "lastCollectionAt": "2026-10-31T02:45:32.664Z",
- "lastPublishedAt": "2026-10-31T02:45:32.664Z",
+ "generatedAt": "2026-10-31T03:14:51.505Z",
+ "lastCollectionAt": "2026-10-31T03:13:48.884Z",
+ "lastPublishedAt": "2026-10-31T03:13:48.884Z",
  "last24h": {
-  "collections": 27,
-  "expectedSlots": 47,
-  "startRate": 0.57,
-  "meanGapMin": 54,
+  "collections": 28,
+  "expectedSlots": 48,
+  "startRate": 0.58,
+  "meanGapMin": 53,
   "maxGapMin": 301,
   "failures": 2
  },
@@ -14,23 +14,23 @@
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-10-31T02:45:33.951Z"
+   "lastSuccess": "2026-10-31T03:13:50.079Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-10-31T02:45:39.497Z"
+   "lastSuccess": "2026-10-31T03:13:53.787Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-10-31T02:45:34.002Z"
+   "lastSuccess": "2026-10-31T03:13:50.171Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-10-31T02:46:11.345Z",
-   "error": "2 sub-request(s) failed: top:PL:72h:short: HTTP 429 for <url> | top:US:72h:short:cat27: HTTP 429 for <url>"
+   "lastSuccess": "2026-10-31T03:14:23.705Z",
+   "error": "2 sub-request(s) failed: top:US:72h:short:cat26: HTTP 429 for <url> | yt:parody song: HTTP 429 for <url>"
   },
   {
    "source": "tiktok",
@@ -1490,6 +1490,30 @@
     "intel": 0.5,
     "snapshot": 0.3
    }
+  },
+  {
+   "runId": "202610310313_579bc5c93a19",
+   "startedAt": "2026-10-31T03:13:48.884Z",
+   "durationSec": 121,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4060,
+   "units": 3998,
+   "searches": 83,
+   "published": true,
+   "trigger": "workflow_dispatch",
+   "stages": {
+    "sources": 4.9,
+    "youtube": 34,
+    "relevance": 4.2,
+    "persist": 19.5,
+    "cluster": 4.4,
+    "score": 15.5,
+    "activity": 0.1,
+    "videos": 38,
+    "intel": 0.4,
+    "snapshot": 0.3
+   }
   }
  ],
  "workflow": {
@@ -1497,23 +1521,23 @@
   "lastCancelledAt": "2026-10-30T16:45:29Z",
   "consecutiveFailures": 0,
   "last24h": {
-   "success": 57,
+   "success": 62,
    "failure": 2,
-   "cancelled": 73,
-   "total": 132
+   "cancelled": 71,
+   "total": 135
   },
-  "exportedAt": "2026-10-31T02:46:41.197Z"
+  "exportedAt": "2026-10-31T03:14:51.505Z"
  },
  "stages": {
-  "sources": 6.8,
-  "youtube": 37.5,
-  "relevance": 4.4,
-  "persist": 19.7,
-  "cluster": 4.9,
-  "score": 16.3,
-  "activity": 0.2,
-  "videos": 39.6,
-  "intel": 0.5,
+  "sources": 4.9,
+  "youtube": 34,
+  "relevance": 4.2,
+  "persist": 19.5,
+  "cluster": 4.4,
+  "score": 15.5,
+  "activity": 0.1,
+  "videos": 38,
+  "intel": 0.4,
   "snapshot": 0.3
  }
 }
