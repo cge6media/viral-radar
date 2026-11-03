@@ -1,10 +1,10 @@
 {
- "generatedAt": "2026-11-03T20:01:07.201Z",
- "lastCollectionAt": "2026-11-03T19:59:27.184Z",
- "lastPublishedAt": "2026-11-03T19:59:27.184Z",
+ "generatedAt": "2026-11-03T20:36:45.140Z",
+ "lastCollectionAt": "2026-11-03T20:35:24.443Z",
+ "lastPublishedAt": "2026-11-03T20:35:24.443Z",
  "last24h": {
   "collections": 48,
-  "expectedSlots": 47,
+  "expectedSlots": 48,
   "startRate": 1,
   "meanGapMin": 30,
   "maxGapMin": 48,
@@ -14,22 +14,23 @@
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-11-03T19:59:29.257Z"
+   "lastSuccess": "2026-11-03T20:35:26.510Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-11-03T19:59:38.373Z"
+   "lastSuccess": "2026-11-03T20:35:32.537Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-11-03T19:59:29.237Z"
+   "lastSuccess": "2026-11-03T20:35:25.626Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-11-03T20:00:05.408Z"
+   "lastSuccess": "2026-11-03T20:35:55.617Z",
+   "error": "1 sub-request(s) failed: uploads UCM9SwoeOLtalqxyuZXIGe2Q: HTTP 404 for <url>"
   },
   {
    "source": "tiktok",
@@ -5833,29 +5834,53 @@
     "intel": 1.6,
     "snapshot": 1.6
    }
+  },
+  {
+   "runId": "202611032035_6faa91f4bb35",
+   "startedAt": "2026-11-03T20:35:24.443Z",
+   "durationSec": 177,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4408,
+   "units": 3632,
+   "searches": 50,
+   "published": true,
+   "trigger": "workflow_dispatch",
+   "stages": {
+    "sources": 8.1,
+    "youtube": 34.4,
+    "relevance": 3.8,
+    "persist": 34.4,
+    "cluster": 7.9,
+    "score": 26.6,
+    "activity": 0.1,
+    "videos": 59.7,
+    "intel": 1.8,
+    "snapshot": 0.3
+   }
   }
  ],
  "workflow": {
-  "lastCancelledAt": "2026-11-03T17:50:15Z",
+  "lastCancelledAt": "2026-11-03T19:50:09Z",
   "consecutiveFailures": 0,
   "last24h": {
-   "success": 110,
+   "success": 111,
    "failure": 0,
-   "cancelled": 4,
-   "total": 114
+   "cancelled": 5,
+   "total": 116
   },
-  "exportedAt": "2026-11-03T20:01:07.201Z"
+  "exportedAt": "2026-11-03T20:36:45.140Z"
  },
  "stages": {
-  "sources": 11.2,
-  "youtube": 33.2,
-  "relevance": 5.2,
-  "persist": 50.4,
-  "cluster": 11.5,
-  "score": 40.6,
+  "sources": 8.1,
+  "youtube": 34.4,
+  "relevance": 3.8,
+  "persist": 34.4,
+  "cluster": 7.9,
+  "score": 26.6,
   "activity": 0.1,
-  "videos": 87.7,
-  "intel": 1.6,
-  "snapshot": 1.6
+  "videos": 59.7,
+  "intel": 1.8,
+  "snapshot": 0.3
  }
 }
