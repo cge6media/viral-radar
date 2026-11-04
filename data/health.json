@@ -1,10 +1,10 @@
 {
- "generatedAt": "2026-11-04T19:28:47.075Z",
- "lastCollectionAt": "2026-11-04T19:27:05.679Z",
- "lastPublishedAt": "2026-11-04T19:27:05.679Z",
+ "generatedAt": "2026-11-04T19:59:47.362Z",
+ "lastCollectionAt": "2026-11-04T19:58:13.527Z",
+ "lastPublishedAt": "2026-11-04T19:58:13.527Z",
  "last24h": {
-  "collections": 49,
-  "expectedSlots": 48,
+  "collections": 48,
+  "expectedSlots": 47,
   "startRate": 1,
   "meanGapMin": 30,
   "maxGapMin": 41,
@@ -14,22 +14,22 @@
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-11-04T19:27:07.966Z"
+   "lastSuccess": "2026-11-04T19:58:16.204Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-11-04T19:27:13.311Z"
+   "lastSuccess": "2026-11-04T19:58:23.515Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-11-04T19:27:08.137Z"
+   "lastSuccess": "2026-11-04T19:58:15.634Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-11-04T19:27:42.470Z"
+   "lastSuccess": "2026-11-04T19:58:54.474Z"
   },
   {
    "source": "tiktok",
@@ -38,18 +38,6 @@
  ],
  "schedule": "4 schedules × 2 slots/hour (3,33 · 18,48 · 11,41 · 26,56), gated to ≥22 min",
  "runs": [
-  {
-   "runId": "202610290020_7cdf32a92990",
-   "startedAt": "2026-10-29T00:20:06.804Z",
-   "durationSec": 311,
-   "sourcesOk": 4,
-   "sourcesTotal": 5,
-   "items": 4096,
-   "units": 5694,
-   "searches": 69,
-   "published": true,
-   "trigger": "workflow_dispatch"
-  },
   {
    "runId": "202610290049_83c53cac40d4",
    "startedAt": "2026-10-29T00:49:24.804Z",
@@ -6625,29 +6613,53 @@
     "intel": 1,
     "snapshot": 1.5
    }
+  },
+  {
+   "runId": "202611041958_a8b3c3489bfa",
+   "startedAt": "2026-11-04T19:58:13.527Z",
+   "durationSec": 207,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4120,
+   "units": 3530,
+   "searches": 47,
+   "published": true,
+   "trigger": "workflow_dispatch",
+   "stages": {
+    "sources": 10,
+    "youtube": 36.3,
+    "relevance": 3.8,
+    "persist": 43.8,
+    "cluster": 9,
+    "score": 25.9,
+    "activity": 0.1,
+    "videos": 75.1,
+    "intel": 1.7,
+    "snapshot": 1.4
+   }
   }
  ],
  "workflow": {
   "lastCancelledAt": "2026-11-04T15:55:21Z",
   "consecutiveFailures": 0,
   "last24h": {
-   "success": 108,
+   "success": 107,
    "failure": 0,
-   "cancelled": 5,
-   "total": 113
+   "cancelled": 4,
+   "total": 111
   },
-  "exportedAt": "2026-11-04T19:28:47.075Z"
+  "exportedAt": "2026-11-04T19:59:47.362Z"
  },
  "stages": {
-  "sources": 7.6,
-  "youtube": 35.2,
-  "relevance": 5,
-  "persist": 53.5,
-  "cluster": 11.3,
-  "score": 29.9,
+  "sources": 10,
+  "youtube": 36.3,
+  "relevance": 3.8,
+  "persist": 43.8,
+  "cluster": 9,
+  "score": 25.9,
   "activity": 0.1,
-  "videos": 84.4,
-  "intel": 1,
-  "snapshot": 1.5
+  "videos": 75.1,
+  "intel": 1.7,
+  "snapshot": 1.4
  }
 }
