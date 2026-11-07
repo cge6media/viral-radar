@@ -1,35 +1,36 @@
 {
- "generatedAt": "2026-11-07T01:31:43.918Z",
- "lastCollectionAt": "2026-11-07T01:30:08.606Z",
- "lastPublishedAt": "2026-11-07T01:30:08.606Z",
+ "generatedAt": "2026-11-07T01:59:48.203Z",
+ "lastCollectionAt": "2026-11-07T01:57:59.482Z",
+ "lastPublishedAt": "2026-11-07T01:57:59.482Z",
  "last24h": {
   "collections": 49,
   "expectedSlots": 47,
   "startRate": 1,
-  "meanGapMin": 30,
-  "maxGapMin": 36,
+  "meanGapMin": 29,
+  "maxGapMin": 34,
   "failures": 0
  },
  "sources": [
   {
    "source": "google_trends",
    "ok": true,
-   "lastSuccess": "2026-11-07T01:30:11.068Z"
+   "lastSuccess": "2026-11-07T01:58:01.856Z"
   },
   {
    "source": "bluesky",
    "ok": true,
-   "lastSuccess": "2026-11-07T01:30:18.279Z"
+   "lastSuccess": "2026-11-07T01:58:06.642Z"
   },
   {
    "source": "mastodon",
    "ok": true,
-   "lastSuccess": "2026-11-07T01:30:11.263Z"
+   "lastSuccess": "2026-11-07T01:58:01.971Z"
   },
   {
    "source": "youtube",
    "ok": true,
-   "lastSuccess": "2026-11-07T01:30:46.565Z"
+   "lastSuccess": "2026-11-07T01:58:31.733Z",
+   "error": "1 sub-request(s) failed: uploads UC1_liDR4fRFJgH4HoJeV8cw: HTTP 404 for <url>"
   },
   {
    "source": "tiktok",
@@ -38,30 +39,6 @@
  ],
  "schedule": "4 schedules × 2 slots/hour (3,33 · 18,48 · 11,41 · 26,56), gated to ≥22 min",
  "runs": [
-  {
-   "runId": "202610312127_03a70b5a0453",
-   "startedAt": "2026-10-31T21:27:23.176Z",
-   "durationSec": 147,
-   "sourcesOk": 4,
-   "sourcesTotal": 5,
-   "items": 4477,
-   "units": 4463,
-   "searches": 58,
-   "published": true,
-   "trigger": "workflow_dispatch",
-   "stages": {
-    "sources": 9.6,
-    "youtube": 28.9,
-    "relevance": 5.1,
-    "persist": 29.2,
-    "cluster": 7,
-    "score": 19.9,
-    "activity": 0.1,
-    "videos": 46.2,
-    "intel": 0.8,
-    "snapshot": 0.4
-   }
-  },
   {
    "runId": "202610312156_c081c493840a",
    "startedAt": "2026-10-31T21:56:12.093Z",
@@ -7237,29 +7214,53 @@
     "intel": 4.9,
     "snapshot": 0.3
    }
+  },
+  {
+   "runId": "202611070157_0cd92aeaceac",
+   "startedAt": "2026-11-07T01:57:59.482Z",
+   "durationSec": 245,
+   "sourcesOk": 4,
+   "sourcesTotal": 5,
+   "items": 4539,
+   "units": 5651,
+   "searches": 72,
+   "published": true,
+   "trigger": "schedule",
+   "stages": {
+    "sources": 7.2,
+    "youtube": 33.1,
+    "relevance": 4.8,
+    "persist": 63.7,
+    "cluster": 10.1,
+    "score": 27.5,
+    "activity": 0.1,
+    "videos": 95.9,
+    "intel": 1.1,
+    "snapshot": 1.2
+   }
   }
  ],
  "workflow": {
-  "lastCancelledAt": "2026-11-06T20:45:05Z",
+  "lastCancelledAt": "2026-11-07T00:59:09Z",
   "consecutiveFailures": 0,
   "last24h": {
-   "success": 115,
+   "success": 113,
    "failure": 0,
    "cancelled": 6,
-   "total": 121
+   "total": 119
   },
-  "exportedAt": "2026-11-07T01:31:43.918Z"
+  "exportedAt": "2026-11-07T01:59:48.203Z"
  },
  "stages": {
-  "sources": 9.7,
-  "youtube": 34.7,
-  "relevance": 3.2,
-  "persist": 47.8,
-  "cluster": 9.3,
-  "score": 21.2,
+  "sources": 7.2,
+  "youtube": 33.1,
+  "relevance": 4.8,
+  "persist": 63.7,
+  "cluster": 10.1,
+  "score": 27.5,
   "activity": 0.1,
-  "videos": 77.8,
-  "intel": 4.9,
-  "snapshot": 0.3
+  "videos": 95.9,
+  "intel": 1.1,
+  "snapshot": 1.2
  }
 }
